@@ -282,21 +282,37 @@ func collect_sponsor() -> Dictionary:
 
 func create_match(mode: String) -> Dictionary:
 	var record := mode_record(mode)
-	var mmr := int(record.get("mmr", 850))
+	var roster := roster_for(mode)
+	var format := match_format(mode)
+	var mmr := int(record.get("mmr", 650))
 	var player_strength := float(team_overall(mode))
-	player_strength += float(facility_level("analytics") - 1) * 0.85
-	player_strength += float(facility_level("coaching") - 1) * 0.35
-	var expected_strength := 55.0 + float(mmr - 800) / 25.0
-	var opponent_strength := clampf(expected_strength + rng.randf_range(-4.8, 4.8), 45.0, 98.0)
+	if mode == "Rocket League" and roster.size() == 1:
+		player_strength = float(player_overall(roster[0]))
+	player_strength += float(facility_level("analytics")) * 0.45
+	player_strength += float(facility_level("coaching")) * 0.25
+
+	var profile := _roll_opponent_profile()
+	var expected_strength := 48.0 + float(mmr - 600) / 30.0
+	var opponent_strength := clampf(
+		expected_strength + rng.randf_range(-3.5, 3.5) + float(profile["strength_mod"]),
+		35.0,
+		99.0
+	)
 	var advantage := player_strength - opponent_strength
-	var win_chance := clampf(0.5 + advantage * 0.035, 0.16, 0.84)
+	var win_chance := clampf(0.5 + advantage * 0.038, 0.12, 0.88)
 	var won := rng.randf() <= win_chance
-	var opponent_names: Array = GameDataRef.OPPONENTS[mode]
-	var opponent: String = opponent_names[rng.randi_range(0, opponent_names.size() - 1)]
+
+	var opponent := ""
+	if format == "1v1":
+		opponent = str(GameDataRef.FIRST_NAMES[rng.randi_range(0, GameDataRef.FIRST_NAMES.size() - 1)])
+	else:
+		var opponent_names: Array = GameDataRef.OPPONENTS[mode]
+		opponent = opponent_names[rng.randi_range(0, opponent_names.size() - 1)]
+
 	var events := _create_match_events(mode, won)
-	var mmr_delta := rng.randi_range(18, 29)
+	var mmr_delta := rng.randi_range(14, 23)
 	if int(record.get("placements", 0)) < 5:
-		mmr_delta += rng.randi_range(20, 34)
+		mmr_delta += rng.randi_range(8, 16)
 	if not won:
 		mmr_delta *= -1
 	var old_rank := str(GameDataRef.rank_for_mmr(mmr)["name"])
@@ -309,53 +325,67 @@ func create_match(mode: String) -> Dictionary:
 		record["losses"] = int(record.get("losses", 0)) + 1
 		record["streak"] = mini(-1, int(record.get("streak", 0)) - 1)
 	record["placements"] = mini(5, int(record.get("placements", 0)) + 1)
-	var cash_reward := (2300 if won else 850) + facility_level("hq") * 140
-	var fan_reward := (180 if won else 38) + facility_level("studio") * 14
-	data["cash"] = int(data["cash"]) + cash_reward
-	data["fans"] = maxi(0, int(data["fans"]) + fan_reward)
-	data["energy"] = maxi(0, int(data["energy"]) - 7)
-	if won:
-		data["reputation"] = int(data["reputation"]) + 1
-	for player in roster_for(mode):
-		player["fatigue"] = clampi(int(player.get("fatigue", 0)) + rng.randi_range(4, 9), 0, 100)
+
+	data["energy"] = maxi(0, int(data["energy"]) - 5)
+	for player in roster:
+		player["fatigue"] = clampi(int(player.get("fatigue", 0)) + rng.randi_range(3, 7), 0, 100)
 		player["form"] = clampi(
-			(
-				int(player.get("form", 50))
-				+ (rng.randi_range(2, 6) if won else -rng.randi_range(1, 4))
-			),
+			int(player.get("form", 50)) + (rng.randi_range(1, 4) if won else -rng.randi_range(1, 3)),
 			25,
 			100
 		)
+
+	var stream := _stream_payload(won, profile, format)
+	var attention := _attention_roll(won, profile, mode, format, int(stream.get("viewers", 0)))
+	data["attention"] = int(data.get("attention", 0)) + int(attention.get("points", 0))
+	data["reputation"] = int(data.get("reputation", 0)) + int(attention.get("reputation", 0))
+	if attention.has("contact") and typeof(attention["contact"]) == TYPE_DICTIONARY:
+		var contact: Dictionary = attention["contact"]
+		if not contact.is_empty():
+			data["contacts"].push_front(contact)
+			while data["contacts"].size() > 6:
+				data["contacts"].pop_back()
+
 	var new_rank := str(GameDataRef.rank_for_mmr(int(record["mmr"]))["name"])
-	var history_entry := {
+	data["history"].push_front({
+		"kind": "ranked",
 		"mode": mode,
+		"format": format,
 		"opponent": opponent,
+		"opponent_profile": str(profile["label"]),
 		"won": won,
 		"score": events[events.size() - 1]["score"],
 		"mmr_delta": mmr_delta,
 		"timestamp": int(Time.get_unix_time_from_system()),
-	}
-	data["history"].push_front(history_entry)
-	while data["history"].size() > 8:
+	})
+	while data["history"].size() > 10:
 		data["history"].pop_back()
 	data["week"] = int(data.get("week", 1)) + 1
 	if int(data["week"]) > 12:
 		_finish_season()
 	save_game()
 	return {
+		"ok": true,
 		"mode": mode,
+		"format": format,
 		"opponent": opponent,
+		"opponent_profile": profile,
 		"won": won,
 		"events": events,
 		"score": events[events.size() - 1]["score"],
 		"mmr_delta": mmr_delta,
-		"cash": cash_reward,
-		"fans": fan_reward,
+		"cash": 0,
+		"fans": 0,
+		"attention": attention,
+		"streaming": bool(stream.get("live", false)),
+		"stream_viewers": int(stream.get("viewers", 0)),
+		"live_chat": stream.get("chat", []),
+		"comments": stream.get("comments", []),
+		"stream_followers": int(stream.get("followers", 0)),
 		"old_rank": old_rank,
 		"new_rank": new_rank,
 		"promoted": old_rank != new_rank and mmr_delta > 0,
 	}
-
 
 func _create_match_events(mode: String, won: bool) -> Array:
 	var events: Array = []
@@ -409,15 +439,9 @@ func _event_time(mode: String, index: int) -> String:
 
 
 func _finish_season() -> void:
-	var best_mmr := 0
-	for mode in GameDataRef.MODES:
-		best_mmr = maxi(best_mmr, int(data["modes"][mode]["mmr"]))
-	var bonus := 5000 + maxi(0, best_mmr - 700) * 12
-	data["cash"] = int(data["cash"]) + bonus
 	data["season"] = int(data.get("season", 1)) + 1
 	data["week"] = 1
-	data["season_bonus"] = bonus
-
+	data["season_bonus"] = 0
 
 func sponsor_eligible() -> bool:
 	var followers := int(data.get("streaming", {}).get("followers", 0))
