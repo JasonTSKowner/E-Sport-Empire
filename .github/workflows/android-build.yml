@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, v0.4-mobile-polish]
+    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr]
   workflow_dispatch:
 
 permissions:
