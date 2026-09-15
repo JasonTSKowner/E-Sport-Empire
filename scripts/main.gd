@@ -321,6 +321,52 @@ func _build_home_page() -> void:
 	page_content.add_child(_section_title("RECENT FORM", "Your latest organization results."))
 	_build_history_list(page_content, 4)
 
+func _origin_card() -> Control:
+	var panel := UI.card(UI.CYAN)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	box.add_child(UI.overline("FROM ZERO", UI.CYAN))
+	box.add_child(UI.label("You are player #1 and the captain.", 19, UI.TEXT, 800))
+	box.add_child(UI.label(
+		"Ranked pays €0. Your first job is simple: play, improve and get noticed.",
+		12,
+		UI.MUTED
+	))
+	var row := HBoxContainer.new()
+	row.add_child(_metric_block("CASH", GameDataRef.format_cash(int(game.data.get("cash", 0))), UI.GOLD))
+	row.add_child(_metric_block("ATTENTION", str(int(game.data.get("attention", 0))), UI.PURPLE))
+	row.add_child(_metric_block("FORMAT", game.match_format("Rocket League"), UI.CYAN))
+	box.add_child(row)
+	return panel
+
+
+func _contact_card(contact: Dictionary) -> Control:
+	var mode := str(contact.get("mode", "Rocket League"))
+	var accent: Color = GameDataRef.MODE_COLORS[mode]
+	var panel := UI.card(accent)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_child(UI.overline(str(contact.get("source", "MATCH CONTACT")), accent))
+	info.add_child(UI.label(str(contact.get("name", "Unknown")), 17, UI.TEXT, 800))
+	info.add_child(UI.label(
+		"%s  •  OVR %d  •  POT %d"
+		% [mode, game.player_overall(contact), int(contact.get("potential", 70))],
+		11,
+		UI.MUTED
+	))
+	row.add_child(info)
+	var accept := UI.button("QUEUE
+TOGETHER", accent, true, true)
+	accept.custom_minimum_size.x = 116
+	accept.pressed.connect(_accept_contact.bind(str(contact.get("id", ""))))
+	row.add_child(accept)
+	return panel
+
+
 func _club_hero() -> Control:
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
@@ -641,6 +687,82 @@ func _build_play_page() -> void:
 	_build_history_list(page_content, 5, mode)
 
 
+func _streaming_card() -> Control:
+	var stream: Dictionary = game.data.get("streaming", {})
+	var enabled := game.streaming_enabled()
+	var plan := game.stream_plan()
+	var followers := int(stream.get("followers", 0))
+	var panel := UI.card(UI.PURPLE if enabled else UI.CYAN)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var top := HBoxContainer.new()
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_child(UI.overline("PULSELIVE  •  %s" % plan.to_upper(), UI.PURPLE))
+	info.add_child(UI.label("Stream your ranked grind", 18, UI.TEXT, 800))
+	info.add_child(UI.label(
+		"Attention first. Early streams can genuinely sit at 0–3 viewers.",
+		11,
+		UI.MUTED
+	))
+	top.add_child(info)
+	var live_badge := UI.badge("ARMED" if enabled else "OFF", UI.GREEN if enabled else UI.MUTED)
+	top.add_child(live_badge)
+	box.add_child(top)
+	var stats := HBoxContainer.new()
+	stats.add_child(_metric_block("FOLLOWERS", str(followers), UI.PURPLE))
+	stats.add_child(_metric_block("PEAK", str(int(stream.get("peak_viewers", 0))), UI.CYAN))
+	stats.add_child(_metric_block("TOTAL VIEWS", str(int(stream.get("total_views", 0))), UI.GREEN))
+	box.add_child(stats)
+	var toggle := UI.button(
+		"STREAM NEXT MATCH: ON" if enabled else "GO LIVE NEXT MATCH",
+		UI.PURPLE,
+		enabled
+	)
+	toggle.pressed.connect(_toggle_stream)
+	box.add_child(toggle)
+	if plan == "Free":
+		var upgrade := UI.button("CREATOR PLAN  •  €8 / 30 DAYS", UI.GOLD, false, true)
+		upgrade.pressed.connect(_buy_stream_plan.bind("Creator"))
+		box.add_child(upgrade)
+	elif plan == "Creator":
+		var upgrade := UI.button("PRO PLAN  •  €20 / 30 DAYS", UI.GOLD, false, true)
+		upgrade.pressed.connect(_buy_stream_plan.bind("Pro"))
+		box.add_child(upgrade)
+	box.add_child(UI.label(
+		"Paid plans slightly improve tools/discovery. They never guarantee viewers.",
+		10,
+		UI.DIM
+	))
+	return panel
+
+
+func _cup_card(mode: String) -> Control:
+	var played := int(game.mode_record(mode).get("played", 0))
+	var unlocked := played >= 3
+	var panel := UI.card(UI.GOLD)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 9)
+	panel.add_child(box)
+	box.add_child(UI.overline("COMMUNITY EVENTS", UI.GOLD))
+	box.add_child(UI.label("Small online cup", 18, UI.TEXT, 800))
+	box.add_child(UI.label(
+		"Ranked pays nothing. Small cups are your first realistic shot at €12–€35 prize money.",
+		11,
+		UI.MUTED
+	))
+	var enter := UI.button(
+		"ENTER COMMUNITY CUP" if unlocked else "%d / 3 RANKED MATCHES" % played,
+		UI.GOLD,
+		unlocked
+	)
+	enter.disabled = not unlocked
+	enter.pressed.connect(_enter_cup.bind(mode))
+	box.add_child(enter)
+	return panel
+
+
 func _versus_team(title: String, subtitle: String, accent: Color) -> Control:
 	var box := VBoxContainer.new()
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -954,6 +1076,22 @@ func _history_row(entry: Dictionary) -> Control:
 	numbers.add_child(mmr)
 	row.add_child(numbers)
 	return panel
+
+
+func _accept_contact(contact_id: String) -> void:
+	_handle_action(game.accept_contact(contact_id), "home")
+
+
+func _toggle_stream() -> void:
+	_handle_action(game.set_streaming_enabled(not game.streaming_enabled()), "play")
+
+
+func _buy_stream_plan(plan: String) -> void:
+	_handle_action(game.buy_stream_plan(plan), "play")
+
+
+func _enter_cup(mode: String) -> void:
+	_handle_action(game.play_community_cup(mode), "play")
 
 
 func _collect_sponsor() -> void:
