@@ -1,0 +1,17 @@
+# Godot generated files
+.godot/
+*.tmp
+*.log
+
+# Local exports
+build/
+exports/
+
+# Android signing material
+*.keystore
+*.jks
+
+# OS files
+.DS_Store
+Thumbs.db
+
