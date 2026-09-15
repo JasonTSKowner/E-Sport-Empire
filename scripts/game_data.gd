@@ -1,7 +1,7 @@
 class_name GameData
 extends RefCounted
 
-const VERSION := 3
+const VERSION := 4
 const MODES := ["Rocket League", "Fortnite", "Warzone"]
 
 const MODE_SHORT := {
@@ -31,7 +31,7 @@ const FACILITIES := {
 		"name": "Team Headquarters",
 		"tag": "HQ",
 		"description": "Raises the club reputation ceiling and sponsor value.",
-		"base_cost": 12500,
+		"base_cost": 900,
 		"color": "2de2ff",
 	},
 	"coaching":
@@ -39,7 +39,7 @@ const FACILITIES := {
 		"name": "Performance Center",
 		"tag": "CO",
 		"description": "Training creates stronger gains and less fatigue.",
-		"base_cost": 9800,
+		"base_cost": 350,
 		"color": "a779ff",
 	},
 	"scouting":
@@ -47,7 +47,7 @@ const FACILITIES := {
 		"name": "Global Scouting",
 		"tag": "SC",
 		"description": "Finds younger prospects with higher potential.",
-		"base_cost": 11000,
+		"base_cost": 250,
 		"color": "58e39b",
 	},
 	"analytics":
@@ -55,7 +55,7 @@ const FACILITIES := {
 		"name": "Match Analytics",
 		"tag": "AN",
 		"description": "Improves consistency and your match win chance.",
-		"base_cost": 13500,
+		"base_cost": 400,
 		"color": "ffbf69",
 	},
 	"studio":
@@ -63,7 +63,7 @@ const FACILITIES := {
 		"name": "Content Studio",
 		"tag": "CS",
 		"description": "Generates passive cash and new fans while offline.",
-		"base_cost": 8000,
+		"base_cost": 300,
 		"color": "ff5b8d",
 	},
 }
@@ -238,10 +238,10 @@ static func next_rank_for_mmr(mmr: int) -> Dictionary:
 
 static func format_cash(value: int) -> String:
 	if value >= 1000000:
-		return "$%.2fM" % (float(value) / 1000000.0)
+		return "€%.2fM" % (float(value) / 1000000.0)
 	if value >= 1000:
-		return "$%.1fK" % (float(value) / 1000.0)
-	return "$%d" % value
+		return "€%.1fK" % (float(value) / 1000.0)
+	return "€%d" % value
 
 
 static func format_number(value: int) -> String:
