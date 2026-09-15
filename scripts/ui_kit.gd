@@ -77,8 +77,8 @@ static func button(
 	node.focus_mode = Control.FOCUS_NONE
 	node.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	node.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	node.custom_minimum_size = Vector2(0.0, 44.0 if compact else 54.0)
-	node.add_theme_font_size_override("font_size", 14 if compact else 16)
+	node.custom_minimum_size = Vector2(0.0, 50.0 if compact else 62.0)
+	node.add_theme_font_size_override("font_size", 15 if compact else 17)
 	node.add_theme_color_override("font_color", TEXT if filled else accent)
 	node.add_theme_color_override("font_hover_color", TEXT)
 	node.add_theme_color_override("font_pressed_color", TEXT)
