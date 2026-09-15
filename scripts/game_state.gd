@@ -190,18 +190,18 @@ func rest_team(mode: String) -> Dictionary:
 	return {"ok": true, "message": "%s division completed recovery." % mode}
 
 func generate_market(charge: bool = true) -> Dictionary:
-	var cost := 450
+	var cost := 5
 	if charge and int(data["cash"]) < cost:
-		return {"ok": false, "message": "Not enough cash to refresh scouting."}
+		return {"ok": false, "message": "You need €5 for a fresh scouting search."}
 	if charge:
 		data["cash"] = int(data["cash"]) - cost
 	var scouting := facility_level("scouting")
 	var prospects: Array = []
 	for index in range(6):
 		var mode: String = GameDataRef.MODES[index % GameDataRef.MODES.size()]
-		var base := rng.randi_range(52 + scouting, 65 + scouting * 2)
-		base = clampi(base, 48, 91)
-		var potential := clampi(base + rng.randi_range(7, 18 + scouting), base + 2, 99)
+		var base := rng.randi_range(47 + scouting, 57 + scouting * 2)
+		base = clampi(base, 42, 91)
+		var potential := clampi(base + rng.randi_range(8, 18 + scouting), base + 2, 99)
 		var player := {
 			"id": "prospect_%d_%d" % [int(Time.get_ticks_msec()), index],
 			"name": GameDataRef.FIRST_NAMES[rng.randi_range(0, GameDataRef.FIRST_NAMES.size() - 1)],
@@ -217,15 +217,12 @@ func generate_market(charge: bool = true) -> Dictionary:
 			"form": rng.randi_range(45, 68),
 			"fatigue": 0,
 		}
-		player["contract"] = (
-			1200 + player_overall(player) * player_overall(player) * 2 + potential * 35
-		)
+		player["contract"] = 20 + player_overall(player) + int(round(float(potential) * 0.8))
 		prospects.append(player)
 	data["market"] = prospects
 	if charge:
 		save_game()
-	return {"ok": true, "message": "The scouting board has been refreshed."}
-
+	return {"ok": true, "message": "Fresh amateur scouting reports are ready."}
 
 func sign_player(prospect_id: String) -> Dictionary:
 	var prospect: Dictionary = {}
@@ -260,31 +257,28 @@ func sign_player(prospect_id: String) -> Dictionary:
 
 
 func sponsor_ready() -> bool:
-	return int(Time.get_unix_time_from_system()) >= int(data.get("sponsor_ready_at", 0))
-
+	return sponsor_eligible() and int(Time.get_unix_time_from_system()) >= int(data.get("sponsor_ready_at", 0))
 
 func sponsor_seconds_left() -> int:
+	if not sponsor_eligible():
+		return 0
 	return maxi(0, int(data.get("sponsor_ready_at", 0)) - int(Time.get_unix_time_from_system()))
 
-
 func collect_sponsor() -> Dictionary:
+	if not sponsor_eligible():
+		return {"ok": false, "message": "No sponsor is interested yet. Build attention first."}
 	if not sponsor_ready():
 		return {"ok": false, "message": "The next sponsor activation is not ready yet."}
-	var reward := 2400 + facility_level("hq") * 850 + int(data["reputation"]) * 55
-	var fan_reward := 120 + facility_level("studio") * 45
+	var reward := 35 + int(data["reputation"]) * 3 + facility_level("hq") * 15
+	var fan_reward := 8 + facility_level("studio") * 3
 	data["cash"] = int(data["cash"]) + reward
 	data["fans"] = int(data["fans"]) + fan_reward
-	data["sponsor_ready_at"] = int(Time.get_unix_time_from_system()) + 60 * 60
+	data["sponsor_ready_at"] = int(Time.get_unix_time_from_system()) + 24 * 60 * 60
 	save_game()
 	return {
 		"ok": true,
-		"message":
-		(
-			"Sponsor activated: +%s and +%s fans."
-			% [GameDataRef.format_cash(reward), GameDataRef.format_number(fan_reward)]
-		),
+		"message": "Small sponsor activation: +%s and +%d fans." % [GameDataRef.format_cash(reward), fan_reward],
 	}
-
 
 func create_match(mode: String) -> Dictionary:
 	var record := mode_record(mode)
@@ -446,9 +440,10 @@ func _new_save() -> Dictionary:
 	return {
 		"version": GameDataRef.VERSION,
 		"club_name": "TSK ESPORTS",
-		"cash": 25000,
-		"fans": 2400,
-		"reputation": 12,
+		"cash": 0,
+		"fans": 0,
+		"reputation": 0,
+		"attention": 0,
 		"energy": 100,
 		"season": 1,
 		"week": 1,
@@ -456,42 +451,34 @@ func _new_save() -> Dictionary:
 		"last_seen": now,
 		"sponsor_ready_at": 0,
 		"season_bonus": 0,
-		"facilities":
-		{
-			"hq": 1,
-			"coaching": 1,
-			"scouting": 1,
-			"analytics": 1,
-			"studio": 1,
-		},
-		"modes":
-		{
-			"Rocket League":
-			{"mmr": 860, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
-			"Fortnite":
-			{"mmr": 840, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
-			"Warzone":
-			{"mmr": 820, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+		"cup_ready_at": 0,
+		"earned_prize_money": 0,
+		"facilities": {"hq": 0, "coaching": 0, "scouting": 0, "analytics": 0, "studio": 0},
+		"modes": {
+			"Rocket League": {"mmr": 650, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+			"Fortnite": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+			"Warzone": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
 		},
 		"roster": _starter_roster(),
+		"contacts": [],
+		"streaming": {
+			"enabled": false,
+			"platform": "PulseLive",
+			"plan": "Free",
+			"plan_until": 0,
+			"followers": 0,
+			"total_views": 0,
+			"peak_viewers": 0,
+			"last_comments": [],
+		},
 		"market": [],
 		"history": [],
 	}
 
-
 func _starter_roster() -> Array:
 	return [
-		_player("p_rl_1", "KESHI", "Rocket League", "First Man", "EU", 68, 72, 65, 66, 84),
-		_player("p_rl_2", "NOVA", "Rocket League", "Playmaker", "EU", 64, 70, 72, 63, 82),
-		_player("p_rl_3", "RIFT", "Rocket League", "Anchor", "MENA", 66, 73, 68, 69, 86),
-		_player("p_fn_1", "VEX", "Fortnite", "IGL", "EU", 61, 72, 67, 70, 83),
-		_player("p_fn_2", "ARCO", "Fortnite", "Fragger", "NA", 72, 62, 64, 61, 88),
-		_player("p_fn_3", "MIST", "Fortnite", "Support", "EU", 63, 68, 73, 67, 81),
-		_player("p_wz_1", "KILO", "Warzone", "IGL", "EU", 65, 72, 69, 68, 84),
-		_player("p_wz_2", "VANTA", "Warzone", "Slayer", "NA", 71, 63, 64, 62, 87),
-		_player("p_wz_3", "GHOST", "Warzone", "Flex", "EU", 66, 67, 71, 65, 82),
+		_player("captain", "KESHI", "Rocket League", "Captain", "EU", 58, 58, 55, 60, 92),
 	]
-
 
 func _player(
 	id: String,
