@@ -20,7 +20,11 @@ func load_game() -> Dictionary:
 		if file != null:
 			var parsed = JSON.parse_string(file.get_as_text())
 			if typeof(parsed) == TYPE_DICTIONARY:
-				data = parsed
+				if int(parsed.get("version", 0)) < GameDataRef.VERSION:
+					data = _new_save()
+					data["fresh_origin"] = true
+				else:
+					data = parsed
 	_merge_defaults(data, _new_save())
 	data["version"] = GameDataRef.VERSION
 	if not data.has("market") or data["market"].is_empty():
@@ -28,7 +32,6 @@ func load_game() -> Dictionary:
 	offline = apply_offline_progress()
 	save_game()
 	return offline
-
 
 func save_game() -> void:
 	data["last_seen"] = int(Time.get_unix_time_from_system())
@@ -57,14 +60,10 @@ func apply_offline_progress() -> Dictionary:
 
 
 func passive_income_per_hour() -> int:
-	var studio := facility_level("studio")
-	var hq := facility_level("hq")
-	return 280 + studio * 440 + hq * 90 + int(data.get("reputation", 0)) * 14
-
+	return facility_level("studio") * 18 + facility_level("hq") * 4 + int(data.get("reputation", 0))
 
 func passive_fans_per_hour() -> int:
-	return 18 + facility_level("studio") * 32 + int(data.get("reputation", 0)) * 2
-
+	return facility_level("studio") * 2 + int(data.get("reputation", 0)) / 4
 
 func selected_mode() -> String:
 	return str(data.get("selected_mode", GameDataRef.MODES[0]))
@@ -127,8 +126,7 @@ func facility_level(key: String) -> int:
 func facility_cost(key: String) -> int:
 	var definition: Dictionary = GameDataRef.FACILITIES[key]
 	var level := facility_level(key)
-	return int(round(float(definition["base_cost"]) * pow(1.72, level - 1)))
-
+	return int(round(float(definition["base_cost"]) * pow(1.72, maxi(0, level))))
 
 func buy_facility(key: String) -> Dictionary:
 	if not GameDataRef.FACILITIES.has(key):
@@ -150,8 +148,9 @@ func buy_facility(key: String) -> Dictionary:
 
 
 func training_cost(player: Dictionary) -> int:
-	return 550 + player_overall(player) * 22
-
+	if str(player.get("id", "")) == "captain":
+		return 0
+	return 10 + int(round(float(player_overall(player)) * 0.55))
 
 func train_player(player_id: String) -> Dictionary:
 	var player := _find_player(player_id)
@@ -183,17 +182,12 @@ func train_player(player_id: String) -> Dictionary:
 
 
 func rest_team(mode: String) -> Dictionary:
-	var cost := 700
-	if int(data["cash"]) < cost:
-		return {"ok": false, "message": "Not enough cash for recovery."}
-	data["cash"] = int(data["cash"]) - cost
 	for player in roster_for(mode):
 		player["fatigue"] = maxi(0, int(player.get("fatigue", 0)) - 24)
 		player["form"] = clampi(int(player.get("form", 50)) + 2, 25, 100)
 	data["energy"] = mini(100, int(data["energy"]) + 18)
 	save_game()
 	return {"ok": true, "message": "%s division completed recovery." % mode}
-
 
 func generate_market(charge: bool = true) -> Dictionary:
 	var cost := 450
