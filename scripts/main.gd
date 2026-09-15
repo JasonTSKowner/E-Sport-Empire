@@ -489,8 +489,8 @@ func _division_row(mode: String) -> Control:
 	center.add_child(
 		UI.label(
 			(
-				"%dW  %dL  •  %d/5 placements"
-				% [int(record["wins"]), int(record["losses"]), int(record["placements"])]
+				"%dW  %dL  •  %d/%d placements"
+				% [int(record["wins"]), int(record["losses"]), int(record["placements"]), game.placement_target(mode)]
 			),
 			11,
 			UI.DIM
@@ -655,7 +655,7 @@ func _build_play_page() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	live_row.add_child(spacer)
-	live_row.add_child(UI.label("PLACEMENT %d/5" % mini(5, int(record["placements"]) + 1), 11, UI.MUTED, 700))
+	live_row.add_child(UI.label("PLACEMENT %d/%d" % [mini(game.placement_target(mode), int(record["placements"]) + 1), game.placement_target(mode)], 11, UI.MUTED, 700))
 	box.add_child(live_row)
 
 	var versus := HBoxContainer.new()
@@ -1345,8 +1345,8 @@ func _finish_match_animation() -> void:
 
 	var result_row := HBoxContainer.new()
 	result_row.add_child(_metric_block("RESULT", "VICTORY" if won else "DEFEAT", accent))
-	result_row.add_child(_metric_block("RATING", "%+d" % int(match_result["mmr_delta"]), accent))
-	result_row.add_child(_metric_block("CASH", "€0", UI.GOLD))
+	result_row.add_child(_metric_block("MMR", "%+d" % int(match_result["mmr_delta"]), accent))
+	result_row.add_child(_metric_block("OPP MMR", str(int(match_result.get("opponent_mmr", 0))), UI.PURPLE))
 	match_result_box.add_child(result_row)
 
 	var profile: Dictionary = match_result.get("opponent_profile", {})
