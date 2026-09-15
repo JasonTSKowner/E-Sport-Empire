@@ -116,7 +116,15 @@ func mode_mmr(mode: String) -> int:
 	return int(mode_record(mode).get("mmr", 600))
 
 func rank_data(mode: String) -> Dictionary:
+	if mode == "Rocket League":
+		return GameDataRef.rl_rank_for_mmr(mode_mmr(mode), match_format(mode))
 	return GameDataRef.rank_for_mmr(mode_mmr(mode))
+
+func next_rank_data(mode: String) -> Dictionary:
+	if mode == "Rocket League":
+		return GameDataRef.rl_next_rank_for_mmr(mode_mmr(mode), match_format(mode))
+	return GameDataRef.next_rank_for_mmr(mode_mmr(mode))
+
 
 func playlist_record(format: String) -> Dictionary:
 	var key := format
@@ -130,30 +138,27 @@ func placement_target(mode: String) -> int:
 
 
 func _opponent_mmr_for(player_mmr: int) -> int:
-	var spread := (rng.randf_range(-48.0, 48.0) + rng.randf_range(-48.0, 48.0)) * 0.5
+	# Matchmaking usually stays close, but not every lobby is perfectly even.
+	var spread := (rng.randf_range(-100.0, 100.0) + rng.randf_range(-100.0, 100.0)) * 0.5
 	return maxi(0, player_mmr + int(round(spread)))
-
 
 func _mmr_delta_for(
 	mode: String, record: Dictionary, player_mmr: int, opponent_mmr: int, won: bool
 ) -> int:
+	# RL MMR only cares about the result and relative opponent rating.
+	# Goals, saves, score and other personal stats never enter this calculation.
 	var expected := 1.0 / (1.0 + pow(10.0, float(opponent_mmr - player_mmr) / 400.0))
-	var played := int(record.get("played", 0))
-	var k := 18.0
-	if mode == "Rocket League":
-		if played < 3:
-			k = 36.0
-		elif played < placement_target(mode):
-			k = 30.0
-	else:
-		if played < placement_target(mode):
-			k = 26.0
+	var in_placements := int(record.get("placements", 0)) < placement_target(mode)
+	var k := 20.0
+	if mode == "Rocket League" and in_placements:
+		k = 50.0
+	elif mode != "Rocket League" and in_placements:
+		k = 26.0
 	var actual := 1.0 if won else 0.0
 	var delta := int(round(k * (actual - expected)))
 	if won:
 		return maxi(1, delta)
 	return mini(-1, delta)
-
 
 func facility_level(key: String) -> int:
 	return int(data.get("facilities", {}).get(key, 1))
@@ -349,7 +354,8 @@ func create_match(mode: String) -> Dictionary:
 
 	var events := _create_match_events(mode, won)
 	var mmr_delta := _mmr_delta_for(mode, record, mmr, opponent_mmr, won)
-	var old_rank := str(GameDataRef.rank_for_mmr(mmr)["name"])
+	var old_rank_data := GameDataRef.rl_rank_for_mmr(mmr, format) if mode == "Rocket League" else GameDataRef.rank_for_mmr(mmr)
+	var old_rank := str(old_rank_data["name"])
 	record["mmr"] = maxi(0, mmr + mmr_delta)
 	record["played"] = int(record.get("played", 0)) + 1
 	if won:
@@ -380,7 +386,8 @@ func create_match(mode: String) -> Dictionary:
 			while data["contacts"].size() > 6:
 				data["contacts"].pop_back()
 
-	var new_rank := str(GameDataRef.rank_for_mmr(int(record["mmr"]))["name"])
+	var new_rank_data := GameDataRef.rl_rank_for_mmr(int(record["mmr"]), format) if mode == "Rocket League" else GameDataRef.rank_for_mmr(int(record["mmr"]))
+	var new_rank := str(new_rank_data["name"])
 	data["history"].push_front({
 		"kind": "ranked",
 		"mode": mode,
