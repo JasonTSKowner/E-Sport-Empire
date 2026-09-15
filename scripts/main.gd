@@ -37,7 +37,7 @@ func _ready() -> void:
 	var offline: Dictionary = game.load_game()
 	_build_shell()
 	_show_page("home", false)
-	if int(offline.get("seconds", 0)) >= 60:
+	if int(offline.get("seconds", 0)) >= 60 and (int(offline.get("cash", 0)) > 0 or int(offline.get("fans", 0)) > 0):
 		call_deferred("_show_offline_message", offline)
 
 
@@ -739,6 +739,11 @@ func _streaming_card() -> Control:
 		10,
 		UI.DIM
 	))
+	var recent_comments: Array = stream.get("last_comments", [])
+	if not recent_comments.is_empty():
+		box.add_child(UI.overline("LATEST COMMENTS", UI.MUTED))
+		for comment in recent_comments:
+			box.add_child(UI.label("@%s  %s" % [str(comment.get("user", "user")), str(comment.get("text", ""))], 10, UI.MUTED))
 	return panel
 
 
@@ -1068,7 +1073,7 @@ func _history_row(entry: Dictionary) -> Control:
 	var detail := VBoxContainer.new()
 	detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	detail.add_child(UI.label("vs %s" % str(entry.get("opponent", "Unknown")), 14, UI.TEXT, 700))
-	detail.add_child(UI.label(str(entry.get("mode", "")), 10, UI.MUTED))
+	detail.add_child(UI.label("%s  •  %s" % [str(entry.get("mode", "")), str(entry.get("format", "RANKED"))], 10, UI.MUTED))
 	row.add_child(detail)
 	var numbers := VBoxContainer.new()
 	var score := UI.label(str(entry.get("score", "0 - 0")), 15, UI.TEXT, 800)
