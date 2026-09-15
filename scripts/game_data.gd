@@ -25,6 +25,39 @@ const RANKS := [
 	{"name": "World Class", "minimum": 1775, "accent": "ff5b8d"},
 ]
 
+const RL_RANK_BASES := {
+	"1v1": [
+		{"name": "Bronze", "minimum": 0, "accent": "b87333"},
+		{"name": "Silver", "minimum": 310, "accent": "b8c2cc"},
+		{"name": "Gold", "minimum": 470, "accent": "d9b43b"},
+		{"name": "Platinum", "minimum": 620, "accent": "4fd6d2"},
+		{"name": "Diamond", "minimum": 760, "accent": "4b9cff"},
+		{"name": "Champion", "minimum": 910, "accent": "9b5de5"},
+		{"name": "Grand Champion", "minimum": 1170, "accent": "ff5d8f"},
+		{"name": "Supersonic Legend", "minimum": 1330, "accent": "f4f1ff"},
+	],
+	"2v2": [
+		{"name": "Bronze", "minimum": 0, "accent": "b87333"},
+		{"name": "Silver", "minimum": 370, "accent": "b8c2cc"},
+		{"name": "Gold", "minimum": 550, "accent": "d9b43b"},
+		{"name": "Platinum", "minimum": 700, "accent": "4fd6d2"},
+		{"name": "Diamond", "minimum": 850, "accent": "4b9cff"},
+		{"name": "Champion", "minimum": 1020, "accent": "9b5de5"},
+		{"name": "Grand Champion", "minimum": 1435, "accent": "ff5d8f"},
+		{"name": "Supersonic Legend", "minimum": 1860, "accent": "f4f1ff"},
+	],
+	"3v3": [
+		{"name": "Bronze", "minimum": 0, "accent": "b87333"},
+		{"name": "Silver", "minimum": 390, "accent": "b8c2cc"},
+		{"name": "Gold", "minimum": 570, "accent": "d9b43b"},
+		{"name": "Platinum", "minimum": 720, "accent": "4fd6d2"},
+		{"name": "Diamond", "minimum": 870, "accent": "4b9cff"},
+		{"name": "Champion", "minimum": 1040, "accent": "9b5de5"},
+		{"name": "Grand Champion", "minimum": 1435, "accent": "ff5d8f"},
+		{"name": "Supersonic Legend", "minimum": 1860, "accent": "f4f1ff"},
+	],
+}
+
 const FACILITIES := {
 	"hq":
 	{
@@ -234,6 +267,56 @@ static func next_rank_for_mmr(mmr: int) -> Dictionary:
 		if mmr < int(rank_data["minimum"]):
 			return rank_data
 	return RANKS[RANKS.size() - 1]
+
+
+static func rl_rank_for_mmr(mmr: int, playlist: String) -> Dictionary:
+	var key := playlist if playlist in ["1v1", "2v2", "3v3"] else "1v1"
+	var bases: Array = RL_RANK_BASES[key]
+	var major_index := 0
+	for index in range(bases.size()):
+		if mmr >= int(bases[index]["minimum"]):
+			major_index = index
+
+	var major: Dictionary = bases[major_index]
+	if major_index == bases.size() - 1:
+		return {
+			"name": "Supersonic Legend",
+			"short_name": "SSL",
+			"minimum": int(major["minimum"]),
+			"next_minimum": int(major["minimum"]),
+			"accent": str(major["accent"]),
+			"tier": 0,
+			"division": 0,
+		}
+
+	var next_major: Dictionary = bases[major_index + 1]
+	var span := maxi(12, int(next_major["minimum"]) - int(major["minimum"]))
+	var step := maxf(1.0, float(span) / 12.0)
+	var slot := clampi(int(floor(float(mmr - int(major["minimum"])) / step)), 0, 11)
+	var tier := slot / 4 + 1
+	var division := slot % 4 + 1
+	var tier_roman := ["I", "II", "III"][tier - 1]
+	var minimum := int(round(float(major["minimum"]) + step * float(slot)))
+	var next_minimum := int(round(float(major["minimum"]) + step * float(slot + 1)))
+	if slot == 11:
+		next_minimum = int(next_major["minimum"])
+
+	return {
+		"name": "%s %s Div %d" % [str(major["name"]), tier_roman, division],
+		"short_name": "%s %s D%d" % [str(major["name"]), tier_roman, division],
+		"minimum": minimum,
+		"next_minimum": next_minimum,
+		"accent": str(major["accent"]),
+		"tier": tier,
+		"division": division,
+	}
+
+
+static func rl_next_rank_for_mmr(mmr: int, playlist: String) -> Dictionary:
+	var current := rl_rank_for_mmr(mmr, playlist)
+	if str(current["name"]) == "Supersonic Legend":
+		return current
+	return rl_rank_for_mmr(int(current["next_minimum"]), playlist)
 
 
 static func format_cash(value: int) -> String:
