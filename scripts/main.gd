@@ -66,9 +66,11 @@ func _build_shell() -> void:
 	shell.add_child(page_scroll)
 
 	page_content = VBoxContainer.new()
+	page_content.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_content.add_theme_constant_override("separation", 14)
 	var page_margin := UI.margin(page_content, 18, 18, 18, 28)
+	page_margin.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_scroll.add_child(page_margin)
 
@@ -116,7 +118,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4.3", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4.4", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -1394,7 +1396,6 @@ func _scroll_match_feed_to_bottom() -> void:
 
 
 func _finish_match_animation() -> void:
-	match_timer.stop()
 	if match_timer != null:
 		match_timer.stop()
 	var won := bool(match_result["won"])
