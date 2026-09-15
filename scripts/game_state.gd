@@ -547,6 +547,145 @@ func play_community_cup(mode: String) -> Dictionary:
 	}
 
 
+func _roll_opponent_profile() -> Dictionary:
+	var roll := rng.randf()
+	if roll < 0.08:
+		return {"key": "smurf", "label": "SMURF / UNDERRANKED", "strength_mod": 12.0, "attention_mult": 1.8}
+	if roll < 0.14:
+		return {"key": "boosted", "label": "BOOSTED PLAYER", "strength_mod": -10.0, "attention_mult": 0.7}
+	if roll < 0.22:
+		return {"key": "peaking", "label": "PEAKING TODAY", "strength_mod": 5.0, "attention_mult": 1.25}
+	if roll < 0.30:
+		return {"key": "tilted", "label": "TILTED", "strength_mod": -5.0, "attention_mult": 0.85}
+	if roll < 0.36:
+		return {"key": "returning", "label": "RETURNING PLAYER", "strength_mod": 7.0, "attention_mult": 1.35}
+	return {"key": "normal", "label": "NORMAL MATCH", "strength_mod": 0.0, "attention_mult": 1.0}
+
+
+func _attention_roll(
+	won: bool, profile: Dictionary, mode: String, format: String, viewers: int
+) -> Dictionary:
+	var chance := 0.08
+	if won:
+		chance += 0.08
+	if str(profile.get("key", "normal")) == "smurf":
+		chance += 0.12
+	chance += minf(0.12, float(viewers) * 0.006)
+	chance *= float(profile.get("attention_mult", 1.0))
+	if rng.randf() > chance:
+		return {"points": 0, "reputation": 0, "text": "No unusual attention after this match."}
+	var roll := rng.randf()
+	var points := rng.randi_range(1, 4)
+	var reputation_gain := 0
+	var text := ""
+	var contact: Dictionary = {}
+	if roll < 0.48:
+		text = "Your opponent checked your profile after the match."
+		if rng.randf() < 0.45:
+			contact = _make_contact(mode, "Opponent")
+			text = "%s sent you a queue request after the match." % contact["name"]
+	elif roll < 0.68 and format != "1v1":
+		contact = _make_contact(mode, "Random teammate")
+		text = "%s, a random teammate, wants to queue again." % contact["name"]
+	elif roll < 0.88:
+		text = "A small clip from the match started getting shared."
+		points += 2
+	else:
+		text = "A small tournament organizer noticed your recent results."
+		points += 3
+		reputation_gain = 1
+	return {"points": points, "reputation": reputation_gain, "text": text, "contact": contact}
+
+
+func _make_contact(mode: String, source: String) -> Dictionary:
+	var base := clampi(team_overall(mode) + rng.randi_range(-4, 6), 45, 88)
+	var potential := clampi(base + rng.randi_range(8, 20), base + 2, 99)
+	return {
+		"id": "contact_%d_%d" % [int(Time.get_ticks_msec()), rng.randi_range(100, 999)],
+		"name": GameDataRef.FIRST_NAMES[rng.randi_range(0, GameDataRef.FIRST_NAMES.size() - 1)],
+		"mode": mode,
+		"role": _role_for_mode(mode, roster_for(mode).size()),
+		"region": GameDataRef.REGIONS[rng.randi_range(0, GameDataRef.REGIONS.size() - 1)],
+		"age": rng.randi_range(16, 22),
+		"mechanics": clampi(base + rng.randi_range(-4, 5), 35, 95),
+		"game_sense": clampi(base + rng.randi_range(-4, 5), 35, 95),
+		"teamwork": clampi(base + rng.randi_range(-5, 5), 35, 95),
+		"mentality": clampi(base + rng.randi_range(-5, 5), 35, 95),
+		"potential": potential,
+		"source": source,
+	}
+
+
+func _stream_payload(won: bool, profile: Dictionary, format: String) -> Dictionary:
+	if not streaming_enabled():
+		return {"live": false, "viewers": 0, "chat": [], "comments": [], "followers": 0}
+	var stream_data: Dictionary = data["streaming"]
+	var plan := stream_plan()
+	var followers := int(stream_data.get("followers", 0))
+	var plan_mult := 1.0
+	if plan == "Creator":
+		plan_mult = 1.12
+	elif plan == "Pro":
+		plan_mult = 1.28
+	var viewers := int(round(float(1 + followers / 25 + int(data.get("reputation", 0)) / 2) * plan_mult))
+	viewers += rng.randi_range(0, 2)
+	if won:
+		viewers += 1
+	if str(profile.get("key", "normal")) in ["smurf", "peaking", "returning"]:
+		viewers += rng.randi_range(1, 3)
+	viewers = maxi(1, viewers)
+
+	var chat_templates := [
+		"clean",
+		"nice read",
+		"gg",
+		"that was actually good",
+		"who is TSK?",
+		"bro is underrated",
+		"queue again",
+		"that opponent looks way better than this rank",
+	]
+	var comment_templates := [
+		"bro is actually underrated",
+		"played against this guy before, solid",
+		"that match was closer than the rank says",
+		"who even is TSK?",
+		"the grind from zero is kinda fire",
+		"clean game",
+	]
+	var chat: Array = []
+	var chat_count := mini(7, maxi(1, viewers / 2))
+	for index in range(chat_count):
+		chat.append({
+			"user": "viewer_%d" % rng.randi_range(10, 999),
+			"text": chat_templates[rng.randi_range(0, chat_templates.size() - 1)],
+		})
+	var comments: Array = []
+	var comment_count := mini(4, viewers / 3)
+	for index in range(comment_count):
+		comments.append({
+			"user": "user_%d" % rng.randi_range(100, 9999),
+			"text": comment_templates[rng.randi_range(0, comment_templates.size() - 1)],
+		})
+	var follower_gain := 0
+	if viewers >= 2:
+		follower_gain = rng.randi_range(0, maxi(1, viewers / 3))
+		if won and rng.randf() < 0.45:
+			follower_gain += 1
+	stream_data["followers"] = followers + follower_gain
+	stream_data["total_views"] = int(stream_data.get("total_views", 0)) + viewers
+	stream_data["peak_viewers"] = maxi(int(stream_data.get("peak_viewers", 0)), viewers)
+	stream_data["last_comments"] = comments
+	return {
+		"live": true,
+		"viewers": viewers,
+		"chat": chat,
+		"comments": comments,
+		"followers": follower_gain,
+		"format": format,
+	}
+
+
 func _find_player(player_id: String) -> Dictionary:
 	for player in data.get("roster", []):
 		if str(player.get("id", "")) == player_id:
