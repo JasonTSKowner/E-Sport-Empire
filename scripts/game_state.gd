@@ -419,6 +419,134 @@ func _finish_season() -> void:
 	data["season_bonus"] = bonus
 
 
+func sponsor_eligible() -> bool:
+	var followers := int(data.get("streaming", {}).get("followers", 0))
+	return int(data.get("reputation", 0)) >= 3 and (int(data.get("fans", 0)) >= 100 or followers >= 120)
+
+
+func match_format(mode: String) -> String:
+	var size := roster_for(mode).size()
+	if mode == "Rocket League":
+		if size <= 1:
+			return "1v1"
+		if size == 2:
+			return "2v2"
+		return "3v3"
+	return "Squad" if size > 0 else "LOCKED"
+
+
+func streaming_enabled() -> bool:
+	return bool(data.get("streaming", {}).get("enabled", false))
+
+
+func set_streaming_enabled(enabled: bool) -> Dictionary:
+	data["streaming"]["enabled"] = enabled
+	save_game()
+	return {
+		"ok": true,
+		"message": "Stream armed for the next match." if enabled else "Streaming switched off.",
+	}
+
+
+func stream_plan() -> String:
+	var streaming: Dictionary = data.get("streaming", {})
+	var plan := str(streaming.get("plan", "Free"))
+	if plan != "Free" and int(Time.get_unix_time_from_system()) >= int(streaming.get("plan_until", 0)):
+		streaming["plan"] = "Free"
+		streaming["plan_until"] = 0
+		plan = "Free"
+	return plan
+
+
+func stream_plan_cost(plan: String) -> int:
+	if plan == "Creator":
+		return 8
+	if plan == "Pro":
+		return 20
+	return 0
+
+
+func buy_stream_plan(plan: String) -> Dictionary:
+	if plan not in ["Creator", "Pro"]:
+		return {"ok": false, "message": "Unknown streaming plan."}
+	var cost := stream_plan_cost(plan)
+	if int(data.get("cash", 0)) < cost:
+		return {"ok": false, "message": "You cannot afford the %s plan yet." % plan}
+	data["cash"] = int(data["cash"]) - cost
+	data["streaming"]["plan"] = plan
+	data["streaming"]["plan_until"] = int(Time.get_unix_time_from_system()) + 30 * 24 * 60 * 60
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s activated for 30 days. Better tools, not guaranteed viewers." % plan,
+	}
+
+
+func accept_contact(contact_id: String) -> Dictionary:
+	var selected: Dictionary = {}
+	for contact in data.get("contacts", []):
+		if str(contact.get("id", "")) == contact_id:
+			selected = contact
+			break
+	if selected.is_empty():
+		return {"ok": false, "message": "That contact is no longer available."}
+	var mode := str(selected.get("mode", "Rocket League"))
+	if roster_for(mode).size() >= 3:
+		return {"ok": false, "message": "The %s roster is already full." % mode}
+	var player := selected.duplicate(true)
+	player["id"] = "player_%d" % int(Time.get_ticks_msec())
+	player["form"] = 52
+	player["fatigue"] = 0
+	player.erase("source")
+	data["roster"].append(player)
+	data["contacts"].erase(selected)
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s joined your %s grind. You can now queue %s." % [player["name"], mode, match_format(mode)],
+	}
+
+
+func play_community_cup(mode: String) -> Dictionary:
+	var now := int(Time.get_unix_time_from_system())
+	if int(mode_record(mode).get("played", 0)) < 3:
+		return {"ok": false, "message": "Play at least 3 ranked matches before entering a community cup."}
+	if now < int(data.get("cup_ready_at", 0)):
+		return {"ok": false, "message": "No new community cup is open yet."}
+	var entry_fee := 0 if int(data.get("reputation", 0)) < 4 else 5
+	if int(data.get("cash", 0)) < entry_fee:
+		return {"ok": false, "message": "You need %s for the entry fee." % GameDataRef.format_cash(entry_fee)}
+	data["cash"] = int(data["cash"]) - entry_fee
+	var strength := float(team_overall(mode))
+	var win_chance := clampf(0.34 + (strength - 55.0) * 0.018, 0.16, 0.72)
+	var won := rng.randf() <= win_chance
+	var prize := 0
+	if won:
+		prize = rng.randi_range(12, 35) + int(data.get("reputation", 0)) * 2
+		data["cash"] = int(data["cash"]) + prize
+		data["fans"] = int(data["fans"]) + rng.randi_range(2, 8)
+		data["reputation"] = int(data["reputation"]) + 1
+		data["earned_prize_money"] = int(data.get("earned_prize_money", 0)) + prize
+	data["cup_ready_at"] = now + 30 * 60
+	data["history"].push_front({
+		"kind": "cup",
+		"mode": mode,
+		"format": match_format(mode),
+		"opponent": "Community Open",
+		"won": won,
+		"score": "WIN" if won else "OUT",
+		"mmr_delta": 0,
+		"timestamp": now,
+	})
+	while data["history"].size() > 10:
+		data["history"].pop_back()
+	save_game()
+	return {
+		"ok": true,
+		"message": ("Cup win: +%s prize money." % GameDataRef.format_cash(prize)) if won else "You were knocked out. Ranked still pays €0 — cups are where money starts.",
+	}
+
+
 func _find_player(player_id: String) -> Dictionary:
 	for player in data.get("roster", []):
 		if str(player.get("id", "")) == player_id:
