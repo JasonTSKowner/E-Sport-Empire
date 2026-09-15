@@ -137,6 +137,16 @@ func placement_target(mode: String) -> int:
 	return 10 if mode == "Rocket League" else 5
 
 
+func placements_complete(mode: String) -> bool:
+	return int(mode_record(mode).get("placements", 0)) >= placement_target(mode)
+
+
+func visible_rank_name(mode: String) -> String:
+	if mode == "Rocket League" and not placements_complete(mode):
+		return "UNRANKED"
+	return str(rank_data(mode).get("name", "UNRANKED"))
+
+
 func _opponent_mmr_for(player_mmr: int) -> int:
 	# Matchmaking usually stays close, but not every lobby is perfectly even.
 	var spread := (rng.randf_range(-100.0, 100.0) + rng.randf_range(-100.0, 100.0)) * 0.5
