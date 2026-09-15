@@ -1,20 +1,23 @@
 # E-Sport Empire
 
-**Alpha v0.3 — Road to Pro**
+**Alpha v0.4 — From Zero**
 
-A portrait-first Android esports management game built with Godot 4. Manage Rocket League, Fortnite and Warzone divisions, develop players, scout talent, climb ranked ladders and grow a small organization into an elite esports empire.
+A portrait-first Android esports career and organization game built with Godot 4. Start with zero cash, zero fans and only yourself as captain, then grow from solo ranked matches into a real esports organization.
 
 ## Current playable systems
 
-- Three game divisions with independent rosters, MMR and records
-- Animated live match simulations with 1x, 2x and 4x speed
+- Origin-story start: €0, 0 fans, 0 reputation and one captain
+- Rocket League begins as 1v1; real contacts can grow the roster into 2v2 and 3v3
+- Ranked matches pay €0 and instead build MMR, form and possible attention
+- Dynamic ranked situations including smurfs, boosted players, peaking players and returning players
+- PulseLive streaming with optional paid creator plans, live chat, viewers, followers and post-stream comments
+- Opponents and other players can notice you and become future teammates
+- Small community cups provide the first realistic prize-money path
 - Player training, form, potential and fatigue
-- Scouting market with generated prospects and contract decisions
-- Facility upgrades: HQ, coaching, scouting, analytics and content studio
-- Sponsors, objectives, reputation, fans and division progression
-- Offline income with an eight-hour cap
-- Local JSON savegame and automatic migration-safe defaults
-- Mobile portrait UI with touch-sized controls and safe-area spacing
+- Amateur scouting and progressively priced facilities
+- Sponsors unlock only after enough reputation and audience growth
+- Local JSON savegame with the v0.4 alpha migration starting the new From Zero progression
+- Mobile portrait UI with touch-sized controls and safer release-based buttons
 
 ## Run locally
 
