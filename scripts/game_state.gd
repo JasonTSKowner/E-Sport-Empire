@@ -108,15 +108,51 @@ func team_overall(mode: String) -> int:
 
 
 func mode_record(mode: String) -> Dictionary:
+	if mode == "Rocket League":
+		return playlist_record(match_format(mode))
 	return data["modes"][mode]
 
-
 func mode_mmr(mode: String) -> int:
-	return int(mode_record(mode).get("mmr", 850))
-
+	return int(mode_record(mode).get("mmr", 600))
 
 func rank_data(mode: String) -> Dictionary:
 	return GameDataRef.rank_for_mmr(mode_mmr(mode))
+
+func playlist_record(format: String) -> Dictionary:
+	var key := format
+	if key not in ["1v1", "2v2", "3v3"]:
+		key = "1v1"
+	return data["rl_playlists"][key]
+
+
+func placement_target(mode: String) -> int:
+	return 10 if mode == "Rocket League" else 5
+
+
+func _opponent_mmr_for(player_mmr: int) -> int:
+	var spread := (rng.randf_range(-48.0, 48.0) + rng.randf_range(-48.0, 48.0)) * 0.5
+	return maxi(0, player_mmr + int(round(spread)))
+
+
+func _mmr_delta_for(
+	mode: String, record: Dictionary, player_mmr: int, opponent_mmr: int, won: bool
+) -> int:
+	var expected := 1.0 / (1.0 + pow(10.0, float(opponent_mmr - player_mmr) / 400.0))
+	var played := int(record.get("played", 0))
+	var k := 18.0
+	if mode == "Rocket League":
+		if played < 3:
+			k = 36.0
+		elif played < placement_target(mode):
+			k = 30.0
+	else:
+		if played < placement_target(mode):
+			k = 26.0
+	var actual := 1.0 if won else 0.0
+	var delta := int(round(k * (actual - expected)))
+	if won:
+		return maxi(1, delta)
+	return mini(-1, delta)
 
 
 func facility_level(key: String) -> int:
@@ -281,10 +317,12 @@ func collect_sponsor() -> Dictionary:
 	}
 
 func create_match(mode: String) -> Dictionary:
-	var record := mode_record(mode)
 	var roster := roster_for(mode)
 	var format := match_format(mode)
-	var mmr := int(record.get("mmr", 650))
+	var record := mode_record(mode)
+	var mmr := int(record.get("mmr", 600))
+	var opponent_mmr := _opponent_mmr_for(mmr)
+
 	var player_strength := float(team_overall(mode))
 	if mode == "Rocket League" and roster.size() == 1:
 		player_strength = float(player_overall(roster[0]))
@@ -292,7 +330,7 @@ func create_match(mode: String) -> Dictionary:
 	player_strength += float(facility_level("coaching")) * 0.25
 
 	var profile := _roll_opponent_profile()
-	var expected_strength := 48.0 + float(mmr - 600) / 30.0
+	var expected_strength := 48.0 + float(opponent_mmr - 600) / 30.0
 	var opponent_strength := clampf(
 		expected_strength + rng.randf_range(-3.5, 3.5) + float(profile["strength_mod"]),
 		35.0,
@@ -310,11 +348,7 @@ func create_match(mode: String) -> Dictionary:
 		opponent = opponent_names[rng.randi_range(0, opponent_names.size() - 1)]
 
 	var events := _create_match_events(mode, won)
-	var mmr_delta := rng.randi_range(14, 23)
-	if int(record.get("placements", 0)) < 5:
-		mmr_delta += rng.randi_range(8, 16)
-	if not won:
-		mmr_delta *= -1
+	var mmr_delta := _mmr_delta_for(mode, record, mmr, opponent_mmr, won)
 	var old_rank := str(GameDataRef.rank_for_mmr(mmr)["name"])
 	record["mmr"] = maxi(0, mmr + mmr_delta)
 	record["played"] = int(record.get("played", 0)) + 1
@@ -324,7 +358,7 @@ func create_match(mode: String) -> Dictionary:
 	else:
 		record["losses"] = int(record.get("losses", 0)) + 1
 		record["streak"] = mini(-1, int(record.get("streak", 0)) - 1)
-	record["placements"] = mini(5, int(record.get("placements", 0)) + 1)
+	record["placements"] = mini(placement_target(mode), int(record.get("placements", 0)) + 1)
 
 	data["energy"] = maxi(0, int(data["energy"]) - 5)
 	for player in roster:
@@ -352,6 +386,7 @@ func create_match(mode: String) -> Dictionary:
 		"mode": mode,
 		"format": format,
 		"opponent": opponent,
+		"opponent_mmr": opponent_mmr,
 		"opponent_profile": str(profile["label"]),
 		"won": won,
 		"score": events[events.size() - 1]["score"],
@@ -369,6 +404,7 @@ func create_match(mode: String) -> Dictionary:
 		"mode": mode,
 		"format": format,
 		"opponent": opponent,
+		"opponent_mmr": opponent_mmr,
 		"opponent_profile": profile,
 		"won": won,
 		"events": events,
@@ -745,8 +781,13 @@ func _new_save() -> Dictionary:
 		"cup_ready_at": 0,
 		"earned_prize_money": 0,
 		"facilities": {"hq": 0, "coaching": 0, "scouting": 0, "analytics": 0, "studio": 0},
+		"rl_playlists": {
+			"1v1": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+			"2v2": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+			"3v3": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+		},
 		"modes": {
-			"Rocket League": {"mmr": 650, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+			"Rocket League": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
 			"Fortnite": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
 			"Warzone": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
 		},
