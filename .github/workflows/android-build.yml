@@ -25,7 +25,13 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # GitHub's runner already includes the SDK packages Godot needs.
+          # The action's legacy default also requests the removed `tools`
+          # package, so skip that extra package installation.
+          packages: ""
+          log-accepted-android-sdk-licenses: false
 
       - name: Import and export Godot project
         id: export
