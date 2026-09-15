@@ -44,6 +44,7 @@ static func card(accent: Color = Color.TRANSPARENT) -> PanelContainer:
 		border = Color(accent.r, accent.g, accent.b, 0.42)
 	panel.add_theme_stylebox_override("panel", box(Color(0.045, 0.071, 0.16, 0.96), 20, border, 1))
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	return panel
 
 
@@ -55,7 +56,8 @@ static func label(text: String, size: int = 16, color: Color = TEXT, weight: int
 	if weight >= 700:
 		node.add_theme_constant_override("outline_size", 1)
 		node.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.24))
-	node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	node.autowrap_mode = TextServer.AUTOWRAP_WORD
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return node
 
 
@@ -107,6 +109,7 @@ static func progress(
 	bar.max_value = maxf(1.0, max_value)
 	bar.value = clampf(value, 0.0, bar.max_value)
 	bar.show_percentage = false
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.custom_minimum_size.y = height
 	var background := box(Color(0.18, 0.23, 0.39, 0.5), int(height / 2.0))
 	background.content_margin_left = 0.0
@@ -130,6 +133,7 @@ static func separator(color: Color = Color(0.28, 0.38, 0.62, 0.2)) -> HSeparator
 	style.content_margin_top = 0.5
 	style.content_margin_bottom = 0.5
 	line.add_theme_stylebox_override("separator", style)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return line
 
 

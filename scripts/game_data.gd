@@ -293,7 +293,7 @@ static func rl_rank_for_mmr(mmr: int, playlist: String) -> Dictionary:
 	var span := maxi(12, int(next_major["minimum"]) - int(major["minimum"]))
 	var step := maxf(1.0, float(span) / 12.0)
 	var slot := clampi(int(floor(float(mmr - int(major["minimum"])) / step)), 0, 11)
-	var tier := slot / 4 + 1
+	var tier := int(slot / 4) + 1
 	var division := slot % 4 + 1
 	var tier_roman := ["I", "II", "III"][tier - 1]
 	var minimum := int(round(float(major["minimum"]) + step * float(slot)))
