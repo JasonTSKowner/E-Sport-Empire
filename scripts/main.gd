@@ -60,7 +60,7 @@ func _build_shell() -> void:
 	page_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	page_scroll.scroll_deadzone = 10
+	page_scroll.scroll_deadzone = 18
 	shell.add_child(page_scroll)
 
 	page_content = VBoxContainer.new()
@@ -114,7 +114,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.3", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -304,18 +304,22 @@ func _select_mode(mode: String) -> void:
 
 func _build_home_page() -> void:
 	_page_header(
-		"Club Command",
-		"Good evening, Manager",
-		"Build the roster, win ranked matches and turn TSK into a world-class organization."
+		"Origin Story",
+		"You are the captain",
+		"One player. Zero cash. Zero fans. Earn attention first — the organization comes later."
 	)
+	page_content.add_child(_origin_card())
 	page_content.add_child(_club_hero())
+	if not game.data.get("contacts", []).is_empty():
+		page_content.add_child(_section_title("PEOPLE NOTICING YOU", "Real contacts can become your first teammates."))
+		for contact in game.data.get("contacts", []):
+			page_content.add_child(_contact_card(contact))
 	page_content.add_child(_sponsor_card())
-	page_content.add_child(_section_title("DIVISION STATUS", "Three games. One empire."))
+	page_content.add_child(_section_title("DIVISION STATUS", "Rocket League starts solo. Other divisions need players."))
 	for mode in GameDataRef.MODES:
 		page_content.add_child(_division_row(mode))
 	page_content.add_child(_section_title("RECENT FORM", "Your latest organization results."))
 	_build_history_list(page_content, 4)
-
 
 func _club_hero() -> Control:
 	var mode: String = game.selected_mode()
@@ -387,13 +391,15 @@ func _sponsor_card() -> Control:
 	panel.add_child(row)
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_child(UI.overline("SPONSOR DROP", UI.GOLD))
-	text.add_child(UI.label("Brand activation", 18, UI.TEXT, 800))
-	var subtitle := (
-		"Ready to collect"
-		if game.sponsor_ready()
-		else "New activation in %s" % _format_duration(game.sponsor_seconds_left())
-	)
+	text.add_child(UI.overline("SPONSORS", UI.GOLD))
+	text.add_child(UI.label("No fake money printer", 18, UI.TEXT, 800))
+	var subtitle := ""
+	if not game.sponsor_eligible():
+		subtitle = "Locked — build reputation plus 100 fans or 120 stream followers."
+	elif game.sponsor_ready():
+		subtitle = "A small brand activation is ready."
+	else:
+		subtitle = "Next activation in %s" % _format_duration(game.sponsor_seconds_left())
 	text.add_child(UI.label(subtitle, 12, UI.MUTED))
 	row.add_child(text)
 	var button := UI.button("COLLECT" if game.sponsor_ready() else "LOCKED", UI.GOLD, true, true)
@@ -402,7 +408,6 @@ func _sponsor_card() -> Control:
 	button.pressed.connect(_collect_sponsor)
 	row.add_child(button)
 	return panel
-
 
 func _division_row(mode: String) -> Control:
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
@@ -477,7 +482,7 @@ func _build_team_page() -> void:
 		_metric_block("FATIGUE", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD)
 	)
 	summary_box.add_child(summary_row)
-	var rest := UI.button("RECOVERY SESSION  •  $700", UI.GREEN, false)
+	var rest := UI.button("RECOVERY SESSION  •  FREE", UI.GREEN, false)
 	rest.pressed.connect(_rest_team.bind(mode))
 	summary_box.add_child(rest)
 	page_content.add_child(summary)
@@ -721,7 +726,7 @@ func _build_market_page() -> void:
 	)
 	text.add_child(UI.label("Higher levels reveal stronger potential.", 11, UI.MUTED))
 	row.add_child(text)
-	var refresh := UI.button("REFRESH\n$450", UI.GREEN, true, true)
+	var refresh := UI.button("REFRESH\n€5", UI.GREEN, true, true)
 	refresh.custom_minimum_size.x = 106
 	refresh.pressed.connect(_refresh_market)
 	row.add_child(refresh)
