@@ -364,6 +364,7 @@ func create_match(mode: String) -> Dictionary:
 
 	var events := _create_match_events(mode, won)
 	var mmr_delta := _mmr_delta_for(mode, record, mmr, opponent_mmr, won)
+	var placements_before := int(record.get("placements", 0))
 	var old_rank_data := GameDataRef.rl_rank_for_mmr(mmr, format) if mode == "Rocket League" else GameDataRef.rank_for_mmr(mmr)
 	var old_rank := str(old_rank_data["name"])
 	record["mmr"] = maxi(0, mmr + mmr_delta)
@@ -437,7 +438,16 @@ func create_match(mode: String) -> Dictionary:
 		"stream_followers": int(stream.get("followers", 0)),
 		"old_rank": old_rank,
 		"new_rank": new_rank,
-		"promoted": old_rank != new_rank and mmr_delta > 0,
+		"rank_revealed": (
+			mode == "Rocket League"
+			and placements_before < placement_target(mode)
+			and int(record.get("placements", 0)) >= placement_target(mode)
+		),
+		"promoted": (
+			old_rank != new_rank
+			and mmr_delta > 0
+			and placements_before >= placement_target(mode)
+		),
 	}
 
 func _create_match_events(mode: String, won: bool) -> Array:
