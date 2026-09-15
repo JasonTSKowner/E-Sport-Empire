@@ -1209,13 +1209,13 @@ func _build_match_overlay() -> void:
 	var mode := str(match_result["mode"])
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var header_row := HBoxContainer.new()
-	header_row.add_child(UI.overline("LIVE  •  %s" % mode, accent))
+	header_row.add_child(UI.overline(("%s  •  %s" % ["STREAM LIVE" if bool(match_result.get("streaming", false)) else "LIVE MATCH", str(match_result.get("format", "RANKED"))]), accent))
 	var head_spacer := Control.new()
 	head_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(head_spacer)
-	header_row.add_child(UI.badge("RANKED", accent))
+	header_row.add_child(UI.badge(("%d VIEWERS" % int(match_result.get("stream_viewers", 0))) if bool(match_result.get("streaming", false)) else "RANKED", accent))
 	layout.add_child(header_row)
-	layout.add_child(UI.heading("TSK vs %s" % str(match_result["opponent"]), 24))
+	layout.add_child(UI.heading(("%s vs %s" % ["KESHI" if str(match_result.get("format", "")) == "1v1" else "TSK", str(match_result["opponent"])]), 24))
 
 	var scoreboard := UI.card(accent)
 	var score_box := VBoxContainer.new()
@@ -1312,38 +1312,74 @@ func _advance_match() -> void:
 	feed_row.modulate.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(feed_row, "modulate:a", 1.0, 0.12)
-	match_event_index += 1
 
+	var live_chat: Array = match_result.get("live_chat", [])
+	if bool(match_result.get("streaming", false)) and match_event_index < live_chat.size():
+		var chat: Dictionary = live_chat[match_event_index]
+		var chat_line := UI.label(
+			"CHAT  @%s: %s" % [str(chat.get("user", "viewer")), str(chat.get("text", ""))],
+			10,
+			UI.PURPLE,
+			700
+		)
+		match_log_box.add_child(chat_line)
+
+	match_event_index += 1
 
 func _finish_match_animation() -> void:
 	match_timer.stop()
 	var won := bool(match_result["won"])
 	var accent := UI.GREEN if won else UI.RED
 	match_event_label.text = (
-		"Victory secured. The organization keeps climbing."
+		"Win recorded. Ranked paid €0 — but the match may have created attention."
 		if won
-		else "Defeat recorded. Recover, review and go again."
+		else "Loss recorded. Ranked paid €0. Review it and queue again."
 	)
 	match_result_box.visible = true
 	match_result_box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.35)))
+
 	var result_row := HBoxContainer.new()
 	result_row.add_child(_metric_block("RESULT", "VICTORY" if won else "DEFEAT", accent))
 	result_row.add_child(_metric_block("RATING", "%+d" % int(match_result["mmr_delta"]), accent))
-	result_row.add_child(
-		_metric_block("REWARD", GameDataRef.format_cash(int(match_result["cash"])), UI.GOLD)
-	)
+	result_row.add_child(_metric_block("CASH", "€0", UI.GOLD))
 	match_result_box.add_child(result_row)
+
+	var profile: Dictionary = match_result.get("opponent_profile", {})
+	var profile_badge := UI.badge("POST-MATCH • %s" % str(profile.get("label", "NORMAL MATCH")), UI.PURPLE)
+	profile_badge.custom_minimum_size.y = 38
+	match_result_box.add_child(profile_badge)
+
+	var attention: Dictionary = match_result.get("attention", {})
+	var attention_text := str(attention.get("text", "No unusual attention after this match."))
+	match_result_box.add_child(UI.label(attention_text, 11, UI.MUTED))
+
+	if bool(match_result.get("streaming", false)):
+		var stream_row := HBoxContainer.new()
+		stream_row.add_child(_metric_block("VIEWERS", str(int(match_result.get("stream_viewers", 0))), UI.PURPLE))
+		stream_row.add_child(_metric_block("NEW FOLLOWS", "+%d" % int(match_result.get("stream_followers", 0)), UI.GREEN))
+		stream_row.add_child(_metric_block("PLAN", game.stream_plan(), UI.CYAN))
+		match_result_box.add_child(stream_row)
+		var comments: Array = match_result.get("comments", [])
+		if not comments.is_empty():
+			match_result_box.add_child(UI.overline("POST-STREAM COMMENTS", UI.MUTED))
+			for comment in comments:
+				match_result_box.add_child(UI.label(
+					"@%s  %s" % [str(comment.get("user", "user")), str(comment.get("text", ""))],
+					10,
+					UI.MUTED
+				))
+
 	if bool(match_result.get("promoted", false)):
 		var promotion := UI.badge("PROMOTED TO %s" % str(match_result["new_rank"]), UI.GOLD)
 		promotion.custom_minimum_size.y = 42
 		match_result_box.add_child(promotion)
+
 	match_continue_button.visible = true
 	var tween := create_tween().set_parallel(true)
 	match_result_box.modulate.a = 0.0
 	match_continue_button.modulate.a = 0.0
 	tween.tween_property(match_result_box, "modulate:a", 1.0, 0.2)
 	tween.tween_property(match_continue_button, "modulate:a", 1.0, 0.2)
-
 
 func _close_match() -> void:
 	if match_overlay == null or not is_instance_valid(match_overlay):
