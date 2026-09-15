@@ -28,6 +28,7 @@ var match_clock_label: Label
 var match_event_label: Label
 var match_progress: ProgressBar
 var match_log_box: VBoxContainer
+var match_log_scroll: ScrollContainer
 var match_result_box: VBoxContainer
 var match_continue_button: Button
 
@@ -265,6 +266,7 @@ func _show_page(page: String, animate: bool = true) -> void:
 			_build_empire_page()
 		_:
 			_build_home_page()
+	_apply_scroll_passthrough(page_content)
 	_refresh_top_bar()
 	_refresh_nav()
 	if animate:
@@ -274,6 +276,17 @@ func _show_page(page: String, animate: bool = true) -> void:
 		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(page_content, "modulate:a", 1.0, 0.18)
 		tween.tween_property(page_content, "position:x", 0.0, 0.22)
+
+
+func _apply_scroll_passthrough(node: Node) -> void:
+	for child in node.get_children():
+		if child is Button:
+			child.mouse_filter = Control.MOUSE_FILTER_STOP
+		elif child is ScrollContainer:
+			child.mouse_filter = Control.MOUSE_FILTER_STOP
+		elif child is Control:
+			child.mouse_filter = Control.MOUSE_FILTER_PASS
+		_apply_scroll_passthrough(child)
 
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
@@ -1203,11 +1216,26 @@ func _start_match(mode: String) -> void:
 	if match_overlay != null and is_instance_valid(match_overlay):
 		return
 	match_result = game.create_match(mode)
+	if match_result.is_empty() or not bool(match_result.get("ok", false)):
+		_show_message("Matchmaking failed. Try again.", false)
+		return
+	var events: Array = match_result.get("events", [])
+	if events.is_empty():
+		_show_message("Match data did not load. Try again.", false)
+		return
 	match_event_index = 0
 	match_speed = 1
 	_build_match_overlay()
 	_refresh_top_bar()
-	match_timer.start()
+	call_deferred("_begin_match_playback")
+
+
+func _begin_match_playback() -> void:
+	if match_timer == null or not is_instance_valid(match_timer):
+		return
+	_advance_match()
+	if match_event_index < int(match_result.get("events", []).size()):
+		match_timer.start()
 
 
 func _build_match_overlay() -> void:
@@ -1276,16 +1304,16 @@ func _build_match_overlay() -> void:
 		speed_row.add_child(speed_button)
 	layout.add_child(speed_row)
 	layout.add_child(UI.overline("MATCH FEED", UI.MUTED))
-	var log_scroll := ScrollContainer.new()
-	log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	log_scroll.scroll_deadzone = 4
-	log_scroll.follow_focus = false
+	match_log_scroll = ScrollContainer.new()
+	match_log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	match_log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	match_log_scroll.scroll_deadzone = 2
+	match_log_scroll.follow_focus = false
 	match_log_box = VBoxContainer.new()
 	match_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	match_log_box.add_theme_constant_override("separation", 7)
-	log_scroll.add_child(match_log_box)
-	layout.add_child(log_scroll)
+	match_log_scroll.add_child(match_log_box)
+	layout.add_child(match_log_scroll)
 
 	match_result_box = VBoxContainer.new()
 	match_result_box.add_theme_constant_override("separation", 8)
@@ -1297,9 +1325,12 @@ func _build_match_overlay() -> void:
 	layout.add_child(match_continue_button)
 
 	match_timer = Timer.new()
-	match_timer.wait_time = 0.82
+	match_timer.wait_time = 0.72
+	match_timer.one_shot = false
+	match_timer.process_callback = Timer.TIMER_PROCESS_IDLE
 	match_timer.timeout.connect(_advance_match)
 	match_overlay.add_child(match_timer)
+	_apply_scroll_passthrough(layout)
 	var tween := create_tween()
 	tween.tween_property(match_overlay, "modulate:a", 1.0, 0.22)
 
@@ -1307,7 +1338,7 @@ func _build_match_overlay() -> void:
 func _set_match_speed(speed: int) -> void:
 	match_speed = speed
 	if match_timer != null:
-		match_timer.wait_time = 0.82 / float(speed)
+		match_timer.wait_time = 0.72 / float(speed)
 		match_timer.start()
 
 
@@ -1351,9 +1382,21 @@ func _advance_match() -> void:
 		match_log_box.add_child(chat_line)
 
 	match_event_index += 1
+	if match_log_scroll != null and is_instance_valid(match_log_scroll):
+		call_deferred("_scroll_match_feed_to_bottom")
+
+
+func _scroll_match_feed_to_bottom() -> void:
+	if match_log_scroll == null or not is_instance_valid(match_log_scroll):
+		return
+	var bar := match_log_scroll.get_v_scroll_bar()
+	match_log_scroll.scroll_vertical = int(bar.max_value)
+
 
 func _finish_match_animation() -> void:
 	match_timer.stop()
+	if match_timer != null:
+		match_timer.stop()
 	var won := bool(match_result["won"])
 	var accent := UI.GREEN if won else UI.RED
 	match_event_label.text = (
