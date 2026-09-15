@@ -60,7 +60,8 @@ func _build_shell() -> void:
 	page_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	page_scroll.scroll_deadzone = 18
+	page_scroll.scroll_deadzone = 4
+	page_scroll.follow_focus = false
 	shell.add_child(page_scroll)
 
 	page_content = VBoxContainer.new()
@@ -114,7 +115,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4.2", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4.3", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -158,7 +159,7 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 
 func _build_bottom_navigation() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 82.0
+	outer.custom_minimum_size.y = 88.0
 	outer.add_theme_stylebox_override(
 		"panel", UI.box(Color(0.025, 0.04, 0.105, 0.99), 0, Color(0.22, 0.38, 0.72, 0.2), 0)
 	)
@@ -182,8 +183,9 @@ func _build_bottom_navigation() -> Control:
 		var button := Button.new()
 		button.text = "%s\n%s" % [entry[2], entry[1]]
 		button.focus_mode = Control.FOCUS_NONE
+		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 58
+		button.custom_minimum_size.y = 64
 		button.add_theme_font_size_override("font_size", 11)
 		button.pressed.connect(_show_page.bind(entry[0], true))
 		row.add_child(button)
