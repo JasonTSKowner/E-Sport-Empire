@@ -114,7 +114,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4.2", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -371,11 +371,13 @@ func _club_hero() -> Control:
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var rank: Dictionary = game.rank_data(mode)
-	var next_rank: Dictionary = GameDataRef.next_rank_for_mmr(game.mode_mmr(mode))
+	var next_rank: Dictionary = game.next_rank_data(mode)
+	var visible_rank := game.visible_rank_name(mode)
 	var panel := UI.card(accent)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
+
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
 	box.add_child(top)
@@ -389,46 +391,61 @@ func _club_hero() -> Control:
 	initials.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	emblem.add_child(initials)
 	top.add_child(emblem)
+
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.add_theme_constant_override("separation", 3)
 	details.add_child(UI.overline("ACTIVE DIVISION", accent))
 	details.add_child(UI.heading(mode, 20))
 	details.add_child(
-		UI.label("OVR %d  •  %s" % [game.team_overall(mode), rank["name"]], 13, UI.MUTED, 700)
+		UI.label("OVR %d  •  %s" % [game.team_overall(mode), visible_rank], 13, UI.MUTED, 700)
 	)
 	top.add_child(details)
+
 	var mmr_box := VBoxContainer.new()
 	var mmr_title := UI.label(str(game.mode_mmr(mode)), 25, UI.TEXT, 800)
 	mmr_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var mmr_cap := UI.label("RATING", 10, accent, 800)
+	var mmr_cap := UI.label("MMR", 10, accent, 800)
 	mmr_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	mmr_box.add_child(mmr_title)
 	mmr_box.add_child(mmr_cap)
 	top.add_child(mmr_box)
 
-	var current_min := int(rank["minimum"])
-	var next_min := int(next_rank["minimum"])
-	var progress_value: int = game.mode_mmr(mode) - current_min
-	var progress_max := maxi(1, next_min - current_min)
 	var progress_labels := HBoxContainer.new()
-	var current_label := UI.label(str(rank["name"]), 12, UI.TEXT, 700)
-	current_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	progress_labels.add_child(current_label)
-	var next_label := UI.label(
-		"MAX RANK" if next_min == current_min else "%s  %d" % [next_rank["name"], next_min],
-		11,
-		UI.MUTED
-	)
-	next_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	progress_labels.add_child(next_label)
-	box.add_child(progress_labels)
-	box.add_child(UI.progress(progress_value, progress_max, accent, 8))
+	if mode == "Rocket League" and not game.placements_complete(mode):
+		var record := game.mode_record(mode)
+		var placed := int(record.get("placements", 0))
+		var target := game.placement_target(mode)
+		var current_label := UI.label("UNRANKED", 12, UI.TEXT, 700)
+		current_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		progress_labels.add_child(current_label)
+		var next_label := UI.label("%d/%d PLACEMENTS" % [placed, target], 11, UI.MUTED)
+		next_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		progress_labels.add_child(next_label)
+		box.add_child(progress_labels)
+		box.add_child(UI.progress(placed, target, accent, 8))
+	else:
+		var current_min := int(rank["minimum"])
+		var next_min := int(next_rank["minimum"])
+		var progress_value: int = game.mode_mmr(mode) - current_min
+		var progress_max := maxi(1, next_min - current_min)
+		var current_label := UI.label(str(rank["name"]), 12, UI.TEXT, 700)
+		current_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		progress_labels.add_child(current_label)
+		var next_label := UI.label(
+			"MAX RANK" if next_min == current_min else "%s  %d" % [next_rank["name"], next_min],
+			11,
+			UI.MUTED
+		)
+		next_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		progress_labels.add_child(next_label)
+		box.add_child(progress_labels)
+		box.add_child(UI.progress(progress_value, progress_max, accent, 8))
+
 	var manage := UI.button("MANAGE %s DIVISION" % GameDataRef.MODE_SHORT[mode], accent, true)
 	manage.pressed.connect(_show_page.bind("team", true))
 	box.add_child(manage)
 	return panel
-
 
 func _sponsor_card() -> Control:
 	var panel := UI.card(UI.GOLD)
@@ -484,7 +501,7 @@ func _division_row(mode: String) -> Control:
 	center.add_theme_constant_override("separation", 2)
 	center.add_child(UI.label(mode, 16, UI.TEXT, 800))
 	center.add_child(
-		UI.label("%s  •  OVR %d" % [rank["name"], game.team_overall(mode)], 12, UI.MUTED)
+		UI.label("%s  •  OVR %d" % [game.visible_rank_name(mode), game.team_overall(mode)], 12, UI.MUTED)
 	)
 	center.add_child(
 		UI.label(
@@ -672,7 +689,7 @@ func _build_play_page() -> void:
 	box.add_child(UI.separator())
 
 	var ranked_info := HBoxContainer.new()
-	ranked_info.add_child(_metric_block("CURRENT", str(rank["name"]), accent))
+	ranked_info.add_child(_metric_block("CURRENT", game.visible_rank_name(mode), accent))
 	ranked_info.add_child(_metric_block("RATING", str(record["mmr"]), UI.TEXT))
 	ranked_info.add_child(_metric_block("CASH / WIN", "€0", UI.GOLD))
 	box.add_child(ranked_info)
