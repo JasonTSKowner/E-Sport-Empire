@@ -633,59 +633,63 @@ func _mini_stat(caption: String, value: int, accent: Color) -> Control:
 
 func _build_play_page() -> void:
 	_page_header(
-		"Competition", "Match Day", "Queue a ranked series and watch your decisions play out live."
+		"Competition",
+		"Ranked Grind",
+		"Ranked matches pay €0. Climb, stream and build attention."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var record: Dictionary = game.mode_record(mode)
 	var rank: Dictionary = game.rank_data(mode)
-	var opponents: Array = GameDataRef.OPPONENTS[mode]
-	var opponent: String = opponents[
-		(int(game.data["week"]) + int(record["played"])) % opponents.size()
-	]
+	var format := game.match_format(mode)
+	var locked := format == "LOCKED"
+	page_content.add_child(_streaming_card())
+
 	var panel := UI.card(accent)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
 	panel.add_child(box)
 	var live_row := HBoxContainer.new()
-	live_row.add_child(UI.badge("RANKED SERIES", accent))
+	live_row.add_child(UI.badge(("%s RANKED" % format) if not locked else "NO ROSTER", accent))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	live_row.add_child(spacer)
-	live_row.add_child(
-		UI.label("PLACEMENT %d/5" % mini(5, int(record["placements"]) + 1), 11, UI.MUTED, 700)
-	)
+	live_row.add_child(UI.label("PLACEMENT %d/5" % mini(5, int(record["placements"]) + 1), 11, UI.MUTED, 700))
 	box.add_child(live_row)
+
 	var versus := HBoxContainer.new()
 	versus.add_theme_constant_override("separation", 8)
-	versus.add_child(_versus_team("TSK", "OVR %d" % game.team_overall(mode), accent))
+	var our_name := "KESHI" if format == "1v1" else "TSK"
+	versus.add_child(_versus_team(our_name, "OVR %d" % game.team_overall(mode), accent))
 	var versus_label := UI.label("VS", 14, UI.MUTED, 800)
 	versus_label.custom_minimum_size.x = 38
 	versus_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	versus_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	versus.add_child(versus_label)
-	versus.add_child(_versus_team(opponent, "RATING %d" % int(record["mmr"]), UI.PURPLE))
+	versus.add_child(_versus_team("MATCHMAKING" if not locked else "LOCKED", "RATING %d" % int(record["mmr"]), UI.PURPLE))
 	box.add_child(versus)
 	box.add_child(UI.separator())
+
 	var ranked_info := HBoxContainer.new()
 	ranked_info.add_child(_metric_block("CURRENT", str(rank["name"]), accent))
 	ranked_info.add_child(_metric_block("RATING", str(record["mmr"]), UI.TEXT))
-	ranked_info.add_child(
-		_metric_block("RECORD", "%d-%d" % [int(record["wins"]), int(record["losses"])], UI.GREEN)
-	)
+	ranked_info.add_child(_metric_block("CASH / WIN", "€0", UI.GOLD))
 	box.add_child(ranked_info)
-	var queue := UI.button("QUEUE RANKED MATCH", accent, true)
+
+	var queue := UI.button("QUEUE %s RANKED  •  €0" % format if not locked else "RECRUIT A PLAYER FIRST", accent, not locked)
+	queue.disabled = locked
 	queue.pressed.connect(_start_match.bind(mode))
 	box.add_child(queue)
 	page_content.add_child(panel)
-	page_content.add_child(
-		_section_title("MATCH PREP", "Analytics and form affect every simulation.")
-	)
-	page_content.add_child(_match_prep_card(mode))
+
+	if not locked:
+		page_content.add_child(_section_title("MATCH PREP", "Form and skill affect every match."))
+		page_content.add_child(_match_prep_card(mode))
+		page_content.add_child(_cup_card(mode))
+
 	page_content.add_child(_section_title("RECENT RESULTS", "%s match history" % mode))
 	_build_history_list(page_content, 5, mode)
-
 
 func _streaming_card() -> Control:
 	var stream: Dictionary = game.data.get("streaming", {})
