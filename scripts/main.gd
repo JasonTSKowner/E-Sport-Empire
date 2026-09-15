@@ -1391,7 +1391,11 @@ func _finish_match_animation() -> void:
 					UI.MUTED
 				))
 
-	if bool(match_result.get("promoted", false)):
+	if bool(match_result.get("rank_revealed", false)):
+		var reveal := UI.badge("PLACEMENT RANK  •  %s" % str(match_result["new_rank"]), UI.GOLD)
+		reveal.custom_minimum_size.y = 42
+		match_result_box.add_child(reveal)
+	elif bool(match_result.get("promoted", false)):
 		var promotion := UI.badge("PROMOTED TO %s" % str(match_result["new_rank"]), UI.GOLD)
 		promotion.custom_minimum_size.y = 42
 		match_result_box.add_child(promotion)
