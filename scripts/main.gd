@@ -1279,6 +1279,8 @@ func _build_match_overlay() -> void:
 	var log_scroll := ScrollContainer.new()
 	log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	log_scroll.scroll_deadzone = 4
+	log_scroll.follow_focus = false
 	match_log_box = VBoxContainer.new()
 	match_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	match_log_box.add_theme_constant_override("separation", 7)
