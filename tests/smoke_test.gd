@@ -19,6 +19,7 @@ func _check(condition: bool, message: String) -> void:
 
 
 func _run() -> void:
+	print("SMOKE 1/6: ranked data")
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
@@ -39,6 +40,7 @@ func _run() -> void:
 	_check(RankedDataRef.top_ladder("1v1").size() == 12, "top twelve ladder")
 	_check(RankedDataRef.around_player(600, "1v1").size() == 7, "around-you ladder")
 
+	print("SMOKE 2/6: queue and MMR")
 	var one_before := int(state.playlist_record("1v1")["mmr"])
 	var first_match: Dictionary = state.create_match("Rocket League")
 	_check(bool(first_match.get("ok", false)), "1v1 match creation")
@@ -66,6 +68,7 @@ func _run() -> void:
 	_check(bool(two_match.get("ok", false)), "2v2 match creation")
 	_check(str(two_match.get("format", "")) == "2v2", "2v2 format")
 
+	print("SMOKE 3/6: reveal and migration")
 	var reveal_state: EmpireStateRef = EmpireStateRef.new()
 	reveal_state.reset_game()
 	var reveal_record := reveal_state.playlist_record("1v1")
@@ -90,6 +93,7 @@ func _run() -> void:
 	_check(emblem.family == "Grand Champion", "rank emblem family")
 	emblem.free()
 
+	print("SMOKE 4/6: mobile ranked UI")
 	var main := MainScene.instantiate()
 	root.add_child(main)
 	for frame in range(3):
@@ -113,6 +117,7 @@ func _run() -> void:
 	await process_frame
 	_check(main.page_content.get_child_count() >= 27, "all-ranks content")
 
+	print("SMOKE 5/6: full match flow")
 	main.ranked_view = "overview"
 	main._show_page("play", false)
 	main._start_match("Rocket League")
@@ -125,6 +130,7 @@ func _run() -> void:
 	_check(main.match_result_box.visible, "match result panel")
 	_check(main.match_continue_button.visible, "match continue button")
 	await main._close_match()
+	print("SMOKE 6/6: continue return")
 	_check(main.match_overlay == null, "match overlay closes")
 	_check(main.current_page == "play", "returns to ranked")
 	main.queue_free()
