@@ -28,7 +28,7 @@ func _run() -> void:
 	_check(state.selected_rl_playlist() == "1v1", "default playlist")
 	for playlist in RankedDataRef.PLAYLISTS:
 		var record := state.playlist_record(playlist)
-		_check(int(record.get("mmr", 0)) == 600, "%s starting mmr" % playlist)
+		_check(int(record.get("mmr", 0)) == 100, "%s starting mmr" % playlist)
 		_check(int(record.get("placements", -1)) == 0, "%s fresh placements" % playlist)
 		_check(record.get("mmr_history", []).size() == 1, "%s mmr history" % playlist)
 
@@ -38,17 +38,28 @@ func _run() -> void:
 	_check(str(RankedDataRef.rank_for_mmr(1860, "3v3").get("family", "")) == "Supersonic Legend", "3v3 ssl anchor")
 	_check(RankedDataRef.tier_rows("2v2").size() == 22, "complete rank table")
 	_check(RankedDataRef.top_ladder("1v1").size() == 12, "top twelve ladder")
-	_check(RankedDataRef.around_player(600, "1v1").size() == 7, "around-you ladder")
+	_check(RankedDataRef.around_player(100, "1v1").size() == 7, "around-you ladder")
 
 	print("SMOKE 2/6: queue and MMR")
 	var one_before := int(state.playlist_record("1v1")["mmr"])
 	var first_match: Dictionary = state.create_match("Rocket League")
 	_check(bool(first_match.get("ok", false)), "1v1 match creation")
-	_check(first_match.get("events", []).size() == 9, "match event count")
+	_check(first_match.get("events", []).size() >= 6 and first_match.get("events", []).size() <= 8, "match decision count")
+	_check(first_match.get("decisions", []).size() == first_match.get("events", []).size(), "decision event parity")
 	_check(abs(int(first_match.get("mmr_delta", 0))) >= 20, "placement delta lower bound")
 	_check(abs(int(first_match.get("mmr_delta", 0))) <= 30, "placement delta upper bound")
 	_check(int(state.playlist_record("1v1")["mmr"]) != one_before, "1v1 mmr changed")
 	_check(int(state.playlist_record("2v2")["placements"]) == 0, "playlist independence")
+	var tactical_state: EmpireStateRef = EmpireStateRef.new()
+	tactical_state.reset_game()
+	var tactical_session: Dictionary = tactical_state.prepare_match("Rocket League")
+	var opening: Dictionary = tactical_state.current_match_situation(tactical_session)
+	var tactical_counters := {"press": "counter", "control": "press", "counter": "control"}
+	var opening_call := str(tactical_counters[str(opening["opponent_action"])])
+	var boost_before := int(tactical_session.get("boost", 0))
+	var opening_result: Dictionary = tactical_state.play_match_turn(tactical_session, opening_call)
+	_check(int(opening_result.get("quality", 0)) == 1, "correct tactical read rewarded")
+	_check(int(opening_result.get("boost_after", 0)) != boost_before, "tactical boost changes")
 
 	var normal_record := state.playlist_record("1v1")
 	normal_record["placements"] = 10
@@ -68,7 +79,21 @@ func _run() -> void:
 	_check(bool(two_match.get("ok", false)), "2v2 match creation")
 	_check(str(two_match.get("format", "")) == "2v2", "2v2 format")
 
-	print("SMOKE 3/6: reveal and migration")
+	print("SMOKE 3/6: reveal, cooldowns and migration")
+	var schedule_state: EmpireStateRef = EmpireStateRef.new()
+	schedule_state.reset_game()
+	var captain: Dictionary = schedule_state.data["roster"][0]
+	_check(schedule_state.can_train_player(captain), "training initially available")
+	_check(bool(schedule_state.train_player("captain").get("ok", false)), "first training succeeds")
+	_check(not bool(schedule_state.train_player("captain").get("ok", true)), "training spam blocked")
+	_check(bool(schedule_state.rest_team("Rocket League").get("ok", false)), "first recovery succeeds")
+	_check(not bool(schedule_state.rest_team("Rocket League").get("ok", true)), "recovery spam blocked")
+	schedule_state.data["week"] = int(schedule_state.data["week"]) + 2
+	_check(not schedule_state.can_train_player(captain), "training stays locked for two weeks")
+	schedule_state.data["week"] = int(schedule_state.data["week"]) + 1
+	_check(schedule_state.can_train_player(captain), "training returns after three weeks")
+	_check(schedule_state.can_rest_team("Rocket League"), "recovery returns after three weeks")
+
 	var reveal_state: EmpireStateRef = EmpireStateRef.new()
 	reveal_state.reset_game()
 	var reveal_record := reveal_state.playlist_record("1v1")
@@ -79,14 +104,22 @@ func _run() -> void:
 	_check(int(reveal_match.get("placements_after", 0)) == 10, "placement ten completed")
 
 	var migrated: EmpireStateRef = EmpireStateRef.new()
-	migrated.data = reveal_state.data.duplicate(true)
+	migrated.reset_game()
+	migrated.data["version"] = 5
 	migrated.data["cash"] = 47
-	migrated.data["rl_playlists"]["1v1"].erase("peak_mmr")
-	migrated.data["rl_playlists"]["1v1"].erase("mmr_history")
-	migrated._migrate_save(4)
+	migrated.data["rl_playlists"]["1v1"] = migrated._new_ranked_record(625, 1)
+	migrated.data["rl_playlists"]["1v1"]["peak_mmr"] = 650
+	migrated.data["rl_playlists"]["1v1"]["season_peak_mmr"] = 640
+	migrated.data["rl_playlists"]["1v1"]["mmr_history"] = [600, 625]
+	migrated.data["roster"][0].erase("last_training_week")
+	migrated.data.erase("last_rest_week")
+	migrated._migrate_save(5)
 	_check(int(migrated.data.get("cash", 0)) == 47, "migration preserves economy")
-	_check(migrated.data["rl_playlists"]["1v1"].has("peak_mmr"), "migration adds peak")
-	_check(migrated.data["rl_playlists"]["1v1"].has("mmr_history"), "migration adds history")
+	_check(int(migrated.data["rl_playlists"]["1v1"]["mmr"]) == 125, "migration rebases current MMR")
+	_check(int(migrated.data["rl_playlists"]["1v1"]["peak_mmr"]) == 150, "migration rebases peak MMR")
+	_check(migrated.data["rl_playlists"]["1v1"]["mmr_history"] == [100, 125], "migration rebases MMR history")
+	_check(migrated.data["roster"][0].has("last_training_week"), "migration adds training cooldown")
+	_check(migrated.data.has("last_rest_week"), "migration adds recovery cooldown")
 
 	var emblem := RankEmblemRef.new()
 	emblem.configure(RankedDataRef.rank_for_mmr(1435, "2v2"))
@@ -111,7 +144,7 @@ func _run() -> void:
 	main.ranked_view = "ladder"
 	main._show_page("play", false)
 	await process_frame
-	_check(main.page_content.get_child_count() > 20, "ladder content")
+	_check(main.page_content.get_child_count() >= 16, "ladder content")
 	main.ranked_view = "ranks"
 	main._show_page("play", false)
 	await process_frame
@@ -122,11 +155,20 @@ func _run() -> void:
 	main._show_page("play", false)
 	main._start_match("Rocket League")
 	await process_frame
-	if main.match_timer != null:
-		main.match_timer.stop()
-	for event_index in range(12):
-		main._advance_match()
+	_check(main.match_interactive, "Rocket League match is interactive")
+	var counters := {"press": "counter", "control": "press", "counter": "control"}
+	for decision_index in range(8):
+		if main.match_finished:
+			break
+		var situation: Dictionary = main.game.current_match_situation(main.match_session)
+		var best_action := str(counters.get(str(situation.get("opponent_action", "press")), "counter"))
+		if not main.game.can_play_match_action(main.match_session, best_action):
+			best_action = "control"
+		main._choose_match_action(best_action)
+		await process_frame
 	_check(main.match_finished, "match finishes")
+	_check(bool(main.match_result.get("ok", false)), "interactive result saved")
+	_check(main.match_result.get("decisions", []).size() >= 6, "interactive decisions recorded")
 	_check(main.match_result_box.visible, "match result panel")
 	_check(main.match_continue_button.visible, "match continue button")
 	await main._close_match()
@@ -136,7 +178,7 @@ func _run() -> void:
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v0.4.5 smoke test: PASS")
+		print("E-Sport Empire v0.4.6 smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:

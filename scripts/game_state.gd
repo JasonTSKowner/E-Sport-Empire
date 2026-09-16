@@ -4,6 +4,53 @@ extends RefCounted
 const SAVE_PATH := "user://e_sport_empire_save.json"
 const GameDataRef = preload("res://scripts/game_data.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
+const TRAINING_COOLDOWN_WEEKS := 3
+const RECOVERY_COOLDOWN_WEEKS := 3
+
+const MATCH_ACTIONS := [
+	{
+		"key": "press",
+		"label": "HIGH PRESS",
+		"detail": "Take space immediately. Strong against CONTROL. Costs 18 boost.",
+		"boost_delta": -18,
+		"minimum_boost": 18,
+	},
+	{
+		"key": "control",
+		"label": "BOOST CONTROL",
+		"detail": "Keep possession and recharge. Strong against COUNTER. Gains 18 boost.",
+		"boost_delta": 18,
+		"minimum_boost": 0,
+	},
+	{
+		"key": "counter",
+		"label": "FAST COUNTER",
+		"detail": "Absorb pressure, then attack the open field. Strong against PRESS. Costs 10 boost.",
+		"boost_delta": -10,
+		"minimum_boost": 10,
+	},
+]
+
+const TACTIC_COUNTER := {
+	"press": "counter",
+	"control": "press",
+	"counter": "control",
+}
+
+const MATCH_SITUATIONS := {
+	"press": {
+		"title": "OPPONENT: HIGH PRESS",
+		"read": "They commit early, challenge fast and try to starve your boost.",
+	},
+	"control": {
+		"title": "OPPONENT: SLOW CONTROL",
+		"read": "They protect possession and wait for your rotation to open.",
+	},
+	"counter": {
+		"title": "OPPONENT: LOW BLOCK",
+		"read": "They invite pressure and look for one fast counterattack.",
+	},
+}
 
 var data: Dictionary = {}
 var rng := RandomNumberGenerator.new()
@@ -134,7 +181,7 @@ func mode_record(mode: String) -> Dictionary:
 	return data["modes"][mode]
 
 func mode_mmr(mode: String) -> int:
-	return int(mode_record(mode).get("mmr", 600))
+	return int(mode_record(mode).get("mmr", 100 if mode == "Rocket League" else 600))
 
 func rank_data(mode: String) -> Dictionary:
 	if mode == "Rocket League":
@@ -230,10 +277,27 @@ func training_cost(player: Dictionary) -> int:
 		return 0
 	return 10 + int(round(float(player_overall(player)) * 0.55))
 
+
+func current_week_key() -> int:
+	return (int(data.get("season", 1)) - 1) * 12 + int(data.get("week", 1))
+
+
+func can_train_player(player: Dictionary) -> bool:
+	var last_week := int(player.get("last_training_week", -1))
+	return last_week < 0 or current_week_key() - last_week >= TRAINING_COOLDOWN_WEEKS
+
+
+func can_rest_team(mode: String) -> bool:
+	var rest_weeks: Dictionary = data.get("last_rest_week", {})
+	var last_week := int(rest_weeks.get(mode, -1))
+	return last_week < 0 or current_week_key() - last_week >= RECOVERY_COOLDOWN_WEEKS
+
 func train_player(player_id: String) -> Dictionary:
 	var player := _find_player(player_id)
 	if player.is_empty():
 		return {"ok": false, "message": "Player not found."}
+	if not can_train_player(player):
+		return {"ok": false, "message": "%s is still in a three-week development cycle. Play ranked matches to advance the schedule." % str(player.get("name", "Player"))}
 	var cost := training_cost(player)
 	if int(data["cash"]) < cost:
 		return {"ok": false, "message": "Not enough cash for this session."}
@@ -252,6 +316,7 @@ func train_player(player_id: String) -> Dictionary:
 	player["fatigue"] = clampi(int(player.get("fatigue", 0)) + maxi(3, 9 - coaching), 0, 100)
 	data["cash"] = int(data["cash"]) - cost
 	data["energy"] = int(data["energy"]) - 9
+	player["last_training_week"] = current_week_key()
 	save_game()
 	return {
 		"ok": true,
@@ -260,10 +325,15 @@ func train_player(player_id: String) -> Dictionary:
 
 
 func rest_team(mode: String) -> Dictionary:
+	if not can_rest_team(mode):
+		return {"ok": false, "message": "%s recovery is on a three-week cooldown." % mode}
 	for player in roster_for(mode):
 		player["fatigue"] = maxi(0, int(player.get("fatigue", 0)) - 24)
 		player["form"] = clampi(int(player.get("form", 50)) + 2, 25, 100)
-	data["energy"] = mini(100, int(data["energy"]) + 18)
+	data["energy"] = mini(100, int(data["energy"]) + 12)
+	var rest_weeks: Dictionary = data.get("last_rest_week", {})
+	rest_weeks[mode] = current_week_key()
+	data["last_rest_week"] = rest_weeks
 	save_game()
 	return {"ok": true, "message": "%s division completed recovery." % mode}
 
@@ -358,7 +428,26 @@ func collect_sponsor() -> Dictionary:
 		"message": "Small sponsor activation: +%s and +%d fans." % [GameDataRef.format_cash(reward), fan_reward],
 	}
 
-func create_match(mode: String) -> Dictionary:
+func match_action_definitions() -> Array:
+	return MATCH_ACTIONS.duplicate(true)
+
+
+func _match_action_definition(action: String) -> Dictionary:
+	for definition_value in MATCH_ACTIONS:
+		var definition: Dictionary = definition_value
+		if str(definition.get("key", "")) == action:
+			return definition
+	return {}
+
+
+func can_play_match_action(session: Dictionary, action: String) -> bool:
+	var definition: Dictionary = _match_action_definition(action)
+	if definition.is_empty():
+		return false
+	return int(session.get("boost", 0)) >= int(definition.get("minimum_boost", 0))
+
+
+func prepare_match(mode: String) -> Dictionary:
 	var roster := roster_for(mode)
 	if roster.is_empty():
 		return {"ok": false, "message": "You need at least one active player before queueing."}
@@ -368,33 +457,250 @@ func create_match(mode: String) -> Dictionary:
 			"ok": false,
 			"message": "%s requires %d active Rocket League players." % [format, playlist_required_players(format)],
 		}
-	var record := mode_record(mode)
-	var mmr_before := int(record.get("mmr", 600))
+	var record: Dictionary = playlist_record(format) if mode == "Rocket League" else mode_record(mode)
+	var mmr_before := int(record.get("mmr", 100 if mode == "Rocket League" else 600))
 	var opponent_mmr := _opponent_mmr_for(mmr_before)
-
 	var player_strength := _competitive_strength(mode, format)
 	player_strength += float(facility_level("analytics")) * 0.45
 	player_strength += float(facility_level("coaching")) * 0.25
-
-	var profile := _roll_opponent_profile()
-	var expected_strength := 48.0 + float(opponent_mmr - 600) / 30.0
+	var profile: Dictionary = _roll_opponent_profile()
+	var expected_strength := 54.0 + float(opponent_mmr - 100) / 30.0
 	var opponent_strength := clampf(
 		expected_strength + rng.randf_range(-3.5, 3.5) + float(profile["strength_mod"]),
-		35.0,
+		32.0,
 		99.0
 	)
-	var advantage := player_strength - opponent_strength
-	var win_chance := clampf(0.5 + advantage * 0.038, 0.12, 0.88)
-	var won := rng.randf() <= win_chance
-
 	var opponent := ""
 	if format == "1v1":
 		opponent = str(GameDataRef.FIRST_NAMES[rng.randi_range(0, GameDataRef.FIRST_NAMES.size() - 1)])
 	else:
 		var opponent_names: Array = GameDataRef.OPPONENTS[mode]
 		opponent = opponent_names[rng.randi_range(0, opponent_names.size() - 1)]
+	var situations: Array = []
+	var situation_keys := ["press", "control", "counter"]
+	for index in range(6):
+		situations.append(str(situation_keys[rng.randi_range(0, situation_keys.size() - 1)]))
+	return {
+		"ok": true,
+		"resolved": false,
+		"mode": mode,
+		"format": format,
+		"opponent": opponent,
+		"opponent_mmr": opponent_mmr,
+		"opponent_profile": profile,
+		"mmr_before": mmr_before,
+		"player_strength": player_strength,
+		"opponent_strength": opponent_strength,
+		"turn": 0,
+		"regulation_turns": 6,
+		"our_score": 0,
+		"their_score": 0,
+		"decision_score": 0,
+		"boost": 45,
+		"last_action": "",
+		"situations": situations,
+		"decisions": [],
+		"events": [],
+	}
 
-	var events := _create_match_events(mode, won)
+
+func current_match_situation(session: Dictionary) -> Dictionary:
+	if session.is_empty() or not bool(session.get("ok", false)):
+		return {}
+	var turn := int(session.get("turn", 0))
+	var situations: Array = session.get("situations", [])
+	var situation_keys := ["press", "control", "counter"]
+	while situations.size() <= turn:
+		situations.append(str(situation_keys[rng.randi_range(0, situation_keys.size() - 1)]))
+	session["situations"] = situations
+	var opponent_action := str(situations[turn])
+	var source: Dictionary = MATCH_SITUATIONS[opponent_action]
+	return {
+		"turn": turn,
+		"opponent_action": opponent_action,
+		"title": str(source["title"]),
+		"read": str(source["read"]),
+		"overtime": turn >= int(session.get("regulation_turns", 6)),
+	}
+
+
+func play_match_turn(session: Dictionary, action: String) -> Dictionary:
+	if bool(session.get("resolved", false)):
+		return {"ok": false, "message": "This match is already complete."}
+	var action_definition: Dictionary = _match_action_definition(action)
+	if action_definition.is_empty():
+		return {"ok": false, "message": "Unknown tactical call."}
+	if not can_play_match_action(session, action):
+		return {"ok": false, "message": "Not enough tactical boost for that call. Use BOOST CONTROL to recharge."}
+	var situation: Dictionary = current_match_situation(session)
+	if situation.is_empty():
+		return {"ok": false, "message": "The match situation could not be loaded."}
+	var opponent_action := str(situation["opponent_action"])
+	var perfect_action := str(TACTIC_COUNTER[opponent_action])
+	var opponent_counter := str(TACTIC_COUNTER[action])
+	var tactical_edge := 0
+	if action == perfect_action:
+		tactical_edge = 1
+	elif opponent_action == opponent_counter:
+		tactical_edge = -1
+	var repeated_call := action == str(session.get("last_action", ""))
+	if repeated_call:
+		# Repeating a call is readable: even a correct counter loses its full edge.
+		tactical_edge = maxi(-1, tactical_edge - 1)
+	var boost_before := int(session.get("boost", 45))
+	var boost_after := clampi(boost_before + int(action_definition.get("boost_delta", 0)), 0, 100)
+	session["boost"] = boost_after
+	session["last_action"] = action
+	var strength_edge := clampf(
+		(float(session.get("player_strength", 50.0)) - float(session.get("opponent_strength", 50.0))) / 100.0,
+		-0.18,
+		0.18
+	)
+	var our_goal_chance := clampf(0.20 + strength_edge + float(tactical_edge) * 0.13, 0.04, 0.54)
+	var their_goal_chance := clampf(0.20 - strength_edge - float(tactical_edge) * 0.11, 0.04, 0.50)
+	var roll := rng.randf()
+	var our_goal := 0
+	var their_goal := 0
+	if roll < our_goal_chance:
+		our_goal = 1
+	elif roll < our_goal_chance + their_goal_chance:
+		their_goal = 1
+
+	var turn := int(session.get("turn", 0))
+	var score_before_ours := int(session.get("our_score", 0))
+	var score_before_theirs := int(session.get("their_score", 0))
+	var our_score := score_before_ours + our_goal
+	var their_score := score_before_theirs + their_goal
+	# The eighth decision is a guaranteed overtime decider so a match can
+	# never become an endless tapping loop.
+	if turn >= 7:
+		var decider_chance := clampf(
+			0.50
+			+ float(int(session.get("decision_score", 0)) + tactical_edge) * 0.045
+			+ strength_edge,
+			0.16,
+			0.84
+		)
+		if rng.randf() <= decider_chance:
+			our_goal = 1
+			their_goal = 0
+			our_score = score_before_ours + 1
+			their_score = score_before_theirs
+		else:
+			our_goal = 0
+			their_goal = 1
+			our_score = score_before_ours
+			their_score = score_before_theirs + 1
+
+	var event_type := "neutral"
+	var event_text := "Both teams trade pressure without giving up the goal."
+	if our_goal > 0:
+		event_type = "good"
+		if action == "press":
+			event_text = "Your press forces a rushed touch and TSK converts."
+		elif action == "control":
+			event_text = "Boost control creates space for a composed finish."
+		else:
+			event_text = "The counter opens the field and TSK scores."
+	elif their_goal > 0:
+		event_type = "bad"
+		if tactical_edge < 0:
+			event_text = "The opponent reads your call and punishes the rotation."
+		else:
+			event_text = "A tight challenge falls their way and the opponent scores."
+	elif tactical_edge > 0:
+		event_text = "Perfect read. TSK controls the sequence but the shot stays out."
+	elif tactical_edge < 0:
+		event_text = "The call is countered, but the defense survives the pressure."
+
+	var turn_after := turn + 1
+	session["turn"] = turn_after
+	session["our_score"] = our_score
+	session["their_score"] = their_score
+	session["decision_score"] = int(session.get("decision_score", 0)) + tactical_edge
+	var feedback := "EVEN READ"
+	if tactical_edge > 0:
+		feedback = "PERFECT READ"
+	elif tactical_edge < 0:
+		feedback = "OUTPLAYED"
+	if repeated_call and tactical_edge <= 0:
+		feedback = "READABLE REPEAT"
+	var event := {
+		"time": _interactive_event_time(turn),
+		"type": event_type,
+		"text": event_text,
+		"score": "%d - %d" % [our_score, their_score],
+		"call": action,
+		"feedback": feedback,
+		"boost": boost_after,
+	}
+	var events: Array = session.get("events", [])
+	events.append(event)
+	session["events"] = events
+	var decisions: Array = session.get("decisions", [])
+	decisions.append({"turn": turn, "action": action, "opponent_action": opponent_action, "quality": tactical_edge})
+	session["decisions"] = decisions
+	var regulation_turns := int(session.get("regulation_turns", 6))
+	var finished := turn_after >= regulation_turns and our_score != their_score
+	return {
+		"ok": true,
+		"event": event,
+		"feedback": feedback,
+		"quality": tactical_edge,
+		"boost_before": boost_before,
+		"boost_after": boost_after,
+		"finished": finished,
+		"overtime": turn_after >= regulation_turns and not finished,
+	}
+
+
+func _interactive_event_time(turn: int) -> String:
+	if turn >= 6:
+		return "OT +%d" % (turn - 5)
+	var seconds_left := maxi(0, 260 - turn * 45)
+	return "%d:%02d" % [seconds_left / 60, seconds_left % 60]
+
+
+func create_match(mode: String) -> Dictionary:
+	var session: Dictionary = prepare_match(mode)
+	if not bool(session.get("ok", false)):
+		return session
+	var safety := 0
+	while safety < 10:
+		var definitions: Array = match_action_definitions()
+		var available_definitions: Array = []
+		for definition_value in definitions:
+			var candidate: Dictionary = definition_value
+			if can_play_match_action(session, str(candidate.get("key", ""))):
+				available_definitions.append(candidate)
+		var definition: Dictionary = available_definitions[rng.randi_range(0, available_definitions.size() - 1)]
+		var turn_result: Dictionary = play_match_turn(session, str(definition["key"]))
+		if not bool(turn_result.get("ok", false)):
+			return turn_result
+		if bool(turn_result.get("finished", false)):
+			break
+		safety += 1
+	return finalize_match(session)
+
+
+func finalize_match(session: Dictionary) -> Dictionary:
+	if bool(session.get("resolved", false)):
+		return {"ok": false, "message": "This match result was already saved."}
+	var regulation_turns := int(session.get("regulation_turns", 6))
+	var our_score := int(session.get("our_score", 0))
+	var their_score := int(session.get("their_score", 0))
+	if int(session.get("turn", 0)) < regulation_turns or our_score == their_score:
+		return {"ok": false, "message": "The match is not finished yet."}
+	var mode := str(session.get("mode", "Rocket League"))
+	var format := str(session.get("format", "1v1"))
+	var opponent := str(session.get("opponent", "Unknown"))
+	var opponent_mmr := int(session.get("opponent_mmr", 100))
+	var profile: Dictionary = session.get("opponent_profile", {})
+	var events: Array = session.get("events", [])
+	var won := our_score > their_score
+	var record: Dictionary = playlist_record(format) if mode == "Rocket League" else mode_record(mode)
+	var mmr_before := int(session.get("mmr_before", record.get("mmr", 100)))
+
 	var placements_before := int(record.get("placements", 0))
 	var mmr_delta := _mmr_delta_for(mode, record, mmr_before, opponent_mmr, won)
 	var old_rank_data := GameDataRef.rl_rank_for_mmr(mmr_before, format) if mode == "Rocket League" else GameDataRef.rank_for_mmr(mmr_before)
@@ -424,6 +730,7 @@ func create_match(mode: String) -> Dictionary:
 	record["last_results"] = last_results
 
 	data["energy"] = maxi(0, int(data["energy"]) - 5)
+	var roster := roster_for(mode)
 	var participating_players := roster.size()
 	if mode == "Rocket League":
 		participating_players = mini(roster.size(), playlist_required_players(format))
@@ -459,7 +766,7 @@ func create_match(mode: String) -> Dictionary:
 		"opponent_mmr": opponent_mmr,
 		"opponent_profile": str(profile["label"]),
 		"won": won,
-		"score": events[events.size() - 1]["score"],
+		"score": "%d - %d" % [our_score, their_score],
 		"mmr_delta": mmr_delta,
 		"mmr_before": mmr_before,
 		"mmr_after": mmr_after,
@@ -472,7 +779,16 @@ func create_match(mode: String) -> Dictionary:
 	data["week"] = int(data.get("week", 1)) + 1
 	if int(data["week"]) > 12:
 		_finish_season()
+	session["resolved"] = true
 	save_game()
+	var decision_score := int(session.get("decision_score", 0))
+	var tactical_grade := "C"
+	if decision_score >= 4:
+		tactical_grade = "S"
+	elif decision_score >= 2:
+		tactical_grade = "A"
+	elif decision_score >= 0:
+		tactical_grade = "B"
 	return {
 		"ok": true,
 		"mode": mode,
@@ -482,7 +798,7 @@ func create_match(mode: String) -> Dictionary:
 		"opponent_profile": profile,
 		"won": won,
 		"events": events,
-		"score": events[events.size() - 1]["score"],
+		"score": "%d - %d" % [our_score, their_score],
 		"mmr_delta": mmr_delta,
 		"mmr_before": mmr_before,
 		"mmr_after": mmr_after,
@@ -494,6 +810,9 @@ func create_match(mode: String) -> Dictionary:
 		"live_chat": stream.get("chat", []),
 		"comments": stream.get("comments", []),
 		"stream_followers": int(stream.get("followers", 0)),
+		"decision_score": decision_score,
+		"tactical_grade": tactical_grade,
+		"decisions": session.get("decisions", []),
 		"old_rank": old_rank,
 		"new_rank": new_rank,
 		"old_rank_data": old_rank_data,
@@ -595,7 +914,7 @@ func _finish_season() -> void:
 		var record := playlist_record(playlist)
 		record["season_wins"] = 0
 		record["season_losses"] = 0
-		record["season_peak_mmr"] = int(record.get("mmr", 600))
+		record["season_peak_mmr"] = int(record.get("mmr", 100))
 
 func sponsor_eligible() -> bool:
 	var followers := int(data.get("streaming", {}).get("followers", 0))
@@ -878,22 +1197,35 @@ func _role_for_mode(mode: String, index: int) -> String:
 
 
 func _migrate_save(from_version: int) -> void:
-	# v0.4.5 keeps every v0.4.4 resource and progression value. Only the
-	# playlist records receive the new season, peak and history fields.
+	# v0.4.6 rebases the old 600-MMR seed to the intended 100-MMR origin.
+	# Subtracting the same 500 points from current, peak and history values
+	# preserves every earned or lost point instead of resetting progress.
 	if not data.has("rl_playlists") or typeof(data["rl_playlists"]) != TYPE_DICTIONARY:
 		var legacy_mmr := 600
 		if data.has("modes") and typeof(data["modes"]) == TYPE_DICTIONARY:
 			legacy_mmr = int(data["modes"].get("Rocket League", {}).get("mmr", 600))
 		data["rl_playlists"] = {
-			"1v1": _new_ranked_record(legacy_mmr),
-			"2v2": _new_ranked_record(600),
-			"3v3": _new_ranked_record(600),
+			"1v1": _new_ranked_record(legacy_mmr, 1),
+			"2v2": _new_ranked_record(600, 1),
+			"3v3": _new_ranked_record(600, 1),
 		}
 	for playlist in RankedDataRef.PLAYLISTS:
 		if not data["rl_playlists"].has(playlist) or typeof(data["rl_playlists"][playlist]) != TYPE_DICTIONARY:
-			data["rl_playlists"][playlist] = _new_ranked_record(600)
+			data["rl_playlists"][playlist] = _new_ranked_record(600, 1)
 		var record: Dictionary = data["rl_playlists"][playlist]
-		var current_mmr := int(record.get("mmr", 600))
+		if from_version < 6 and int(record.get("mmr_schema", 1)) < 2:
+			var old_mmr := int(record.get("mmr", 600))
+			var old_peak := int(record.get("peak_mmr", old_mmr))
+			var old_season_peak := int(record.get("season_peak_mmr", old_mmr))
+			record["mmr"] = maxi(0, old_mmr - 500)
+			record["peak_mmr"] = maxi(0, old_peak - 500)
+			record["season_peak_mmr"] = maxi(0, old_season_peak - 500)
+			var rebased_history: Array = []
+			for value in record.get("mmr_history", [old_mmr]):
+				rebased_history.append(maxi(0, int(value) - 500))
+			record["mmr_history"] = rebased_history
+		var current_mmr := int(record.get("mmr", 100))
+		record["mmr_schema"] = 2
 		if not record.has("peak_mmr"):
 			record["peak_mmr"] = current_mmr
 		if not record.has("season_peak_mmr"):
@@ -906,14 +1238,20 @@ func _migrate_save(from_version: int) -> void:
 			record["mmr_history"] = [current_mmr]
 		if not record.has("last_results") or typeof(record["last_results"]) != TYPE_ARRAY:
 			record["last_results"] = []
+	for player in data.get("roster", []):
+		if typeof(player) == TYPE_DICTIONARY and not player.has("last_training_week"):
+			player["last_training_week"] = -1
+	if not data.has("last_rest_week") or typeof(data["last_rest_week"]) != TYPE_DICTIONARY:
+		data["last_rest_week"] = {}
 	data["selected_rl_playlist"] = RankedDataRef.normalize_playlist(str(data.get("selected_rl_playlist", "1v1")))
-	if from_version < 5:
-		data["version"] = 5
+	if from_version < 6:
+		data["version"] = 6
 
 
-func _new_ranked_record(starting_mmr: int = 600) -> Dictionary:
+func _new_ranked_record(starting_mmr: int = 100, mmr_schema: int = 2) -> Dictionary:
 	return {
 		"mmr": starting_mmr,
+		"mmr_schema": mmr_schema,
 		"wins": 0,
 		"losses": 0,
 		"played": 0,
@@ -947,14 +1285,15 @@ func _new_save() -> Dictionary:
 		"season_bonus": 0,
 		"cup_ready_at": 0,
 		"earned_prize_money": 0,
+		"last_rest_week": {},
 		"facilities": {"hq": 0, "coaching": 0, "scouting": 0, "analytics": 0, "studio": 0},
 		"rl_playlists": {
-			"1v1": _new_ranked_record(600),
-			"2v2": _new_ranked_record(600),
-			"3v3": _new_ranked_record(600),
+			"1v1": _new_ranked_record(100),
+			"2v2": _new_ranked_record(100),
+			"3v3": _new_ranked_record(100),
 		},
 		"modes": {
-			"Rocket League": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
+			"Rocket League": {"mmr": 100, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
 			"Fortnite": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
 			"Warzone": {"mmr": 600, "wins": 0, "losses": 0, "played": 0, "placements": 0, "streak": 0},
 		},
@@ -1005,6 +1344,7 @@ func _player(
 		"potential": potential,
 		"form": 55,
 		"fatigue": 0,
+		"last_training_week": -1,
 	}
 
 
