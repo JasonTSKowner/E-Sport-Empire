@@ -1,6 +1,6 @@
 # E-Sport Empire
 
-**Alpha v0.4.7 — Rank Identity**
+**Alpha v0.4.8 — Player Development**
 
 A portrait-first Android esports career and organization game built with Godot 4. Start with zero cash, zero fans and only yourself as captain, then grow from solo ranked matches into a real esports organization.
 
@@ -20,12 +20,17 @@ A portrait-first Android esports career and organization game built with Godot 4
 - Rebuilt post-match flow with MMR before/after, rank transitions, promotions, demotions and rank reveals
 - Dynamic ranked situations including smurfs, boosted players, peaking players and returning players
 - PulseLive streaming with optional paid creator plans, live chat, viewers, followers and post-stream comments
+- Streamed matches can receive occasional virtual viewer donations; all revenue stays inside the game economy
 - Opponents and other players can notice you and become future teammates
 - Small community cups provide the first realistic prize-money path
-- Player training, form, potential and fatigue with three-week training/recovery cooldowns
+- Eight meaningful player attributes: Mechanics, Rotation, Shooting, Defense, Game Sense, Boost Control, Consistency and Mentality
+- Six paid and targeted development programs instead of free random stat clicks
+- Three-week player development cycles with visible costs, gains, fatigue and training history
+- Mechanics Arsenal progression from recoveries and aerials through Mustys, resets, Psycho and Triple Reset
+- Player attributes directly influence attack, defense, boost, performance variance and overtime composure
 - Amateur scouting and progressively priced facilities
 - Sponsors unlock only after enough reputation and audience growth
-- Local JSON savegame with non-destructive v0.4.5 → v0.4.7 migration for MMR, cooldowns and titles
+- Local JSON savegame with non-destructive v0.4.5 → v0.4.8 migration for MMR, cooldowns, titles, development stats and stream revenue
 - Mobile portrait UI with screen-wide swipe scrolling, safer release buttons and word-safe wrapping
 - Unchanged Android package ID and persistent update-signing workflow
 

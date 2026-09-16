@@ -3,7 +3,7 @@ extends RefCounted
 
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
 
-const VERSION := 7
+const VERSION := 8
 const MODES := ["Rocket League", "Fortnite", "Warzone"]
 
 const MODE_SHORT := {
@@ -73,7 +73,7 @@ const FACILITIES := {
 	{
 		"name": "Performance Center",
 		"tag": "CO",
-		"description": "Training creates stronger gains and less fatigue.",
+		"description": "Reduces paid training costs, improves breakthroughs and limits fatigue.",
 		"base_cost": 350,
 		"color": "a779ff",
 	},
