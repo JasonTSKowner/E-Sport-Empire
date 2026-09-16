@@ -16,8 +16,9 @@ var page_scroll: ScrollContainer
 var page_content: VBoxContainer
 var cash_label: Label
 var fans_label: Label
-var energy_label: Label
+var reputation_label: Label
 var season_label: Label
+var clock_timer: Timer
 var nav_buttons: Dictionary = {}
 var toast_panel: PanelContainer
 var toast_label: Label
@@ -91,6 +92,11 @@ func _build_shell() -> void:
 
 	shell.add_child(_build_bottom_navigation())
 	_build_toast()
+	clock_timer = Timer.new()
+	clock_timer.wait_time = 30.0
+	clock_timer.autostart = true
+	clock_timer.timeout.connect(_refresh_top_bar)
+	add_child(clock_timer)
 	_refresh_top_bar()
 
 
@@ -133,7 +139,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4.8", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4.9", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -146,9 +152,9 @@ func _build_top_bar() -> Control:
 	var fans_chip := _header_chip("FANS", UI.PURPLE)
 	fans_label = fans_chip.get_meta("value_label")
 	stats.add_child(fans_chip)
-	var energy_chip := _header_chip("ENERGY", UI.GREEN)
-	energy_label = energy_chip.get_meta("value_label")
-	stats.add_child(energy_chip)
+	var reputation_chip := _header_chip("REPUTATION", UI.GREEN)
+	reputation_label = reputation_chip.get_meta("value_label")
+	stats.add_child(reputation_chip)
 	return outer
 
 
@@ -235,11 +241,13 @@ func _build_toast() -> void:
 func _refresh_top_bar() -> void:
 	cash_label.text = GameDataRef.format_cash(int(game.data.get("cash", 0)))
 	fans_label.text = GameDataRef.format_number(int(game.data.get("fans", 0)))
-	energy_label.text = "%d%%" % int(game.data.get("energy", 0))
-	season_label.text = (
-		"SEASON %d  •  WEEK %d/12  •  ROAD TO PRO"
-		% [int(game.data.get("season", 1)), int(game.data.get("week", 1))]
-	)
+	reputation_label.text = str(int(game.data.get("reputation", 0)))
+	season_label.text = "S%d  •  MATCH %d/%d  •  %s" % [
+		int(game.data.get("season", 1)),
+		game.season_match_progress(),
+		EmpireStateRef.SEASON_MATCH_LIMIT,
+		game.real_time_label(),
+	]
 
 
 func _refresh_nav() -> void:
@@ -563,10 +571,11 @@ func _division_row(mode: String) -> Control:
 
 
 func _build_team_page() -> void:
+	game.apply_real_time_fatigue_recovery(false)
 	_page_header(
 		"Performance",
 		"Team Center",
-		"Develop players, manage fatigue and build a roster that can survive the climb."
+		"Train instantly, book ranked coaches and build a roster that can survive the climb."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
@@ -582,9 +591,8 @@ func _build_team_page() -> void:
 		_metric_block("FATIGUE", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD)
 	)
 	summary_box.add_child(summary_row)
-	var recovery_ready := game.can_rest_team(mode)
 	var recovery_note := UI.label(
-		"Development is paid from club cash and limited to one program every three in-game weeks. Every stat directly shapes match performance.",
+		"No energy bar and no training cooldown. Fatigue recovers automatically by 1 point per real minute, including offline; matches never skip the calendar.",
 		11,
 		UI.MUTED
 	)
@@ -596,16 +604,9 @@ func _build_team_page() -> void:
 			UI.DIM
 		)
 	)
-	var rest := UI.button(
-		"RECOVERY SESSION  •  3-WEEK COOLDOWN" if recovery_ready else "RECOVERY ON COOLDOWN",
-		UI.GREEN,
-		recovery_ready
-	)
-	rest.disabled = not recovery_ready
-	rest.pressed.connect(_rest_team.bind(mode))
-	summary_box.add_child(rest)
 	page_content.add_child(summary)
 	page_content.add_child(_development_impact_card())
+	page_content.add_child(_coaching_market_card(mode))
 	page_content.add_child(_section_title("STARTING ROSTER", "%s competitive division" % mode))
 	for player in game.roster_for(mode):
 		page_content.add_child(_player_card(player, accent))
@@ -646,6 +647,133 @@ func _development_impact_cell(title: String, detail: String, accent: Color) -> C
 	box.add_child(UI.label(title, 11, accent, 800))
 	box.add_child(UI.label(detail, 9, UI.MUTED))
 	panel.add_child(box)
+	return panel
+
+
+func _coaching_market_card(mode: String) -> Control:
+	var panel := UI.card(UI.PURPLE)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	box.add_child(UI.overline("LIVE COACHING BOARD", UI.PURPLE))
+	box.add_child(UI.label("Ranked coaches with guaranteed gains", 18, UI.TEXT, 800))
+	box.add_child(
+		UI.label(
+			"Coach rank controls guaranteed stat gain, extra-gain chance and price. Offers disappear after one session; the board refreshes for free only when empty.",
+			11,
+			UI.MUTED
+		)
+	)
+	box.add_child(
+		UI.label(
+			"Within every non-SSL family, Tier I–III and Division I–IV are equally likely (8.3% per exact combination).",
+			9,
+			UI.DIM
+		)
+	)
+	var odds_flow := HFlowContainer.new()
+	odds_flow.add_theme_constant_override("h_separation", 6)
+	odds_flow.add_theme_constant_override("v_separation", 6)
+	for odds_value in game.coaching_rank_odds():
+		var odds: Dictionary = odds_value
+		var family := str(odds.get("family", "Bronze"))
+		odds_flow.add_child(
+			UI.badge(
+				"%s %s"
+				% [RankedDataRef.FAMILY_SHORT.get(family, family.to_upper()), _chance_text(float(odds.get("chance", 0.0)))],
+				RankedDataRef.color_for_family(family)
+			)
+		)
+	odds_flow.add_child(
+		UI.badge("FREE OFFER %s" % _chance_text(game.coaching_free_offer_chance()), UI.GREEN)
+	)
+	box.add_child(odds_flow)
+	for offer_value in game.data.get("coaching_market", []):
+		box.add_child(_coach_offer_card(offer_value, mode))
+	return panel
+
+
+func _coach_offer_card(offer: Dictionary, mode: String) -> Control:
+	var family := str(offer.get("rank_family", "Bronze"))
+	var accent := RankedDataRef.color_for_family(family)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override(
+		"panel",
+		UI.box(
+			Color(accent.r, accent.g, accent.b, 0.08),
+			14,
+			Color(accent.r, accent.g, accent.b, 0.28),
+			1
+		)
+	)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	var emblem_data := {
+		"family": family,
+		"tier": int(offer.get("rank_tier", 1)),
+		"division": int(offer.get("rank_division", 1)),
+	}
+	top.add_child(_rank_emblem(emblem_data, 62.0))
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(UI.label(str(offer.get("name", "Coach")), 16, UI.TEXT, 800))
+	identity.add_child(
+		UI.label(
+			"%s  •  COACH %d  •  %s  •  %s"
+			% [
+				str(offer.get("rank_label", family)),
+				int(offer.get("coach_rating", 50)),
+				str(offer.get("region", "EU")),
+				str(offer.get("style", "Coach")),
+			],
+			10,
+			UI.MUTED,
+			700
+		)
+	)
+	identity.add_child(
+		UI.label(
+			"SPECIALTY: %s" % str(offer.get("specialty_label", "Mechanics")).to_upper(),
+			10,
+			accent,
+			800
+		)
+	)
+	top.add_child(identity)
+	var price_text := "FREE" if bool(offer.get("free", false)) else GameDataRef.format_cash(int(offer.get("price", 0)))
+	top.add_child(UI.badge(price_text, UI.GREEN if bool(offer.get("free", false)) else UI.GOLD))
+	box.add_child(top)
+	box.add_child(
+		UI.label(
+			"GUARANTEED +%d  •  %s CHANCE OF +%d EXTRA"
+			% [
+				int(offer.get("guaranteed_gain", 1)),
+				_chance_text(float(offer.get("bonus_chance", 0.1))),
+				int(offer.get("bonus_gain", 1)),
+			],
+			11,
+			UI.GREEN,
+			800
+		)
+	)
+	var roster := game.roster_for(mode)
+	for player in roster:
+		var price := int(offer.get("price", 0))
+		var stat_key := str(offer.get("specialty", "mechanics"))
+		var has_room := int(player.get(stat_key, 50)) < int(player.get("potential", 99))
+		var available := int(game.data.get("cash", 0)) >= price and has_room
+		var button_text := "COACH %s  •  %s" % [str(player.get("name", "PLAYER")), price_text]
+		if not has_room:
+			button_text = "%s AT POTENTIAL" % str(player.get("name", "PLAYER"))
+		var book := UI.button(button_text, accent, available, true)
+		book.disabled = not available
+		book.pressed.connect(
+			_book_coaching_session.bind(str(offer.get("id", "")), str(player.get("id", "")))
+		)
+		box.add_child(book)
 	return panel
 
 
@@ -729,6 +857,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	if not training_history.is_empty():
 		var latest: Dictionary = training_history[0]
 		var latest_program := DevelopmentDataRef.program(str(latest.get("program", "")))
+		var latest_label := str(latest.get("label", latest_program.get("label", "Development")))
 		var latest_gains: Dictionary = latest.get("gains", {})
 		var gain_parts: Array[String] = []
 		for stat_key in latest_gains:
@@ -740,25 +869,27 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 		box.add_child(
 			UI.label(
 				"LAST SESSION  •  %s  •  %s"
-				% [str(latest_program.get("label", "Development")), " / ".join(gain_parts)],
+				% [latest_label, " / ".join(gain_parts)],
 				10,
 				UI.DIM,
 				700
 			)
 		)
-	var training_ready := game.can_train_player(player)
-	if training_ready:
-		box.add_child(UI.overline("CHOOSE ONE PAID PROGRAM  •  3-WEEK CYCLE", UI.MUTED))
-		box.add_child(_training_program_grid(player))
-	else:
-		var cooldown := UI.button(
-			"DEVELOPMENT RETURNS IN %d WEEK(S)" % game.training_weeks_left(player),
-			accent,
-			false,
-			true
+	box.add_child(
+		UI.overline(
+			"INSTANT PAID TRAINING  •  BONUS %s"
+			% _chance_text(game.training_breakthrough_chance()),
+			UI.MUTED
 		)
-		cooldown.disabled = true
-		box.add_child(cooldown)
+	)
+	box.add_child(
+		UI.label(
+			"Listed stat gains are guaranteed; every session also rolls FORM +2–6.",
+			9,
+			UI.DIM
+		)
+	)
+	box.add_child(_training_program_grid(player))
 	return panel
 
 
@@ -803,6 +934,20 @@ func _mechanics_arsenal(player: Dictionary, accent: Color) -> Control:
 			var move: Dictionary = move_value
 			flow.add_child(UI.badge(str(move.get("label", "MECHANIC")), accent))
 	box.add_child(flow)
+	if not unlocked.is_empty():
+		var signature: Dictionary = unlocked[unlocked.size() - 1]
+		box.add_child(
+			UI.label(
+				"SIGNATURE: %s  •  %s SHOWCASE CHANCE AFTER YOUR GOAL"
+				% [
+					str(signature.get("label", "Mechanic")).to_upper(),
+					_chance_text(game.signature_move_chance(player)),
+				],
+				9,
+				accent,
+				700
+			)
+		)
 	var next_move := game.next_mechanic(player)
 	if next_move.is_empty():
 		box.add_child(UI.label("Complete arsenal mastered.", 10, UI.GREEN, 700))
@@ -833,11 +978,12 @@ func _training_program_grid(player: Dictionary) -> Control:
 		var color := Color(str(program.get("color", "2de2ff")))
 		var affordable := int(game.data.get("cash", 0)) >= cost
 		var button := UI.button(
-			"%s\n%s  •  %s"
+			"%s\n%s  •  %s  •  BONUS %s"
 			% [
 				str(program.get("short", "TRAIN")),
 				str(program.get("button_detail", "STAT GAINS")),
 				GameDataRef.format_cash(cost),
+				_chance_text(game.training_breakthrough_chance()),
 			],
 			color,
 			affordable,
@@ -1104,6 +1250,14 @@ func _ranked_queue_card(playlist: String) -> Control:
 			UI.DIM
 		)
 	)
+	var lobby_odds: Array[String] = []
+	for odds_value in game.opponent_profile_odds():
+		var odds: Dictionary = odds_value
+		lobby_odds.append(
+			"%s %s"
+			% [str(odds.get("label", "NORMAL")), _chance_text(float(odds.get("chance", 0.0)))]
+		)
+	box.add_child(UI.label("LOBBY ODDS  •  %s" % "  /  ".join(lobby_odds), 9, UI.DIM, 700))
 	var queue := UI.button("QUEUE %s RANKED" % playlist if available else "RECRUIT %d MORE PLAYER%s" % [required - roster_size, "S" if required - roster_size != 1 else ""], accent, available)
 	queue.disabled = not available
 	queue.pressed.connect(_start_match.bind("Rocket League"))
@@ -1454,6 +1608,28 @@ func _streaming_card() -> Control:
 	)
 	toggle.pressed.connect(_toggle_stream)
 	box.add_child(toggle)
+	var expected_viewers := game.estimated_stream_viewers()
+	box.add_child(
+		UI.label(
+			"EST. %d VIEWERS  •  DONATION %s AFTER LOSS / %s AFTER WIN  •  DOUBLE TIP 5%%"
+			% [
+				expected_viewers,
+				_chance_text(game.estimated_stream_donation_chance(false)),
+				_chance_text(game.estimated_stream_donation_chance(true)),
+			],
+			10,
+			UI.GOLD,
+			800
+		)
+	)
+	box.add_child(
+		UI.label(
+			"WIN FOLLOWER BONUS 45%  •  SECOND DONATION 32% AT 25+ VIEWERS  •  THIRD 18% AT 80+",
+			9,
+			UI.DIM,
+			700
+		)
+	)
 	if plan == "Free":
 		var upgrade := UI.button("CREATOR PLAN  •  €8 / 30 DAYS", UI.GOLD, false, true)
 		upgrade.pressed.connect(_buy_stream_plan.bind("Creator"))
@@ -1495,6 +1671,8 @@ func _streaming_card() -> Control:
 func _cup_card(mode: String) -> Control:
 	var played := int(game.mode_record(mode).get("played", 0))
 	var unlocked := played >= 3
+	var seconds_left := game.cup_seconds_left()
+	var available := unlocked and seconds_left <= 0
 	var panel := UI.card(UI.GOLD)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 9)
@@ -1502,16 +1680,28 @@ func _cup_card(mode: String) -> Control:
 	box.add_child(UI.overline("COMMUNITY EVENTS", UI.GOLD))
 	box.add_child(UI.label("Small online cup", 18, UI.TEXT, 800))
 	box.add_child(UI.label(
-		"Ranked pays nothing. Small cups are your first realistic shot at €12–€35 prize money.",
+		"Free entry. Win for €12–€35 virtual prize money and +2–8 fans; ranked itself pays nothing.",
 		11,
 		UI.MUTED
 	))
-	var enter := UI.button(
-		"ENTER COMMUNITY CUP" if unlocked else "%d / 3 RANKED MATCHES" % played,
-		UI.GOLD,
-		unlocked
+	box.add_child(
+		UI.badge(
+			"WIN CHANCE %s" % _chance_text(game.community_cup_win_chance(mode)),
+			UI.GOLD
+		)
 	)
-	enter.disabled = not unlocked
+	var enter := UI.button(
+		(
+			"ENTER COMMUNITY CUP"
+			if available
+			else "NEXT CUP IN %s" % _format_duration(seconds_left)
+			if unlocked
+			else "%d / 3 RANKED MATCHES" % played
+		),
+		UI.GOLD,
+		available
+	)
+	enter.disabled = not available
 	enter.pressed.connect(_enter_cup.bind(mode))
 	box.add_child(enter)
 	return panel
@@ -1614,6 +1804,15 @@ func _build_market_page() -> void:
 		UI.label("Scouting level %d" % game.facility_level("scouting"), 17, UI.TEXT, 800)
 	)
 	text.add_child(UI.label("Higher levels reveal stronger potential.", 11, UI.MUTED))
+	text.add_child(
+		UI.label(
+			"90+ POTENTIAL CHANCE  •  %s PER PROSPECT"
+			% _chance_text(game.scouting_elite_potential_chance()),
+			10,
+			UI.GREEN,
+			800
+		)
+	)
 	row.add_child(text)
 	var refresh := UI.button("REFRESH\n€5", UI.GREEN, true, true)
 	refresh.custom_minimum_size.x = 106
@@ -1878,8 +2077,8 @@ func _train_player(player_id: String, program_id: String) -> void:
 	_handle_action(game.train_player(player_id, program_id), "team")
 
 
-func _rest_team(mode: String) -> void:
-	_handle_action(game.rest_team(mode), "team")
+func _book_coaching_session(offer_id: String, player_id: String) -> void:
+	_handle_action(game.book_coaching_session(offer_id, player_id), "team")
 
 
 func _refresh_market() -> void:
@@ -1941,10 +2140,17 @@ func _show_offline_message(offline: Dictionary) -> void:
 
 
 func _format_duration(seconds: int) -> String:
-	var minutes := maxi(0, seconds / 60)
+	var minutes := maxi(0, int(ceil(float(seconds) / 60.0)))
 	if minutes >= 60:
 		return "%dh %02dm" % [minutes / 60, minutes % 60]
 	return "%dm" % minutes
+
+
+func _chance_text(chance: float) -> String:
+	var percent := clampf(chance, 0.0, 1.0) * 100.0
+	if percent > 0.0 and percent < 10.0:
+		return "%.1f%%" % percent
+	return "%d%%" % int(round(percent))
 
 
 func _start_match(mode: String) -> void:
@@ -2034,6 +2240,17 @@ func _build_match_overlay() -> void:
 	)
 	layout.add_child(header_row)
 	layout.add_child(UI.heading(("%s vs %s" % ["KESHI" if str(source.get("format", "")) == "1v1" else "TSK", str(source["opponent"])]), 24))
+	var opponent_profile: Dictionary = source.get("opponent_profile", {})
+	layout.add_child(
+		UI.badge(
+			"PRE-MATCH WIN ESTIMATE %s  •  %s"
+			% [
+				_chance_text(float(source.get("estimated_win_chance", 0.5))),
+				str(opponent_profile.get("label", "NORMAL MATCH")),
+			],
+			UI.GOLD
+		)
+	)
 
 	var scoreboard := UI.card(accent)
 	var score_box := VBoxContainer.new()
@@ -2139,10 +2356,18 @@ func _present_match_decision() -> void:
 		var definition: Dictionary = definition_value
 		var action_key := str(definition.get("key", ""))
 		var action_available := game.can_play_match_action(match_session, action_key)
+		var odds: Dictionary = game.match_action_odds(match_session, action_key)
 		var boost_delta := int(definition.get("boost_delta", 0))
 		var boost_text := "+%d BOOST" % boost_delta if boost_delta >= 0 else "%d BOOST" % boost_delta
+		var chance_line := ""
+		if not odds.is_empty():
+			chance_line = "\nSCORE %s  •  CONCEDE %s  •  NO GOAL %s" % [
+				_chance_text(float(odds.get("our_goal", 0.0))),
+				_chance_text(float(odds.get("their_goal", 0.0))),
+				_chance_text(float(odds.get("neutral", 0.0))),
+			]
 		var action_button := UI.button(
-			"%s  •  %s" % [str(definition.get("label", "MAKE CALL")), boost_text]
+			"%s  •  %s%s" % [str(definition.get("label", "MAKE CALL")), boost_text, chance_line]
 			if action_available
 			else "%s  •  NEED %d BOOST" % [str(definition.get("label", "MAKE CALL")), int(definition.get("minimum_boost", 0))],
 			UI.CYAN,
@@ -2150,6 +2375,8 @@ func _present_match_decision() -> void:
 			true
 		)
 		action_button.disabled = not action_available
+		action_button.custom_minimum_size.y = 62
+		action_button.add_theme_font_size_override("font_size", 10)
 		action_button.pressed.connect(_choose_match_action.bind(action_key))
 		match_decision_box.add_child(action_button)
 		match_decision_box.add_child(UI.label(str(definition.get("detail", "")), 10, UI.MUTED))
@@ -2339,9 +2566,23 @@ func _finish_match_animation() -> void:
 
 	var attention: Dictionary = match_result.get("attention", {})
 	var attention_text := str(attention.get("text", "No unusual attention after this match."))
-	match_result_box.add_child(UI.label(attention_text, 11, UI.MUTED))
+	match_result_box.add_child(
+		UI.label(
+			"ATTENTION ROLL %s  •  %s"
+			% [_chance_text(float(match_result.get("attention_chance", 0.0))), attention_text],
+			11,
+			UI.MUTED
+		)
+	)
 
 	if bool(match_result.get("streaming", false)):
+		match_result_box.add_child(
+			UI.badge(
+				"STREAM DONATION ROLL  •  %s"
+				% _chance_text(float(match_result.get("stream_donation_chance", 0.0))),
+				UI.GOLD
+			)
+		)
 		var audience_row := HBoxContainer.new()
 		audience_row.add_child(_metric_block("VIEWERS", str(int(match_result.get("stream_viewers", 0))), UI.PURPLE))
 		audience_row.add_child(_metric_block("NEW FOLLOWS", "+%d" % int(match_result.get("stream_followers", 0)), UI.GREEN))
