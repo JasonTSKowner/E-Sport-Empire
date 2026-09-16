@@ -4,6 +4,7 @@ const EmpireStateRef = preload("res://scripts/game_state.gd")
 const GameDataRef = preload("res://scripts/game_data.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
+const TitleDataRef = preload("res://scripts/title_data.gd")
 const MainScene = preload("res://scenes/Main.tscn")
 
 var failures: Array[String] = []
@@ -120,11 +121,36 @@ func _run() -> void:
 	_check(migrated.data["rl_playlists"]["1v1"]["mmr_history"] == [100, 125], "migration rebases MMR history")
 	_check(migrated.data["roster"][0].has("last_training_week"), "migration adds training cooldown")
 	_check(migrated.data.has("last_rest_week"), "migration adds recovery cooldown")
+	_check(migrated.data.has("earned_titles"), "migration adds title locker")
+	_check(migrated.playlist_record("1v1").has("gc_reward_wins"), "migration adds title progress")
 
 	var emblem := RankEmblemRef.new()
 	emblem.configure(RankedDataRef.rank_for_mmr(1435, "2v2"))
 	_check(emblem.family == "Grand Champion", "rank emblem family")
 	emblem.free()
+
+	var title_state: EmpireStateRef = EmpireStateRef.new()
+	title_state.reset_game()
+	var title_record := title_state.playlist_record("2v2")
+	title_record["placements"] = 10
+	var gc_rank := RankedDataRef.rank_for_mmr(1500, "2v2")
+	for reward_win in range(TitleDataRef.RANK_REWARD_WINS):
+		title_state._update_rank_title_progress(title_record, gc_rank, "2v2", true)
+	_check(title_state.earned_titles().size() == 1, "grand champion title unlock")
+	_check(not title_state.equipped_title().is_empty(), "first title auto equips")
+	_check(int(title_record.get("gc_reward_wins", 0)) == 10, "rank reward wins cap")
+	var equipped_id := str(title_state.equipped_title().get("id", ""))
+	_check(bool(title_state.equip_title(equipped_id).get("ok", false)), "earned title equips")
+	_check(bool(title_state.clear_equipped_title().get("ok", false)), "title unequips")
+	var placement_state: EmpireStateRef = EmpireStateRef.new()
+	placement_state.reset_game()
+	var placement_record := placement_state.playlist_record("2v2")
+	placement_record["mmr"] = 3002
+	placement_record["placements"] = 10
+	placement_record["season_wins"] = 10
+	var season_titles := placement_state._finish_season()
+	_check(season_titles.size() == 1, "world number one title unlock")
+	_check(str(season_titles[0].get("label", "")).contains("WORLD #1"), "world number one title label")
 
 	print("SMOKE 4/6: mobile ranked UI")
 	var main := MainScene.instantiate()
@@ -149,6 +175,10 @@ func _run() -> void:
 	main._show_page("play", false)
 	await process_frame
 	_check(main.page_content.get_child_count() >= 27, "all-ranks content")
+	main.ranked_view = "titles"
+	main._show_page("play", false)
+	await process_frame
+	_check(main.page_content.get_child_count() >= 9, "title locker content")
 
 	print("SMOKE 5/6: full match flow")
 	main.ranked_view = "overview"
@@ -178,7 +208,7 @@ func _run() -> void:
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v0.4.6 smoke test: PASS")
+		print("E-Sport Empire v0.4.7 smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:

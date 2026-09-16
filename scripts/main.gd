@@ -4,6 +4,7 @@ const GameDataRef = preload("res://scripts/game_data.gd")
 const EmpireStateRef = preload("res://scripts/game_state.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
+const TitleDataRef = preload("res://scripts/title_data.gd")
 const MMRGraphRef = preload("res://scripts/mmr_graph.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 
@@ -131,7 +132,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4.6", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4.7", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -629,6 +630,16 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_theme_constant_override("separation", 1)
 	identity.add_child(UI.label(str(player["name"]), 18, UI.TEXT, 800))
+	var equipped := game.equipped_title() if str(player.get("id", "")) == "captain" else {}
+	if not equipped.is_empty():
+		identity.add_child(
+			UI.label(
+				str(equipped.get("label", "")),
+				10,
+				TitleDataRef.color_for(equipped),
+				800
+			)
+		)
 	identity.add_child(
 		UI.label(
 			(
@@ -722,6 +733,8 @@ func _build_play_page() -> void:
 			_build_ranked_ladder()
 		"ranks":
 			_build_all_ranks()
+		"titles":
+			_build_title_locker()
 		_:
 			_build_ranked_overview()
 
@@ -759,7 +772,10 @@ func _select_rl_playlist(playlist: String) -> void:
 func _ranked_view_switch() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 7)
-	for entry in [["overview", "OVERVIEW"], ["ladder", "LADDER"], ["ranks", "ALL RANKS"]]:
+	for entry in [
+		["overview", "OVERVIEW"], ["ladder", "LADDER"],
+		["ranks", "RANKS"], ["titles", "TITLES"]
+	]:
 		var active := ranked_view == str(entry[0])
 		var button := UI.button(str(entry[1]), UI.PURPLE, active, true)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -769,7 +785,7 @@ func _ranked_view_switch() -> void:
 
 
 func _select_ranked_view(view: String) -> void:
-	ranked_view = view if view in ["overview", "ladder", "ranks"] else "overview"
+	ranked_view = view if view in ["overview", "ladder", "ranks", "titles"] else "overview"
 	_show_page("play", false)
 
 
@@ -807,6 +823,16 @@ func _rank_profile_card(playlist: String) -> Control:
 	identity.add_theme_constant_override("separation", 3)
 	identity.add_child(UI.overline("%s RANKED" % playlist, accent))
 	identity.add_child(UI.heading("UNRANKED" if not placed else str(actual_rank["tier_name"]), 22))
+	var equipped_title := game.equipped_title()
+	if not equipped_title.is_empty():
+		identity.add_child(
+			UI.label(
+				str(equipped_title.get("label", "")),
+				9,
+				TitleDataRef.color_for(equipped_title),
+				800
+			)
+		)
 	identity.add_child(
 		UI.label(
 			"%d / 10 placements" % placements if not placed else "Division %s" % str(actual_rank["division_roman"]),
@@ -971,6 +997,16 @@ func _ladder_row(entry: Dictionary) -> Control:
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_child(UI.label(str(entry.get("name", "PLAYER")), 15, UI.TEXT, 800))
+	var equipped_title := game.equipped_title() if is_player else {}
+	if not equipped_title.is_empty():
+		identity.add_child(
+			UI.label(
+				str(equipped_title.get("label", "")),
+				8,
+				TitleDataRef.color_for(equipped_title),
+				800
+			)
+		)
 	identity.add_child(UI.label(str(rank.get("compact_name", "UNRANKED")), 10, UI.MUTED, 700))
 	row.add_child(identity)
 	var rating := VBoxContainer.new()
@@ -999,6 +1035,130 @@ func _build_all_ranks() -> void:
 	page_content.add_child(intro)
 	for tier_data in RankedDataRef.tier_rows(playlist):
 		page_content.add_child(_rank_tier_card(tier_data, current_rank, placements_complete))
+
+
+func _build_title_locker() -> void:
+	var playlist := game.selected_rl_playlist()
+	var record := game.playlist_record(playlist)
+	var equipped := game.equipped_title()
+	var intro := UI.card(UI.GOLD if not equipped.is_empty() else UI.PURPLE)
+	var intro_box := VBoxContainer.new()
+	intro_box.add_theme_constant_override("separation", 9)
+	intro.add_child(intro_box)
+	intro_box.add_child(UI.overline("PLAYER IDENTITY  •  TITLE LOCKER", UI.GOLD))
+	intro_box.add_child(UI.heading("KESHI", 25))
+	if equipped.is_empty():
+		intro_box.add_child(UI.label("NO TITLE EQUIPPED", 13, UI.MUTED, 800))
+		intro_box.add_child(
+			UI.label(
+				"Titles are never participation rewards. Reach the elite ranks or finish a season among the world's best.",
+				11,
+				UI.DIM
+			)
+		)
+	else:
+		var equipped_accent := TitleDataRef.color_for(equipped)
+		intro_box.add_child(UI.label(str(equipped.get("label", "")), 16, equipped_accent, 800))
+		intro_box.add_child(
+			UI.label(
+				"%s  •  %s" % [str(equipped.get("category", "TITLE")), str(equipped.get("rarity", "RARE"))],
+				10,
+				equipped_accent,
+				800
+			)
+		)
+	page_content.add_child(intro)
+
+	var progress_panel := UI.card(UI.PURPLE)
+	var progress_box := VBoxContainer.new()
+	progress_box.add_theme_constant_override("separation", 10)
+	progress_panel.add_child(progress_box)
+	progress_box.add_child(UI.overline("SEASON %d RANK REWARDS  •  %s" % [int(game.data.get("season", 1)), playlist], UI.PURPLE))
+	progress_box.add_child(
+		_title_reward_progress(
+			"GRAND CHAMPION TITLE",
+			int(record.get("gc_reward_wins", 0)),
+			RankedDataRef.color_for_family("Grand Champion")
+		)
+	)
+	progress_box.add_child(
+		_title_reward_progress(
+			"SUPERSONIC LEGEND TITLE",
+			int(record.get("ssl_reward_wins", 0)),
+			Color(0.75, 0.64, 1.0)
+		)
+	)
+	progress_box.add_child(
+		UI.label(
+			"Only wins earned while ranked GC or SSL count. Top 100, Top 10 and World #1 titles require at least ten matches and a qualifying final leaderboard position.",
+			10,
+			UI.DIM
+		)
+	)
+	page_content.add_child(progress_panel)
+
+	var titles := game.earned_titles()
+	page_content.add_child(_section_title("EARNED TITLES", "%d permanent unlock%s" % [titles.size(), "" if titles.size() == 1 else "s"]))
+	if titles.is_empty():
+		var locked := UI.card()
+		var locked_box := VBoxContainer.new()
+		locked_box.add_theme_constant_override("separation", 5)
+		locked.add_child(locked_box)
+		var locked_heading := UI.label("LOCKER EMPTY", 15, UI.MUTED, 800)
+		locked_heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		locked_box.add_child(locked_heading)
+		var locked_copy := UI.label("No filler titles. The first one must be earned.", 11, UI.DIM)
+		locked_copy.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		locked_box.add_child(locked_copy)
+		page_content.add_child(locked)
+	else:
+		for title in titles:
+			page_content.add_child(_title_card(title))
+
+
+func _title_reward_progress(label_text: String, wins: int, accent: Color) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 5)
+	var row := HBoxContainer.new()
+	var label := UI.label(label_text, 11, UI.TEXT, 800)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+	row.add_child(UI.label("%d / %d WINS" % [wins, TitleDataRef.RANK_REWARD_WINS], 10, accent, 800))
+	box.add_child(row)
+	box.add_child(UI.progress(wins, TitleDataRef.RANK_REWARD_WINS, accent, 7))
+	return box
+
+
+func _title_card(title: Dictionary) -> Control:
+	var accent := TitleDataRef.color_for(title)
+	var is_equipped := str(game.data.get("equipped_title_id", "")) == str(title.get("id", ""))
+	var panel := UI.card(accent if is_equipped else Color.TRANSPARENT)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	var heading_row := HBoxContainer.new()
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(UI.label(str(title.get("label", "TITLE")), 16, accent, 800))
+	identity.add_child(
+		UI.label(
+			"%s  •  %s" % [str(title.get("category", "TITLE")), str(title.get("rarity", "RARE"))],
+			9,
+			UI.MUTED,
+			800
+		)
+	)
+	heading_row.add_child(identity)
+	heading_row.add_child(UI.badge("EQUIPPED" if is_equipped else "OWNED", accent))
+	box.add_child(heading_row)
+	box.add_child(UI.label(str(title.get("source", "Earned achievement")), 10, UI.DIM))
+	var action := UI.button("UNEQUIP" if is_equipped else "EQUIP TITLE", accent, not is_equipped, true)
+	if is_equipped:
+		action.pressed.connect(_clear_title)
+	else:
+		action.pressed.connect(_equip_title.bind(str(title.get("id", ""))))
+	box.add_child(action)
+	return panel
 
 
 func _rank_tier_card(tier_data: Dictionary, current_rank: Dictionary, placements_complete: bool) -> Control:
@@ -1515,6 +1675,14 @@ func _buy_stream_plan(plan: String) -> void:
 	_handle_action(game.buy_stream_plan(plan), "play")
 
 
+func _equip_title(title_id: String) -> void:
+	_handle_action(game.equip_title(title_id), "play")
+
+
+func _clear_title() -> void:
+	_handle_action(game.clear_equipped_title(), "play")
+
+
 func _enter_cup(mode: String) -> void:
 	_handle_action(game.play_community_cup(mode), "play")
 
@@ -1967,6 +2135,19 @@ func _finish_match_animation() -> void:
 
 	if is_rocket_league:
 		match_result_box.add_child(_post_match_rank_card())
+		var unlocked_titles: Array = match_result.get("unlocked_titles", [])
+		for title in unlocked_titles:
+			var title_accent := TitleDataRef.color_for(title)
+			var title_panel := UI.card(title_accent)
+			var title_box := VBoxContainer.new()
+			title_box.add_theme_constant_override("separation", 5)
+			title_panel.add_child(title_box)
+			title_box.add_child(UI.overline("TITLE UNLOCKED", title_accent))
+			var title_name := UI.label(str(title.get("label", "NEW TITLE")), 18, title_accent, 800)
+			title_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			title_box.add_child(title_name)
+			title_box.add_child(UI.label(str(title.get("source", "Elite achievement")), 10, UI.MUTED))
+			match_result_box.add_child(title_panel)
 
 	var profile: Dictionary = match_result.get("opponent_profile", {})
 	var profile_badge := UI.badge("LOBBY READ  •  %s" % str(profile.get("label", "NORMAL MATCH")), UI.PURPLE)

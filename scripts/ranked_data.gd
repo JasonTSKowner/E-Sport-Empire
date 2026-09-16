@@ -107,7 +107,7 @@ const TIER_STARTS := {
 }
 
 const TOP_NAMES := [
-	"VANTA", "SOLAR", "RIFT", "KAIRO", "AERO", "ZENITH",
+	"ZEN", "SOLAR", "RIFT", "KAIRO", "AERO", "ZENITH",
 	"NEXO", "POLAR", "ONYX", "DRIFT", "PULSE", "ECHO",
 ]
 
@@ -279,7 +279,7 @@ static func top_ladder(playlist: String) -> Array:
 	var key := normalize_playlist(playlist)
 	var start := 1742
 	if key == "2v2":
-		start = 2318
+		start = 3002
 	elif key == "3v3":
 		start = 2246
 	var gaps := [0, 21, 39, 58, 76, 93, 111, 129, 148, 169, 191, 216]
