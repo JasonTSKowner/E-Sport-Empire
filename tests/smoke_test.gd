@@ -19,7 +19,7 @@ func _check(condition: bool, message: String) -> void:
 
 
 func _run() -> void:
-	var state: EmpireState = EmpireStateRef.new()
+	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
@@ -66,7 +66,7 @@ func _run() -> void:
 	_check(bool(two_match.get("ok", false)), "2v2 match creation")
 	_check(str(two_match.get("format", "")) == "2v2", "2v2 format")
 
-	var reveal_state: EmpireState = EmpireStateRef.new()
+	var reveal_state: EmpireStateRef = EmpireStateRef.new()
 	reveal_state.reset_game()
 	var reveal_record := reveal_state.playlist_record("1v1")
 	reveal_record["placements"] = 9
@@ -75,7 +75,7 @@ func _run() -> void:
 	_check(bool(reveal_match.get("rank_revealed", false)), "placement ten rank reveal")
 	_check(int(reveal_match.get("placements_after", 0)) == 10, "placement ten completed")
 
-	var migrated: EmpireState = EmpireStateRef.new()
+	var migrated: EmpireStateRef = EmpireStateRef.new()
 	migrated.data = reveal_state.data.duplicate(true)
 	migrated.data["cash"] = 47
 	migrated.data["rl_playlists"]["1v1"].erase("peak_mmr")

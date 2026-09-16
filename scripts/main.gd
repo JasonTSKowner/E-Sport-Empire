@@ -7,7 +7,7 @@ const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
 const MMRGraphRef = preload("res://scripts/mmr_graph.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 
-var game: EmpireState
+var game: EmpireStateRef
 var current_page := "home"
 var shell: VBoxContainer
 var page_scroll: ScrollContainer
