@@ -3,7 +3,7 @@ extends RefCounted
 
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
 
-const VERSION := 5
+const VERSION := 6
 const MODES := ["Rocket League", "Fortnite", "Warzone"]
 
 const MODE_SHORT := {

@@ -125,7 +125,7 @@ static func color_for_family(family: String) -> Color:
 	return FAMILY_COLORS.get(family, FAMILY_COLORS["Unranked"])
 
 
-static func unranked_data(mmr: int = 600) -> Dictionary:
+static func unranked_data(mmr: int = 100) -> Dictionary:
 	return {
 		"name": "UNRANKED",
 		"compact_name": "UNRANKED",
@@ -250,13 +250,29 @@ static func win_rate(record: Dictionary, season_only: bool = false) -> float:
 
 static func estimated_position(mmr: int, playlist: String) -> int:
 	var key := normalize_playlist(playlist)
-	var population := 82000.0
-	if key == "2v2":
-		population = 138000.0
-	elif key == "3v3":
-		population = 112000.0
-	var curve := 315.0 if key == "1v1" else 360.0
-	return maxi(13, int(round(population * exp(-float(maxi(0, mmr)) / curve))))
+	var top_rows := top_ladder(key)
+	for index in range(top_rows.size()):
+		if mmr >= int(top_rows[index]["mmr"]):
+			return index + 1
+	var twelfth_mmr := int(top_rows[top_rows.size() - 1]["mmr"])
+	var position := int(round(12.0 * exp(float(twelfth_mmr - mmr) / 180.0)))
+	return clampi(position, 13, _playlist_population(key))
+
+
+static func _playlist_population(playlist: String) -> int:
+	if playlist == "2v2":
+		return 138000
+	if playlist == "3v3":
+		return 112000
+	return 82000
+
+
+static func _mmr_for_position(position: int, playlist: String) -> int:
+	var top_rows := top_ladder(playlist)
+	if position <= top_rows.size():
+		return int(top_rows[maxi(0, position - 1)]["mmr"])
+	var twelfth_mmr := int(top_rows[top_rows.size() - 1]["mmr"])
+	return maxi(0, twelfth_mmr - int(round(180.0 * log(float(position) / 12.0))))
 
 
 static func top_ladder(playlist: String) -> Array:
@@ -284,13 +300,16 @@ static func around_player(mmr: int, playlist: String) -> Array:
 	var key := normalize_playlist(playlist)
 	var own_position := estimated_position(mmr, key)
 	var seed: int = absi((mmr * 17 + key.hash()) % AROUND_NAMES.size())
+	var population := _playlist_population(key)
+	var first_position := clampi(own_position - 3, 1, maxi(1, population - 6))
 	var result: Array = []
-	for offset in range(-3, 4):
-		var rating := maxi(0, mmr - offset * 4)
-		var is_player := offset == 0
+	for row_index in range(7):
+		var position := first_position + row_index
+		var is_player := position == own_position
+		var rating := mmr if is_player else _mmr_for_position(position, key)
 		result.append({
-			"position": maxi(1, own_position + offset),
-			"name": "KESHI" if is_player else AROUND_NAMES[(seed + offset + AROUND_NAMES.size()) % AROUND_NAMES.size()],
+			"position": position,
+			"name": "KESHI" if is_player else AROUND_NAMES[(seed + row_index) % AROUND_NAMES.size()],
 			"mmr": rating,
 			"rank": rank_for_mmr(rating, key),
 			"is_player": is_player,
