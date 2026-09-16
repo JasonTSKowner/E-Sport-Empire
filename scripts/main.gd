@@ -2,9 +2,12 @@ extends Control
 
 const GameDataRef = preload("res://scripts/game_data.gd")
 const EmpireStateRef = preload("res://scripts/game_state.gd")
+const RankedDataRef = preload("res://scripts/ranked_data.gd")
+const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
+const MMRGraphRef = preload("res://scripts/mmr_graph.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 
-var game: EmpireState
+var game: EmpireStateRef
 var current_page := "home"
 var shell: VBoxContainer
 var page_scroll: ScrollContainer
@@ -17,6 +20,7 @@ var nav_buttons: Dictionary = {}
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_token := 0
+var ranked_view := "overview"
 
 var match_overlay: Control
 var match_timer: Timer
@@ -31,6 +35,7 @@ var match_log_box: VBoxContainer
 var match_log_scroll: ScrollContainer
 var match_result_box: VBoxContainer
 var match_continue_button: Button
+var match_finished := false
 
 
 func _ready() -> void:
@@ -61,8 +66,10 @@ func _build_shell() -> void:
 	page_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	page_scroll.scroll_deadzone = 4
+	page_scroll.scroll_deadzone = 8
+	page_scroll.scroll_vertical_custom_step = 72.0
 	page_scroll.follow_focus = false
+	page_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	shell.add_child(page_scroll)
 
 	page_content = VBoxContainer.new()
@@ -118,7 +125,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4.4", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4.5", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -283,7 +290,7 @@ func _show_page(page: String, animate: bool = true) -> void:
 func _apply_scroll_passthrough(node: Node) -> void:
 	for child in node.get_children():
 		if child is Button:
-			child.mouse_filter = Control.MOUSE_FILTER_STOP
+			child.mouse_filter = Control.MOUSE_FILTER_PASS
 		elif child is ScrollContainer:
 			child.mouse_filter = Control.MOUSE_FILTER_STOP
 		elif child is Control:
@@ -398,22 +405,26 @@ func _club_hero() -> Control:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 12)
 	box.add_child(top)
-	var emblem := PanelContainer.new()
-	emblem.custom_minimum_size = Vector2(66, 66)
-	emblem.add_theme_stylebox_override(
-		"panel", UI.box(Color(accent.r, accent.g, accent.b, 0.15), 20, accent, 1)
-	)
-	var initials := UI.label("TSK", 19, accent, 800)
-	initials.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	initials.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	emblem.add_child(initials)
-	top.add_child(emblem)
+	if mode == "Rocket League":
+		var emblem_rank := rank if game.placements_complete(mode) else RankedDataRef.unranked_data(game.mode_mmr(mode))
+		top.add_child(_rank_emblem(emblem_rank, 76.0))
+	else:
+		var emblem := PanelContainer.new()
+		emblem.custom_minimum_size = Vector2(66, 66)
+		emblem.add_theme_stylebox_override(
+			"panel", UI.box(Color(accent.r, accent.g, accent.b, 0.15), 20, accent, 1)
+		)
+		var initials := UI.label("TSK", 19, accent, 800)
+		initials.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		initials.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		emblem.add_child(initials)
+		top.add_child(emblem)
 
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.add_theme_constant_override("separation", 3)
-	details.add_child(UI.overline("ACTIVE DIVISION", accent))
-	details.add_child(UI.heading(mode, 20))
+	details.add_child(UI.overline("ACTIVE PLAYLIST" if mode == "Rocket League" else "ACTIVE DIVISION", accent))
+	details.add_child(UI.heading("%s  •  %s" % [mode, game.selected_rl_playlist()] if mode == "Rocket League" else mode, 18 if mode == "Rocket League" else 20))
 	details.add_child(
 		UI.label("OVR %d  •  %s" % [game.team_overall(mode), visible_rank], 13, UI.MUTED, 700)
 	)
@@ -667,61 +678,382 @@ func _mini_stat(caption: String, value: int, accent: Color) -> Control:
 
 func _build_play_page() -> void:
 	_page_header(
-		"Competition",
-		"Ranked Grind",
-		"Ranked matches pay €0. Climb, stream and build attention."
+		"COMPETITIVE",
+		"Ranked Command",
+		"Three independent ladders. Ten placements. Every result matters."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
+	if mode != "Rocket League":
+		_build_legacy_play_page(mode)
+		return
+	_playlist_switch()
+	_ranked_view_switch()
+	match ranked_view:
+		"ladder":
+			_build_ranked_ladder()
+		"ranks":
+			_build_all_ranks()
+		_:
+			_build_ranked_overview()
+
+
+func _playlist_switch() -> void:
+	var panel := UI.card(UI.CYAN)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 9)
+	panel.add_child(box)
+	box.add_child(UI.overline("ROCKET LEAGUE PLAYLIST", UI.CYAN))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	var selected := game.selected_rl_playlist()
+	var roster_size := game.roster_for("Rocket League").size()
+	for playlist in RankedDataRef.PLAYLISTS:
+		var required := game.playlist_required_players(playlist)
+		var button := UI.button(
+			"%s\n%d/%d PLAYERS" % [playlist, mini(roster_size, required), required],
+			UI.CYAN,
+			str(playlist) == selected,
+			true
+		)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(_select_rl_playlist.bind(str(playlist)))
+		row.add_child(button)
+	box.add_child(row)
+	page_content.add_child(panel)
+
+
+func _select_rl_playlist(playlist: String) -> void:
+	game.set_selected_rl_playlist(playlist)
+	_show_page("play", false)
+
+
+func _ranked_view_switch() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	for entry in [["overview", "OVERVIEW"], ["ladder", "LADDER"], ["ranks", "ALL RANKS"]]:
+		var active := ranked_view == str(entry[0])
+		var button := UI.button(str(entry[1]), UI.PURPLE, active, true)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(_select_ranked_view.bind(str(entry[0])))
+		row.add_child(button)
+	page_content.add_child(row)
+
+
+func _select_ranked_view(view: String) -> void:
+	ranked_view = view if view in ["overview", "ladder", "ranks"] else "overview"
+	_show_page("play", false)
+
+
+func _build_ranked_overview() -> void:
+	var playlist := game.selected_rl_playlist()
+	var record := game.playlist_record(playlist)
+	page_content.add_child(_rank_profile_card(playlist))
+	page_content.add_child(_rank_stats_card(playlist))
+	page_content.add_child(_mmr_graph_card(playlist))
+	page_content.add_child(_ranked_queue_card(playlist))
+	page_content.add_child(_section_title("RECENT MATCHES", "%s ranked results" % playlist))
+	_build_playlist_history(page_content, playlist, 6)
+	page_content.add_child(_streaming_card())
+	if int(record.get("played", 0)) >= 3:
+		page_content.add_child(_cup_card("Rocket League"))
+
+
+func _rank_profile_card(playlist: String) -> Control:
+	var record := game.playlist_record(playlist)
+	var mmr := int(record.get("mmr", 600))
+	var placements := int(record.get("placements", 0))
+	var placed := placements >= 10
+	var actual_rank := RankedDataRef.rank_for_mmr(mmr, playlist)
+	var shown_rank := actual_rank if placed else RankedDataRef.unranked_data(mmr)
+	var accent := RankedDataRef.color_for_family(str(shown_rank["family"]))
+	var panel := UI.card(accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 13)
+	panel.add_child(box)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 13)
+	header.add_child(_rank_emblem(shown_rank, 100.0))
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_theme_constant_override("separation", 3)
+	identity.add_child(UI.overline("%s RANKED" % playlist, accent))
+	identity.add_child(UI.heading("UNRANKED" if not placed else str(actual_rank["tier_name"]), 22))
+	identity.add_child(
+		UI.label(
+			"%d / 10 placements" % placements if not placed else "Division %s" % str(actual_rank["division_roman"]),
+			13,
+			UI.MUTED,
+			700
+		)
+	)
+	header.add_child(identity)
+	var rating := VBoxContainer.new()
+	var rating_value := UI.label(str(mmr), 28, UI.TEXT, 800)
+	rating_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var rating_cap := UI.label("MMR", 10, accent, 800)
+	rating_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	rating.add_child(rating_value)
+	rating.add_child(rating_cap)
+	header.add_child(rating)
+	box.add_child(header)
+	box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.28)))
+	if not placed:
+		var placement_labels := HBoxContainer.new()
+		var left := UI.label("RANK HIDDEN", 12, UI.TEXT, 800)
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		placement_labels.add_child(left)
+		placement_labels.add_child(UI.label("%d MATCHES LEFT" % (10 - placements), 11, UI.MUTED, 700))
+		box.add_child(placement_labels)
+		box.add_child(UI.progress(placements, 10, accent, 9))
+	else:
+		var next_rank := RankedDataRef.next_rank_for_mmr(mmr, playlist)
+		var progress := RankedDataRef.progress_for_mmr(mmr, playlist)
+		var progress_labels := HBoxContainer.new()
+		var current := UI.label(str(actual_rank["compact_name"]), 12, UI.TEXT, 800)
+		current.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		progress_labels.add_child(current)
+		var target_text := "MAX RANK" if str(actual_rank["family"]) == "Supersonic Legend" else "%s  •  %d" % [str(next_rank["compact_name"]), int(actual_rank["next_minimum"])]
+		progress_labels.add_child(UI.label(target_text, 11, UI.MUTED, 700))
+		box.add_child(progress_labels)
+		box.add_child(UI.progress(float(progress["value"]), float(progress["maximum"]), accent, 9))
+	var footer := HBoxContainer.new()
+	footer.add_child(_metric_block("W / L", "%d / %d" % [int(record.get("wins", 0)), int(record.get("losses", 0))], UI.GREEN))
+	footer.add_child(_metric_block("WINRATE", "%.1f%%" % RankedDataRef.win_rate(record), accent))
+	footer.add_child(_metric_block("EST. LADDER", "#%s" % GameDataRef.format_number(RankedDataRef.estimated_position(mmr, playlist)), UI.PURPLE))
+	box.add_child(footer)
+	return panel
+
+
+func _rank_stats_card(playlist: String) -> Control:
+	var record := game.playlist_record(playlist)
+	var panel := UI.card(UI.PURPLE)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 11)
+	panel.add_child(box)
+	box.add_child(UI.overline("SEASON PERFORMANCE", UI.PURPLE))
+	var row_one := HBoxContainer.new()
+	row_one.add_child(_metric_block("SEASON", "%d-%d" % [int(record.get("season_wins", 0)), int(record.get("season_losses", 0))], UI.TEXT))
+	row_one.add_child(_metric_block("WINRATE", "%.1f%%" % RankedDataRef.win_rate(record, true), UI.GREEN))
+	var streak := int(record.get("streak", 0))
+	row_one.add_child(_metric_block("STREAK", "%s%d" % ["W" if streak > 0 else "L" if streak < 0 else "—", abs(streak)] if streak != 0 else "—", UI.GOLD))
+	box.add_child(row_one)
+	var row_two := HBoxContainer.new()
+	row_two.add_child(_metric_block("PEAK MMR", str(int(record.get("peak_mmr", 600))), UI.CYAN))
+	row_two.add_child(_metric_block("SEASON PEAK", str(int(record.get("season_peak_mmr", 600))), UI.PURPLE))
+	row_two.add_child(_metric_block("PLAYLIST", playlist, UI.TEXT))
+	box.add_child(row_two)
+	var last_results: Array = record.get("last_results", [])
+	var last_text := "NO MATCHES YET" if last_results.is_empty() else "  ".join(last_results)
+	var last := UI.label(last_text, 13, UI.MUTED, 800)
+	last.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	last.custom_minimum_size.y = 30
+	box.add_child(UI.overline("LAST 10", UI.MUTED))
+	box.add_child(last)
+	return panel
+
+
+func _mmr_graph_card(playlist: String) -> Control:
+	var record := game.playlist_record(playlist)
+	var actual_rank := RankedDataRef.rank_for_mmr(int(record.get("mmr", 600)), playlist)
+	var accent := RankedDataRef.color_for_family(str(actual_rank["family"]))
+	var panel := UI.card(accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	panel.add_child(box)
+	box.add_child(UI.overline("MMR TREND  •  LAST 30", accent))
+	box.add_child(MMRGraphRef.new().configure(record.get("mmr_history", []), accent))
+	return panel
+
+
+func _ranked_queue_card(playlist: String) -> Control:
+	var record := game.playlist_record(playlist)
+	var available := game.can_queue_playlist(playlist)
+	var required := game.playlist_required_players(playlist)
+	var roster_size := game.roster_for("Rocket League").size()
+	var accent := UI.CYAN
+	var panel := UI.card(accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 11)
+	panel.add_child(box)
+	var top := HBoxContainer.new()
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_child(UI.overline("MATCHMAKING", accent))
+	text.add_child(UI.heading("%s Competitive" % playlist, 20))
+	text.add_child(UI.label("Close-MMR opponent  •  Ranked reward €0", 12, UI.MUTED))
+	top.add_child(text)
+	top.add_child(UI.badge("READY" if available else "%d/%d PLAYERS" % [roster_size, required], UI.GREEN if available else UI.GOLD))
+	box.add_child(top)
+	var placement_mode := int(record.get("placements", 0)) < 10
+	box.add_child(
+		UI.label(
+			"Placement uncertainty: about ±20–30 MMR." if placement_mode else "Standard match: about ±9–11 MMR, adjusted by opponent rating.",
+			11,
+			UI.DIM
+		)
+	)
+	var queue := UI.button("QUEUE %s RANKED" % playlist if available else "RECRUIT %d MORE PLAYER%s" % [required - roster_size, "S" if required - roster_size != 1 else ""], accent, available)
+	queue.disabled = not available
+	queue.pressed.connect(_start_match.bind("Rocket League"))
+	box.add_child(queue)
+	return panel
+
+
+func _build_ranked_ladder() -> void:
+	var playlist := game.selected_rl_playlist()
+	var record := game.playlist_record(playlist)
+	page_content.add_child(_rank_profile_card(playlist))
+	page_content.add_child(_section_title("GLOBAL TOP 12", "%s simulated competitive ladder" % playlist))
+	for entry in RankedDataRef.top_ladder(playlist):
+		page_content.add_child(_ladder_row(entry))
+	page_content.add_child(_section_title("AROUND YOU", "Your estimated position updates with every MMR change."))
+	for entry in RankedDataRef.around_player(int(record.get("mmr", 600)), playlist):
+		page_content.add_child(_ladder_row(entry))
+
+
+func _ladder_row(entry: Dictionary) -> Control:
+	var rank: Dictionary = entry.get("rank", {})
+	var is_player := bool(entry.get("is_player", false))
+	var accent := UI.CYAN if is_player else RankedDataRef.color_for_family(str(rank.get("family", "Unranked")))
+	var panel := UI.card(accent if is_player else Color.TRANSPARENT)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var position := UI.label("#%s" % GameDataRef.format_number(int(entry.get("position", 0))), 13, accent, 800)
+	position.custom_minimum_size.x = 58
+	position.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(position)
+	row.add_child(_rank_emblem(rank, 46.0))
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(UI.label(str(entry.get("name", "PLAYER")), 15, UI.TEXT, 800))
+	identity.add_child(UI.label(str(rank.get("compact_name", "UNRANKED")), 10, UI.MUTED, 700))
+	row.add_child(identity)
+	var rating := VBoxContainer.new()
+	var value := UI.label(str(int(entry.get("mmr", 0))), 17, UI.TEXT, 800)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var cap := UI.label("MMR", 9, accent, 800)
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	rating.add_child(value)
+	rating.add_child(cap)
+	row.add_child(rating)
+	return panel
+
+
+func _build_all_ranks() -> void:
+	var playlist := game.selected_rl_playlist()
+	var record := game.playlist_record(playlist)
+	var placements_complete := int(record.get("placements", 0)) >= 10
+	var current_rank := RankedDataRef.rank_for_mmr(int(record.get("mmr", 600)), playlist)
+	var intro := UI.card(UI.GOLD)
+	var intro_box := VBoxContainer.new()
+	intro_box.add_theme_constant_override("separation", 8)
+	intro.add_child(intro_box)
+	intro_box.add_child(UI.overline("ALL RANKS  •  %s" % playlist, UI.GOLD))
+	intro_box.add_child(UI.heading("MMR Table", 22))
+	intro_box.add_child(UI.label("Approximate playlist thresholds. Every tier has Divisions I–IV; SSL begins at the final open-ended threshold.", 12, UI.MUTED))
+	page_content.add_child(intro)
+	for tier_data in RankedDataRef.tier_rows(playlist):
+		page_content.add_child(_rank_tier_card(tier_data, current_rank, placements_complete))
+
+
+func _rank_tier_card(tier_data: Dictionary, current_rank: Dictionary, placements_complete: bool) -> Control:
+	var family := str(tier_data.get("family", "Unranked"))
+	var accent := RankedDataRef.color_for_family(family)
+	var is_current_tier := placements_complete and str(current_rank.get("tier_name", "")) == str(tier_data.get("tier_name", ""))
+	var panel := UI.card(accent if is_current_tier else Color.TRANSPARENT)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 11)
+	var emblem_data := {
+		"family": family,
+		"tier": int(tier_data.get("tier", 0)),
+		"division": 0,
+	}
+	header.add_child(_rank_emblem(emblem_data, 58.0))
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(UI.label(str(tier_data.get("tier_name", "Rank")), 17, UI.TEXT, 800))
+	identity.add_child(UI.label("Approximate MMR range", 10, UI.MUTED))
+	header.add_child(identity)
+	if is_current_tier:
+		header.add_child(UI.badge("YOU", UI.CYAN))
+	box.add_child(header)
+	for division_data in tier_data.get("divisions", []):
+		var exact_current := is_current_tier and str(division_data.get("division", "")) == str(current_rank.get("division_roman", ""))
+		box.add_child(_rank_division_row(division_data, accent, exact_current, family == "Supersonic Legend"))
+	return panel
+
+
+func _rank_division_row(division_data: Dictionary, accent: Color, is_current: bool, is_ssl: bool) -> Control:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
+	panel.add_theme_stylebox_override(
+		"panel",
+		UI.box(
+			Color(accent.r, accent.g, accent.b, 0.15) if is_current else Color(0.08, 0.11, 0.22, 0.65),
+			12,
+			Color(accent.r, accent.g, accent.b, 0.48) if is_current else Color(0.30, 0.38, 0.56, 0.16),
+			1
+		)
+	)
+	var row := HBoxContainer.new()
+	var title := "SSL" if is_ssl else "DIVISION %s" % str(division_data.get("division", "I"))
+	var left := UI.label(title, 12, accent if is_current else UI.MUTED, 800)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left)
+	var minimum := int(division_data.get("minimum", 0))
+	var maximum := int(division_data.get("maximum", 0))
+	row.add_child(UI.label("%d+ MMR" % minimum if is_ssl else "%d–%d MMR" % [minimum, maximum], 12, UI.TEXT, 700))
+	panel.add_child(row)
+	return panel
+
+
+func _build_playlist_history(parent: VBoxContainer, playlist: String, limit: int) -> void:
+	var count := 0
+	for entry in game.data.get("history", []):
+		if str(entry.get("mode", "")) != "Rocket League" or str(entry.get("format", "")) != playlist:
+			continue
+		parent.add_child(_history_row(entry))
+		count += 1
+		if count >= limit:
+			break
+	if count == 0:
+		var empty := UI.card()
+		var message := UI.label("No %s matches yet. Queue when you are ready." % playlist, 13, UI.MUTED)
+		message.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_child(message)
+		parent.add_child(empty)
+
+
+func _build_legacy_play_page(mode: String) -> void:
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var record: Dictionary = game.mode_record(mode)
-	var rank: Dictionary = game.rank_data(mode)
 	var format := game.match_format(mode)
 	var locked := format == "LOCKED"
 	page_content.add_child(_streaming_card())
-
 	var panel := UI.card(accent)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
-	var live_row := HBoxContainer.new()
-	live_row.add_child(UI.badge(("%s RANKED" % format) if not locked else "NO ROSTER", accent))
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	live_row.add_child(spacer)
-	live_row.add_child(UI.label("PLACEMENT %d/%d" % [mini(game.placement_target(mode), int(record["placements"]) + 1), game.placement_target(mode)], 11, UI.MUTED, 700))
-	box.add_child(live_row)
-
-	var versus := HBoxContainer.new()
-	versus.add_theme_constant_override("separation", 8)
-	var our_name := "KESHI" if format == "1v1" else "TSK"
-	versus.add_child(_versus_team(our_name, "OVR %d" % game.team_overall(mode), accent))
-	var versus_label := UI.label("VS", 14, UI.MUTED, 800)
-	versus_label.custom_minimum_size.x = 38
-	versus_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	versus_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	versus.add_child(versus_label)
-	versus.add_child(_versus_team("MATCHMAKING" if not locked else "LOCKED", "RATING %d" % int(record["mmr"]), UI.PURPLE))
-	box.add_child(versus)
-	box.add_child(UI.separator())
-
-	var ranked_info := HBoxContainer.new()
-	ranked_info.add_child(_metric_block("CURRENT", game.visible_rank_name(mode), accent))
-	ranked_info.add_child(_metric_block("RATING", str(record["mmr"]), UI.TEXT))
-	ranked_info.add_child(_metric_block("CASH / WIN", "€0", UI.GOLD))
-	box.add_child(ranked_info)
-
-	var queue := UI.button("QUEUE %s RANKED  •  €0" % format if not locked else "RECRUIT A PLAYER FIRST", accent, not locked)
+	box.add_child(UI.badge("%s RANKED" % format if not locked else "NO ROSTER", accent))
+	box.add_child(UI.heading("%s Competitive" % mode, 21))
+	var stats := HBoxContainer.new()
+	stats.add_child(_metric_block("RATING", str(int(record.get("mmr", 600))), accent))
+	stats.add_child(_metric_block("RECORD", "%d-%d" % [int(record.get("wins", 0)), int(record.get("losses", 0))], UI.GREEN))
+	stats.add_child(_metric_block("REWARD", "€0", UI.GOLD))
+	box.add_child(stats)
+	var queue := UI.button("QUEUE RANKED" if not locked else "RECRUIT A PLAYER FIRST", accent, not locked)
 	queue.disabled = locked
 	queue.pressed.connect(_start_match.bind(mode))
 	box.add_child(queue)
 	page_content.add_child(panel)
-
 	if not locked:
-		page_content.add_child(_section_title("MATCH PREP", "Form and skill affect every match."))
 		page_content.add_child(_match_prep_card(mode))
 		page_content.add_child(_cup_card(mode))
-
 	page_content.add_child(_section_title("RECENT RESULTS", "%s match history" % mode))
 	_build_history_list(page_content, 5, mode)
 
@@ -1065,6 +1397,13 @@ func _metric_block(caption: String, value: String, accent: Color) -> Control:
 	return box
 
 
+func _rank_emblem(rank_data: Dictionary, size: float = 72.0) -> Control:
+	var emblem := RankEmblemRef.new()
+	emblem.custom_minimum_size = Vector2(size, size)
+	emblem.configure(rank_data)
+	return emblem
+
+
 func _team_average(mode: String, key: String) -> int:
 	var roster: Array = game.roster_for(mode)
 	if roster.is_empty():
@@ -1219,7 +1558,7 @@ func _start_match(mode: String) -> void:
 		return
 	match_result = game.create_match(mode)
 	if match_result.is_empty() or not bool(match_result.get("ok", false)):
-		_show_message("Matchmaking failed. Try again.", false)
+		_show_message(str(match_result.get("message", "Matchmaking failed. Try again.")), false)
 		return
 	var events: Array = match_result.get("events", [])
 	if events.is_empty():
@@ -1227,6 +1566,7 @@ func _start_match(mode: String) -> void:
 		return
 	match_event_index = 0
 	match_speed = 1
+	match_finished = false
 	_build_match_overlay()
 	_refresh_top_bar()
 	call_deferred("_begin_match_playback")
@@ -1257,9 +1597,19 @@ func _build_match_overlay() -> void:
 	margin.add_theme_constant_override("margin_right", 18)
 	margin.add_theme_constant_override("margin_bottom", 24)
 	match_overlay.add_child(margin)
+	match_log_scroll = ScrollContainer.new()
+	match_log_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	match_log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	match_log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	match_log_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	match_log_scroll.scroll_deadzone = 8
+	match_log_scroll.scroll_vertical_custom_step = 72.0
+	match_log_scroll.follow_focus = false
+	margin.add_child(match_log_scroll)
 	var layout := VBoxContainer.new()
+	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.add_theme_constant_override("separation", 13)
-	margin.add_child(layout)
+	match_log_scroll.add_child(layout)
 	var mode := str(match_result["mode"])
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var header_row := HBoxContainer.new()
@@ -1306,16 +1656,13 @@ func _build_match_overlay() -> void:
 		speed_row.add_child(speed_button)
 	layout.add_child(speed_row)
 	layout.add_child(UI.overline("MATCH FEED", UI.MUTED))
-	match_log_scroll = ScrollContainer.new()
-	match_log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	match_log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	match_log_scroll.scroll_deadzone = 2
-	match_log_scroll.follow_focus = false
+	var feed_panel := UI.card()
 	match_log_box = VBoxContainer.new()
 	match_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	match_log_box.custom_minimum_size.y = 128.0
 	match_log_box.add_theme_constant_override("separation", 7)
-	match_log_scroll.add_child(match_log_box)
-	layout.add_child(match_log_scroll)
+	feed_panel.add_child(match_log_box)
+	layout.add_child(feed_panel)
 
 	match_result_box = VBoxContainer.new()
 	match_result_box.add_theme_constant_override("separation", 8)
@@ -1338,6 +1685,8 @@ func _build_match_overlay() -> void:
 
 
 func _set_match_speed(speed: int) -> void:
+	if match_finished:
+		return
 	match_speed = speed
 	if match_timer != null:
 		match_timer.wait_time = 0.72 / float(speed)
@@ -1345,6 +1694,8 @@ func _set_match_speed(speed: int) -> void:
 
 
 func _advance_match() -> void:
+	if match_finished:
+		return
 	var events: Array = match_result["events"]
 	if match_event_index >= events.size():
 		_finish_match_animation()
@@ -1396,26 +1747,48 @@ func _scroll_match_feed_to_bottom() -> void:
 
 
 func _finish_match_animation() -> void:
+	if match_finished:
+		return
+	match_finished = true
 	if match_timer != null:
 		match_timer.stop()
 	var won := bool(match_result["won"])
 	var accent := UI.GREEN if won else UI.RED
-	match_event_label.text = (
-		"Win recorded. Ranked paid €0 — but the match may have created attention."
-		if won
-		else "Loss recorded. Ranked paid €0. Review it and queue again."
-	)
+	var rank_reveal := bool(match_result.get("rank_revealed", false))
+	match_event_label.text = "PLACEMENT COMPLETE — YOUR RANK IS READY" if rank_reveal else "Victory recorded. Rating updated." if won else "Defeat recorded. Rating updated."
 	match_result_box.visible = true
+	for child in match_result_box.get_children():
+		match_result_box.remove_child(child)
+		child.queue_free()
 	match_result_box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.35)))
 
+	var result_panel := UI.card(UI.GOLD if rank_reveal else accent)
+	var result_box := VBoxContainer.new()
+	result_box.add_theme_constant_override("separation", 10)
+	result_panel.add_child(result_box)
+	result_box.add_child(
+		UI.badge(
+			"PLACEMENT COMPLETE  •  RANK REVEAL" if rank_reveal else "MATCH COMPLETE",
+			UI.GOLD if rank_reveal else accent
+		)
+	)
+	result_box.add_child(UI.heading("VICTORY" if won else "DEFEAT", 28))
 	var result_row := HBoxContainer.new()
-	result_row.add_child(_metric_block("RESULT", "VICTORY" if won else "DEFEAT", accent))
-	result_row.add_child(_metric_block("MMR", "%+d" % int(match_result["mmr_delta"]), accent))
-	result_row.add_child(_metric_block("OPP MMR", str(int(match_result.get("opponent_mmr", 0))), UI.PURPLE))
-	match_result_box.add_child(result_row)
+	result_row.add_child(_metric_block("BEFORE", str(int(match_result.get("mmr_before", 0))), UI.MUTED))
+	result_row.add_child(_metric_block("CHANGE", "%+d" % int(match_result["mmr_delta"]), accent))
+	result_row.add_child(_metric_block("AFTER", str(int(match_result.get("mmr_after", 0))), UI.TEXT))
+	result_box.add_child(result_row)
+	var opponent_row := HBoxContainer.new()
+	opponent_row.add_child(_metric_block("OPPONENT", str(match_result.get("opponent", "Unknown")), UI.PURPLE))
+	opponent_row.add_child(_metric_block("OPP MMR", str(int(match_result.get("opponent_mmr", 0))), UI.PURPLE))
+	result_box.add_child(opponent_row)
+	match_result_box.add_child(result_panel)
+
+	if str(match_result.get("mode", "")) == "Rocket League":
+		match_result_box.add_child(_post_match_rank_card())
 
 	var profile: Dictionary = match_result.get("opponent_profile", {})
-	var profile_badge := UI.badge("POST-MATCH • %s" % str(profile.get("label", "NORMAL MATCH")), UI.PURPLE)
+	var profile_badge := UI.badge("LOBBY READ  •  %s" % str(profile.get("label", "NORMAL MATCH")), UI.PURPLE)
 	profile_badge.custom_minimum_size.y = 38
 	match_result_box.add_child(profile_badge)
 
@@ -1439,21 +1812,57 @@ func _finish_match_animation() -> void:
 					UI.MUTED
 				))
 
-	if bool(match_result.get("rank_revealed", false)):
-		var reveal := UI.badge("PLACEMENT RANK  •  %s" % str(match_result["new_rank"]), UI.GOLD)
-		reveal.custom_minimum_size.y = 42
-		match_result_box.add_child(reveal)
-	elif bool(match_result.get("promoted", false)):
-		var promotion := UI.badge("PROMOTED TO %s" % str(match_result["new_rank"]), UI.GOLD)
-		promotion.custom_minimum_size.y = 42
-		match_result_box.add_child(promotion)
-
 	match_continue_button.visible = true
+	match_continue_button.text = "CONTINUE TO RANKED"
+	_apply_scroll_passthrough(match_result_box)
 	var tween := create_tween().set_parallel(true)
 	match_result_box.modulate.a = 0.0
 	match_continue_button.modulate.a = 0.0
 	tween.tween_property(match_result_box, "modulate:a", 1.0, 0.2)
 	tween.tween_property(match_continue_button, "modulate:a", 1.0, 0.2)
+	call_deferred("_scroll_match_feed_to_bottom")
+
+
+func _post_match_rank_card() -> Control:
+	var placements_after := int(match_result.get("placements_after", 0))
+	var placed := placements_after >= 10
+	var actual_rank: Dictionary = match_result.get("new_rank_data", RankedDataRef.unranked_data())
+	var shown_rank := actual_rank if placed else RankedDataRef.unranked_data(int(match_result.get("mmr_after", 600)))
+	var accent := RankedDataRef.color_for_family(str(shown_rank.get("family", "Unranked")))
+	var panel := UI.card(UI.GOLD if bool(match_result.get("rank_revealed", false)) else accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 11)
+	panel.add_child(box)
+	var transition := "UNRANKED  →  %s" % str(match_result.get("new_rank", "UNRANKED")) if bool(match_result.get("rank_revealed", false)) else "%s  →  %s" % [str(match_result.get("old_rank", "UNRANKED")), str(match_result.get("new_rank", "UNRANKED"))]
+	box.add_child(UI.overline("RANK REVEAL" if bool(match_result.get("rank_revealed", false)) else "RATING UPDATE", UI.GOLD if bool(match_result.get("rank_revealed", false)) else accent))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 13)
+	row.add_child(_rank_emblem(shown_rank, 94.0))
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(UI.heading("UNRANKED" if not placed else str(actual_rank.get("tier_name", "UNRANKED")), 21))
+	identity.add_child(UI.label("%d / 10 PLACEMENTS" % placements_after if not placed else "DIVISION %s" % str(actual_rank.get("division_roman", "")), 12, UI.MUTED, 800))
+	identity.add_child(UI.label(str(match_result.get("format", "1v1")), 11, accent, 800))
+	row.add_child(identity)
+	box.add_child(row)
+	var transition_label := UI.label(transition, 12, UI.TEXT, 700)
+	transition_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(transition_label)
+	if not placed:
+		box.add_child(UI.progress(placements_after, 10, accent, 9))
+		box.add_child(UI.label("%d placement%s remaining" % [10 - placements_after, "s" if 10 - placements_after != 1 else ""], 11, UI.MUTED))
+	else:
+		var progress: Dictionary = match_result.get("division_progress", {"value": 1, "maximum": 1})
+		box.add_child(UI.progress(float(progress.get("value", 0)), float(progress.get("maximum", 1)), accent, 9))
+		var status := "DIVISION PROGRESS"
+		if bool(match_result.get("rank_revealed", false)):
+			status = "PLACEMENT COMPLETE  •  %s" % str(actual_rank.get("compact_name", ""))
+		elif bool(match_result.get("promoted", false)):
+			status = "PROMOTED  •  %s" % str(match_result.get("new_rank", ""))
+		elif bool(match_result.get("demoted", false)):
+			status = "DEMOTED  •  %s" % str(match_result.get("new_rank", ""))
+		box.add_child(UI.badge(status, UI.GOLD if bool(match_result.get("rank_revealed", false)) or bool(match_result.get("promoted", false)) else UI.RED if bool(match_result.get("demoted", false)) else accent))
+	return panel
 
 func _close_match() -> void:
 	if match_overlay == null or not is_instance_valid(match_overlay):

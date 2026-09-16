@@ -23,7 +23,14 @@ window/energy_saving/keep_screen_on=true
 
 [gui]
 
+common/default_scroll_deadzone=8
+common/snap_controls_to_pixels=true
 theme/default_font_multichannel_signed_distance_field=true
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+pointing/emulate_touch_from_mouse=true
 
 [input]
 
