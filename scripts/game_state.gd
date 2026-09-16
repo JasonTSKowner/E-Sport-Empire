@@ -4,6 +4,7 @@ extends RefCounted
 const SAVE_PATH := "user://e_sport_empire_save.json"
 const GameDataRef = preload("res://scripts/game_data.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
+const TitleDataRef = preload("res://scripts/title_data.gd")
 const TRAINING_COOLDOWN_WEEKS := 3
 const RECOVERY_COOLDOWN_WEEKS := 3
 
@@ -128,6 +129,48 @@ func set_selected_rl_playlist(playlist: String) -> void:
 	var normalized := RankedDataRef.normalize_playlist(playlist)
 	data["selected_rl_playlist"] = normalized
 	save_game()
+
+
+func earned_titles() -> Array:
+	return data.get("earned_titles", [])
+
+
+func equipped_title() -> Dictionary:
+	var equipped_id := str(data.get("equipped_title_id", ""))
+	if equipped_id.is_empty():
+		return {}
+	for title in earned_titles():
+		if str(title.get("id", "")) == equipped_id:
+			return title
+	return {}
+
+
+func equip_title(title_id: String) -> Dictionary:
+	for title in earned_titles():
+		if str(title.get("id", "")) == title_id:
+			data["equipped_title_id"] = title_id
+			save_game()
+			return {"ok": true, "message": "%s equipped." % str(title.get("label", "Title"))}
+	return {"ok": false, "message": "That title has not been earned."}
+
+
+func clear_equipped_title() -> Dictionary:
+	data["equipped_title_id"] = ""
+	save_game()
+	return {"ok": true, "message": "Title unequipped."}
+
+
+func _grant_title(title: Dictionary) -> bool:
+	var title_id := str(title.get("id", ""))
+	if title_id.is_empty():
+		return false
+	for earned in earned_titles():
+		if str(earned.get("id", "")) == title_id:
+			return false
+	data["earned_titles"].push_front(title.duplicate(true))
+	if str(data.get("equipped_title_id", "")).is_empty():
+		data["equipped_title_id"] = title_id
+	return true
 
 
 func playlist_required_players(playlist: String) -> int:
@@ -758,6 +801,9 @@ func finalize_match(session: Dictionary) -> Dictionary:
 	var mmr_after := int(record["mmr"])
 	var new_rank_data := GameDataRef.rl_rank_for_mmr(mmr_after, format) if mode == "Rocket League" else GameDataRef.rank_for_mmr(mmr_after)
 	var new_rank := "UNRANKED" if mode == "Rocket League" and placements_after < placement_target(mode) else str(new_rank_data["name"])
+	var unlocked_titles: Array = []
+	if mode == "Rocket League":
+		unlocked_titles = _update_rank_title_progress(record, new_rank_data, format, won)
 	data["history"].push_front({
 		"kind": "ranked",
 		"mode": mode,
@@ -778,7 +824,7 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		data["history"].pop_back()
 	data["week"] = int(data.get("week", 1)) + 1
 	if int(data["week"]) > 12:
-		_finish_season()
+		unlocked_titles.append_array(_finish_season())
 	session["resolved"] = true
 	save_game()
 	var decision_score := int(session.get("decision_score", 0))
@@ -836,6 +882,7 @@ func finalize_match(session: Dictionary) -> Dictionary:
 			and mmr_delta < 0
 			and placements_before >= placement_target(mode)
 		),
+		"unlocked_titles": unlocked_titles,
 	}
 
 
@@ -906,8 +953,53 @@ func _event_time(mode: String, index: int) -> String:
 	return "CIRCLE %d" % mini(9, index + 1)
 
 
-func _finish_season() -> void:
-	data["season"] = int(data.get("season", 1)) + 1
+func _update_rank_title_progress(
+	record: Dictionary, rank_data: Dictionary, format: String, won: bool
+) -> Array:
+	var unlocked: Array = []
+	if not won or int(record.get("placements", 0)) < placement_target("Rocket League"):
+		return unlocked
+	var family := str(rank_data.get("family", ""))
+	if family not in ["Grand Champion", "Supersonic Legend"]:
+		return unlocked
+	record["gc_reward_wins"] = mini(
+		TitleDataRef.RANK_REWARD_WINS,
+		int(record.get("gc_reward_wins", 0)) + 1
+	)
+	if int(record["gc_reward_wins"]) >= TitleDataRef.RANK_REWARD_WINS:
+		var gc_title := TitleDataRef.rank_title(int(data.get("season", 1)), "Grand Champion", format)
+		if _grant_title(gc_title):
+			unlocked.append(gc_title)
+	if family == "Supersonic Legend":
+		record["ssl_reward_wins"] = mini(
+			TitleDataRef.RANK_REWARD_WINS,
+			int(record.get("ssl_reward_wins", 0)) + 1
+		)
+		if int(record["ssl_reward_wins"]) >= TitleDataRef.RANK_REWARD_WINS:
+			var ssl_title := TitleDataRef.rank_title(
+				int(data.get("season", 1)), "Supersonic Legend", format
+			)
+			if _grant_title(ssl_title):
+				unlocked.append(ssl_title)
+	return unlocked
+
+
+func _finish_season() -> Array:
+	var unlocked: Array = []
+	var finished_season := int(data.get("season", 1))
+	for playlist in RankedDataRef.PLAYLISTS:
+		var record := playlist_record(playlist)
+		var season_played := int(record.get("season_wins", 0)) + int(record.get("season_losses", 0))
+		if (
+			int(record.get("placements", 0)) >= placement_target("Rocket League")
+			and season_played >= 10
+		):
+			var position := RankedDataRef.estimated_position(int(record.get("mmr", 100)), playlist)
+			if position <= 100:
+				var placement_title := TitleDataRef.placement_title(finished_season, playlist, position)
+				if _grant_title(placement_title):
+					unlocked.append(placement_title)
+	data["season"] = finished_season + 1
 	data["week"] = 1
 	data["season_bonus"] = 0
 	for playlist in RankedDataRef.PLAYLISTS:
@@ -915,6 +1007,9 @@ func _finish_season() -> void:
 		record["season_wins"] = 0
 		record["season_losses"] = 0
 		record["season_peak_mmr"] = int(record.get("mmr", 100))
+		record["gc_reward_wins"] = 0
+		record["ssl_reward_wins"] = 0
+	return unlocked
 
 func sponsor_eligible() -> bool:
 	var followers := int(data.get("streaming", {}).get("followers", 0))
@@ -1238,14 +1333,22 @@ func _migrate_save(from_version: int) -> void:
 			record["mmr_history"] = [current_mmr]
 		if not record.has("last_results") or typeof(record["last_results"]) != TYPE_ARRAY:
 			record["last_results"] = []
+		if not record.has("gc_reward_wins"):
+			record["gc_reward_wins"] = 0
+		if not record.has("ssl_reward_wins"):
+			record["ssl_reward_wins"] = 0
 	for player in data.get("roster", []):
 		if typeof(player) == TYPE_DICTIONARY and not player.has("last_training_week"):
 			player["last_training_week"] = -1
 	if not data.has("last_rest_week") or typeof(data["last_rest_week"]) != TYPE_DICTIONARY:
 		data["last_rest_week"] = {}
+	if not data.has("earned_titles") or typeof(data["earned_titles"]) != TYPE_ARRAY:
+		data["earned_titles"] = []
+	if not data.has("equipped_title_id"):
+		data["equipped_title_id"] = ""
 	data["selected_rl_playlist"] = RankedDataRef.normalize_playlist(str(data.get("selected_rl_playlist", "1v1")))
-	if from_version < 6:
-		data["version"] = 6
+	if from_version < 7:
+		data["version"] = 7
 
 
 func _new_ranked_record(starting_mmr: int = 100, mmr_schema: int = 2) -> Dictionary:
@@ -1261,6 +1364,8 @@ func _new_ranked_record(starting_mmr: int = 100, mmr_schema: int = 2) -> Diction
 		"season_peak_mmr": starting_mmr,
 		"season_wins": 0,
 		"season_losses": 0,
+		"gc_reward_wins": 0,
+		"ssl_reward_wins": 0,
 		"mmr_history": [starting_mmr],
 		"last_results": [],
 	}
@@ -1285,6 +1390,8 @@ func _new_save() -> Dictionary:
 		"season_bonus": 0,
 		"cup_ready_at": 0,
 		"earned_prize_money": 0,
+		"earned_titles": [],
+		"equipped_title_id": "",
 		"last_rest_week": {},
 		"facilities": {"hq": 0, "coaching": 0, "scouting": 0, "analytics": 0, "studio": 0},
 		"rl_playlists": {

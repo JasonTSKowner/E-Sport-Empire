@@ -1,6 +1,6 @@
 # E-Sport Empire
 
-**Alpha v0.4.6 — Competitive Core Loop**
+**Alpha v0.4.7 — Rank Identity**
 
 A portrait-first Android esports career and organization game built with Godot 4. Start with zero cash, zero fans and only yourself as captain, then grow from solo ranked matches into a real esports organization.
 
@@ -10,7 +10,10 @@ A portrait-first Android esports career and organization game built with Godot 4
 - Independent Rocket League 1v1, 2v2 and 3v3 ratings with ten-match placements
 - All three ladders now seed at 100 MMR; existing v0.4.5 progress is rebased without deleting earned/lost points
 - Interactive Rocket League matches with six tactical reads, meaningful counter-calls and limited overtime
-- Full Bronze-to-SSL tier/division system with original scalable rank emblems
+- Full Bronze-to-SSL tier/division system with distinct scalable I/II/III emblem designs
+- Prestige-only Title Locker with GC/SSL reward progress and seasonal Top 100, Top 10 and World #1 titles
+- Equipped titles appear on the captain profile, roster card and ranked ladder identity
+- 2v2 global ladder reaches the current 3002-MMR benchmark while SSL remains open-ended
 - Competitive overview with record, winrate, streak, peaks, Last 10 and MMR graph
 - ALL RANKS/MMR tables plus Top 12 and Around You simulated ladders
 - Ranked changes only from win/loss and opponent MMR: roughly ±9–11 normally and ±20–30 in placements
@@ -22,7 +25,7 @@ A portrait-first Android esports career and organization game built with Godot 4
 - Player training, form, potential and fatigue with three-week training/recovery cooldowns
 - Amateur scouting and progressively priced facilities
 - Sponsors unlock only after enough reputation and audience growth
-- Local JSON savegame with non-destructive v0.4.5 → v0.4.6 MMR and cooldown migration
+- Local JSON savegame with non-destructive v0.4.5 → v0.4.7 migration for MMR, cooldowns and titles
 - Mobile portrait UI with screen-wide swipe scrolling, safer release buttons and word-safe wrapping
 - Unchanged Android package ID and persistent update-signing workflow
 
