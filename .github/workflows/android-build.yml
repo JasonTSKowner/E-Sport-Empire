@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity]
+    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity, v0.4.8-player-development]
   pull_request:
     branches: [main]
   workflow_dispatch:

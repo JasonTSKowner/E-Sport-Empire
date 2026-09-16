@@ -5,6 +5,7 @@ const EmpireStateRef = preload("res://scripts/game_state.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
 const TitleDataRef = preload("res://scripts/title_data.gd")
+const DevelopmentDataRef = preload("res://scripts/development_data.gd")
 const MMRGraphRef = preload("res://scripts/mmr_graph.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 
@@ -132,7 +133,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4.7", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.4.8", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -583,11 +584,18 @@ func _build_team_page() -> void:
 	summary_box.add_child(summary_row)
 	var recovery_ready := game.can_rest_team(mode)
 	var recovery_note := UI.label(
-		"Performance cycles last three in-game weeks. Ranked matches advance the schedule, so training and recovery cannot be spammed.",
+		"Development is paid from club cash and limited to one program every three in-game weeks. Every stat directly shapes match performance.",
 		11,
 		UI.MUTED
 	)
 	summary_box.add_child(recovery_note)
+	summary_box.add_child(
+		UI.label(
+			"Fund development through community cups, sponsors and occasional virtual stream donations.",
+			10,
+			UI.DIM
+		)
+	)
 	var rest := UI.button(
 		"RECOVERY SESSION  •  3-WEEK COOLDOWN" if recovery_ready else "RECOVERY ON COOLDOWN",
 		UI.GREEN,
@@ -597,9 +605,48 @@ func _build_team_page() -> void:
 	rest.pressed.connect(_rest_team.bind(mode))
 	summary_box.add_child(rest)
 	page_content.add_child(summary)
+	page_content.add_child(_development_impact_card())
 	page_content.add_child(_section_title("STARTING ROSTER", "%s competitive division" % mode))
 	for player in game.roster_for(mode):
 		page_content.add_child(_player_card(player, accent))
+
+
+func _development_impact_card() -> Control:
+	var panel := UI.card(UI.PURPLE)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 9)
+	panel.add_child(box)
+	box.add_child(UI.overline("WHY EVERY STAT MATTERS", UI.PURPLE))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	grid.add_child(_development_impact_cell("MECH + SHOT", "Creates stronger attacking chances.", UI.CYAN))
+	grid.add_child(_development_impact_cell("ROT + DEF", "Reduces dangerous opponent chances.", UI.GREEN))
+	grid.add_child(_development_impact_cell("SENSE + BOOST", "Improves calls and starting boost.", UI.PURPLE))
+	grid.add_child(_development_impact_cell("CONS + MENTAL", "Stabilizes form and overtime plays.", UI.GOLD))
+	box.add_child(grid)
+	return panel
+
+
+func _development_impact_cell(title: String, detail: String, accent: Color) -> Control:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_theme_stylebox_override(
+		"panel",
+		UI.box(
+			Color(accent.r, accent.g, accent.b, 0.08),
+			13,
+			Color(accent.r, accent.g, accent.b, 0.24),
+			1
+		)
+	)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 3)
+	box.add_child(UI.label(title, 11, accent, 800))
+	box.add_child(UI.label(detail, 9, UI.MUTED))
+	panel.add_child(box)
+	return panel
 
 
 func _player_card(player: Dictionary, accent: Color) -> Control:
@@ -662,13 +709,8 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	ovr.add_child(ovr_cap)
 	top.add_child(ovr)
 
-	var stat_row := HBoxContainer.new()
-	stat_row.add_theme_constant_override("separation", 7)
-	stat_row.add_child(_mini_stat("MECH", int(player["mechanics"]), accent))
-	stat_row.add_child(_mini_stat("SENSE", int(player["game_sense"]), UI.PURPLE))
-	stat_row.add_child(_mini_stat("TEAM", int(player["teamwork"]), UI.GREEN))
-	stat_row.add_child(_mini_stat("MENTAL", int(player["mentality"]), UI.GOLD))
-	box.add_child(stat_row)
+	box.add_child(_development_stat_grid(player))
+	box.add_child(_mechanics_arsenal(player, accent))
 	var status_row := HBoxContainer.new()
 	status_row.add_theme_constant_override("separation", 8)
 	status_row.add_child(UI.badge("FORM %d" % int(player["form"]), UI.GREEN))
@@ -683,22 +725,130 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 		Control.SIZE_EXPAND_FILL
 	)
 	box.add_child(status_row)
-	var cost: int = game.training_cost(player)
+	var training_history: Array = player.get("training_history", [])
+	if not training_history.is_empty():
+		var latest: Dictionary = training_history[0]
+		var latest_program := DevelopmentDataRef.program(str(latest.get("program", "")))
+		var latest_gains: Dictionary = latest.get("gains", {})
+		var gain_parts: Array[String] = []
+		for stat_key in latest_gains:
+			var definition := DevelopmentDataRef.stat_definition(str(stat_key))
+			gain_parts.append(
+				"+%d %s"
+				% [int(latest_gains[stat_key]), str(definition.get("short", stat_key)).to_upper()]
+			)
+		box.add_child(
+			UI.label(
+				"LAST SESSION  •  %s  •  %s"
+				% [str(latest_program.get("label", "Development")), " / ".join(gain_parts)],
+				10,
+				UI.DIM,
+				700
+			)
+		)
 	var training_ready := game.can_train_player(player)
-	var train := UI.button(
-		(
-			"TRAIN PLAYER  •  %s  •  3-WEEK CYCLE" % GameDataRef.format_cash(cost)
-			if training_ready
-			else "PLAYER DEVELOPMENT ON COOLDOWN"
-		),
-		accent,
-		training_ready,
-		true
-	)
-	train.disabled = not training_ready
-	train.pressed.connect(_train_player.bind(str(player["id"])))
-	box.add_child(train)
+	if training_ready:
+		box.add_child(UI.overline("CHOOSE ONE PAID PROGRAM  •  3-WEEK CYCLE", UI.MUTED))
+		box.add_child(_training_program_grid(player))
+	else:
+		var cooldown := UI.button(
+			"DEVELOPMENT RETURNS IN %d WEEK(S)" % game.training_weeks_left(player),
+			accent,
+			false,
+			true
+		)
+		cooldown.disabled = true
+		box.add_child(cooldown)
 	return panel
+
+
+func _development_stat_grid(player: Dictionary) -> Control:
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 9)
+	for row_index in range(2):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 7)
+		for column_index in range(4):
+			var definition_index := row_index * 4 + column_index
+			var definition: Dictionary = DevelopmentDataRef.PLAYER_STATS[definition_index]
+			var stat_key := str(definition.get("key", ""))
+			row.add_child(
+				_mini_stat(
+					str(definition.get("short", stat_key)),
+					int(player.get(stat_key, 50)),
+					Color(str(definition.get("color", "2de2ff")))
+				)
+			)
+		rows.add_child(row)
+	return rows
+
+
+func _mechanics_arsenal(player: Dictionary, accent: Color) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	var unlocked: Array = game.unlocked_mechanics(player)
+	box.add_child(
+		UI.overline(
+			"MECHANICS ARSENAL  •  %d/%d" % [unlocked.size(), DevelopmentDataRef.MECHANIC_ARSENAL.size()],
+			accent
+		)
+	)
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 6)
+	flow.add_theme_constant_override("v_separation", 6)
+	if unlocked.is_empty():
+		flow.add_child(UI.badge("FOUNDATIONS", UI.MUTED))
+	else:
+		for move_value in unlocked:
+			var move: Dictionary = move_value
+			flow.add_child(UI.badge(str(move.get("label", "MECHANIC")), accent))
+	box.add_child(flow)
+	var next_move := game.next_mechanic(player)
+	if next_move.is_empty():
+		box.add_child(UI.label("Complete arsenal mastered.", 10, UI.GREEN, 700))
+	else:
+		var progress := DevelopmentDataRef.mechanic_progress(player, next_move)
+		box.add_child(
+			UI.label(
+				"NEXT: %s  •  %s"
+				% [str(next_move.get("label", "")), DevelopmentDataRef.requirement_text(next_move)],
+				10,
+				UI.MUTED,
+				700
+			)
+		)
+		box.add_child(UI.progress(progress, 100, accent, 4))
+	return box
+
+
+func _training_program_grid(player: Dictionary) -> Control:
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	for program_value in game.development_programs():
+		var program: Dictionary = program_value
+		var program_id := str(program.get("id", ""))
+		var cost := game.training_cost(player, program_id)
+		var color := Color(str(program.get("color", "2de2ff")))
+		var affordable := int(game.data.get("cash", 0)) >= cost
+		var button := UI.button(
+			"%s\n%s  •  %s"
+			% [
+				str(program.get("short", "TRAIN")),
+				str(program.get("button_detail", "STAT GAINS")),
+				GameDataRef.format_cash(cost),
+			],
+			color,
+			affordable,
+			true
+		)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size.y = 66
+		button.add_theme_font_size_override("font_size", 11)
+		button.pressed.connect(_train_player.bind(str(player.get("id", "")), program_id))
+		grid.add_child(button)
+	return grid
 
 
 func _mini_stat(caption: String, value: int, accent: Color) -> Control:
@@ -1275,7 +1425,7 @@ func _streaming_card() -> Control:
 	info.add_child(UI.overline("PULSELIVE  •  %s" % plan.to_upper(), UI.PURPLE))
 	info.add_child(UI.label("Stream your ranked grind", 18, UI.TEXT, 800))
 	info.add_child(UI.label(
-		"Attention first. Early streams can genuinely sit at 0–3 viewers.",
+		"Build a real audience. Viewers can sometimes leave small virtual donations after streamed matches.",
 		11,
 		UI.MUTED
 	))
@@ -1283,11 +1433,20 @@ func _streaming_card() -> Control:
 	var live_badge := UI.badge("ARMED" if enabled else "OFF", UI.GREEN if enabled else UI.MUTED)
 	top.add_child(live_badge)
 	box.add_child(top)
-	var stats := HBoxContainer.new()
-	stats.add_child(_metric_block("FOLLOWERS", str(followers), UI.PURPLE))
-	stats.add_child(_metric_block("PEAK", str(int(stream.get("peak_viewers", 0))), UI.CYAN))
-	stats.add_child(_metric_block("TOTAL VIEWS", str(int(stream.get("total_views", 0))), UI.GREEN))
-	box.add_child(stats)
+	var audience_stats := HBoxContainer.new()
+	audience_stats.add_child(_metric_block("FOLLOWERS", str(followers), UI.PURPLE))
+	audience_stats.add_child(_metric_block("PEAK VIEWERS", str(int(stream.get("peak_viewers", 0))), UI.CYAN))
+	box.add_child(audience_stats)
+	var revenue_stats := HBoxContainer.new()
+	revenue_stats.add_child(_metric_block("TOTAL VIEWS", str(int(stream.get("total_views", 0))), UI.GREEN))
+	revenue_stats.add_child(
+		_metric_block(
+			"STREAM DONATIONS",
+			GameDataRef.format_cash(int(stream.get("total_donation_cash", 0))),
+			UI.GOLD
+		)
+	)
+	box.add_child(revenue_stats)
 	var toggle := UI.button(
 		"STREAM NEXT MATCH: ON" if enabled else "GO LIVE NEXT MATCH",
 		UI.PURPLE,
@@ -1304,11 +1463,28 @@ func _streaming_card() -> Control:
 		upgrade.pressed.connect(_buy_stream_plan.bind("Pro"))
 		box.add_child(upgrade)
 	box.add_child(UI.label(
-		"Paid plans slightly improve tools/discovery. They never guarantee viewers.",
+		"Creator tools slightly improve discovery and donation chance. Nothing is guaranteed and all earnings stay inside the game.",
 		10,
 		UI.DIM
 	))
 	var recent_comments: Array = stream.get("last_comments", [])
+	var recent_donations: Array = stream.get("last_donations", [])
+	if not recent_donations.is_empty():
+		box.add_child(UI.overline("LATEST SUPPORT", UI.GOLD))
+		for donation in recent_donations:
+			box.add_child(
+				UI.label(
+					"@%s  +%s  •  %s"
+					% [
+						str(donation.get("user", "viewer")),
+						GameDataRef.format_cash(int(donation.get("amount", 0))),
+						str(donation.get("message", "great stream")),
+					],
+					10,
+					UI.GOLD,
+					700
+				)
+			)
 	if not recent_comments.is_empty():
 		box.add_child(UI.overline("LATEST COMMENTS", UI.MUTED))
 		for comment in recent_comments:
@@ -1375,12 +1551,25 @@ func _match_prep_card(mode: String) -> Control:
 	panel.add_child(box)
 	var form := _team_average(mode, "form")
 	var fatigue := _team_average(mode, "fatigue")
+	var snapshot := game.team_development_snapshot(mode, game.match_format(mode))
+	var attack_rating := int(round(
+		(float(snapshot.get("mechanics", 50)) + float(snapshot.get("shooting", 50))) / 2.0
+	))
+	var rotation_rating := int(round(
+		(float(snapshot.get("rotation", 50)) + float(snapshot.get("game_sense", 50))) / 2.0
+	))
+	var defense_rating := int(round(
+		(float(snapshot.get("defense", 50)) + float(snapshot.get("boost_control", 50))) / 2.0
+	))
 	box.add_child(_prep_line("Team form", form, UI.GREEN, "Sharp" if form >= 58 else "Average"))
 	box.add_child(
 		_prep_line(
 			"Freshness", 100 - fatigue, UI.CYAN, "Ready" if fatigue < 40 else "Needs recovery"
 		)
 	)
+	box.add_child(_prep_line("Attack package", attack_rating, UI.GOLD, "Mechanics + shooting"))
+	box.add_child(_prep_line("Rotation discipline", rotation_rating, UI.PURPLE, "Rotation + sense"))
+	box.add_child(_prep_line("Defensive control", defense_rating, UI.CYAN, "Defense + boost"))
 	box.add_child(
 		_prep_line(
 			"Analytics",
@@ -1483,13 +1672,7 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 	ratings.add_child(ovr)
 	ratings.add_child(pot)
 	top.add_child(ratings)
-	var stat_row := HBoxContainer.new()
-	stat_row.add_theme_constant_override("separation", 7)
-	stat_row.add_child(_mini_stat("MECH", int(player["mechanics"]), accent))
-	stat_row.add_child(_mini_stat("SENSE", int(player["game_sense"]), UI.PURPLE))
-	stat_row.add_child(_mini_stat("TEAM", int(player["teamwork"]), UI.GREEN))
-	stat_row.add_child(_mini_stat("MENTAL", int(player["mentality"]), UI.GOLD))
-	box.add_child(stat_row)
+	box.add_child(_development_stat_grid(player))
 	var price := int(player.get("contract", 0))
 	var sign := UI.button("SIGN PLAYER  •  %s" % GameDataRef.format_cash(price), accent, true)
 	sign.disabled = int(game.data["cash"]) < price
@@ -1691,8 +1874,8 @@ func _collect_sponsor() -> void:
 	_handle_action(game.collect_sponsor(), "home")
 
 
-func _train_player(player_id: String) -> void:
-	_handle_action(game.train_player(player_id), "team")
+func _train_player(player_id: String, program_id: String) -> void:
+	_handle_action(game.train_player(player_id, program_id), "team")
 
 
 func _rest_team(mode: String) -> void:
@@ -2159,11 +2342,37 @@ func _finish_match_animation() -> void:
 	match_result_box.add_child(UI.label(attention_text, 11, UI.MUTED))
 
 	if bool(match_result.get("streaming", false)):
-		var stream_row := HBoxContainer.new()
-		stream_row.add_child(_metric_block("VIEWERS", str(int(match_result.get("stream_viewers", 0))), UI.PURPLE))
-		stream_row.add_child(_metric_block("NEW FOLLOWS", "+%d" % int(match_result.get("stream_followers", 0)), UI.GREEN))
-		stream_row.add_child(_metric_block("PLAN", game.stream_plan(), UI.CYAN))
-		match_result_box.add_child(stream_row)
+		var audience_row := HBoxContainer.new()
+		audience_row.add_child(_metric_block("VIEWERS", str(int(match_result.get("stream_viewers", 0))), UI.PURPLE))
+		audience_row.add_child(_metric_block("NEW FOLLOWS", "+%d" % int(match_result.get("stream_followers", 0)), UI.GREEN))
+		match_result_box.add_child(audience_row)
+		var stream_money_row := HBoxContainer.new()
+		stream_money_row.add_child(
+			_metric_block(
+				"DONATIONS",
+				"+%s" % GameDataRef.format_cash(int(match_result.get("stream_donation_cash", 0))),
+				UI.GOLD
+			)
+		)
+		stream_money_row.add_child(_metric_block("PLAN", game.stream_plan(), UI.CYAN))
+		match_result_box.add_child(stream_money_row)
+		var donations: Array = match_result.get("stream_donations", [])
+		if not donations.is_empty():
+			match_result_box.add_child(UI.overline("STREAM SUPPORT", UI.GOLD))
+			for donation in donations:
+				match_result_box.add_child(
+					UI.label(
+						"@%s  +%s  •  %s"
+						% [
+							str(donation.get("user", "viewer")),
+							GameDataRef.format_cash(int(donation.get("amount", 0))),
+							str(donation.get("message", "great stream")),
+						],
+						10,
+						UI.GOLD,
+						700
+					)
+				)
 		var comments: Array = match_result.get("comments", [])
 		if not comments.is_empty():
 			match_result_box.add_child(UI.overline("POST-STREAM COMMENTS", UI.MUTED))

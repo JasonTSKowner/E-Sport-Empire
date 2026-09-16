@@ -5,6 +5,7 @@ const SAVE_PATH := "user://e_sport_empire_save.json"
 const GameDataRef = preload("res://scripts/game_data.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const TitleDataRef = preload("res://scripts/title_data.gd")
+const DevelopmentDataRef = preload("res://scripts/development_data.gd")
 const TRAINING_COOLDOWN_WEEKS := 3
 const RECOVERY_COOLDOWN_WEEKS := 3
 
@@ -197,10 +198,14 @@ func roster_for(mode: String) -> Array:
 
 func player_overall(player: Dictionary) -> int:
 	var total := (
-		int(player.get("mechanics", 50)) * 34
-		+ int(player.get("game_sense", 50)) * 28
-		+ int(player.get("teamwork", 50)) * 23
-		+ int(player.get("mentality", 50)) * 15
+		int(player.get("mechanics", 50)) * 18
+		+ int(player.get("rotation", player.get("teamwork", 50))) * 16
+		+ int(player.get("shooting", player.get("mechanics", 50))) * 14
+		+ int(player.get("defense", player.get("game_sense", 50))) * 14
+		+ int(player.get("game_sense", 50)) * 14
+		+ int(player.get("boost_control", player.get("game_sense", 50))) * 10
+		+ int(player.get("consistency", player.get("mentality", 50))) * 8
+		+ int(player.get("mentality", 50)) * 6
 	)
 	return clampi(int(round(float(total) / 100.0)), 1, 99)
 
@@ -216,6 +221,28 @@ func team_overall(mode: String) -> int:
 		var fatigue_penalty := float(player.get("fatigue", 0)) * 0.055
 		total += base + form_bonus - fatigue_penalty
 	return clampi(int(round(total / roster.size())), 1, 99)
+
+
+func team_attribute_average(mode: String, stat_key: String, format: String = "") -> int:
+	var roster := roster_for(mode)
+	if roster.is_empty():
+		return 0
+	var count := roster.size()
+	if mode == "Rocket League" and not format.is_empty():
+		count = mini(count, playlist_required_players(format))
+	var total := 0
+	for index in range(count):
+		total += int(roster[index].get(stat_key, 50))
+	return int(round(float(total) / float(maxi(1, count))))
+
+
+func team_development_snapshot(mode: String, format: String = "") -> Dictionary:
+	var snapshot: Dictionary = {}
+	for definition_value in DevelopmentDataRef.PLAYER_STATS:
+		var definition: Dictionary = definition_value
+		var stat_key := str(definition.get("key", ""))
+		snapshot[stat_key] = team_attribute_average(mode, stat_key, format)
+	return snapshot
 
 
 func mode_record(mode: String) -> Dictionary:
@@ -315,10 +342,18 @@ func buy_facility(key: String) -> Dictionary:
 	}
 
 
-func training_cost(player: Dictionary) -> int:
-	if str(player.get("id", "")) == "captain":
+func development_programs() -> Array:
+	return DevelopmentDataRef.TRAINING_PROGRAMS.duplicate(true)
+
+
+func training_cost(player: Dictionary, program_id: String = "mechanics_lab") -> int:
+	var program := DevelopmentDataRef.program(program_id)
+	if program.is_empty():
 		return 0
-	return 10 + int(round(float(player_overall(player)) * 0.55))
+	var raw_cost := float(program.get("base_cost", 15))
+	raw_cost += float(player_overall(player)) * float(program.get("rating_scale", 0.32))
+	var coaching_discount := minf(0.25, float(facility_level("coaching")) * 0.025)
+	return maxi(8, int(round(raw_cost * (1.0 - coaching_discount))))
 
 
 func current_week_key() -> int:
@@ -330,41 +365,130 @@ func can_train_player(player: Dictionary) -> bool:
 	return last_week < 0 or current_week_key() - last_week >= TRAINING_COOLDOWN_WEEKS
 
 
+func training_weeks_left(player: Dictionary) -> int:
+	var last_week := int(player.get("last_training_week", -1))
+	if last_week < 0:
+		return 0
+	return maxi(0, TRAINING_COOLDOWN_WEEKS - (current_week_key() - last_week))
+
+
 func can_rest_team(mode: String) -> bool:
 	var rest_weeks: Dictionary = data.get("last_rest_week", {})
 	var last_week := int(rest_weeks.get(mode, -1))
 	return last_week < 0 or current_week_key() - last_week >= RECOVERY_COOLDOWN_WEEKS
 
-func train_player(player_id: String) -> Dictionary:
+func train_player(player_id: String, program_id: String = "mechanics_lab") -> Dictionary:
 	var player := _find_player(player_id)
 	if player.is_empty():
 		return {"ok": false, "message": "Player not found."}
+	var program := DevelopmentDataRef.program(program_id)
+	if program.is_empty():
+		return {"ok": false, "message": "Unknown development program."}
 	if not can_train_player(player):
-		return {"ok": false, "message": "%s is still in a three-week development cycle. Play ranked matches to advance the schedule." % str(player.get("name", "Player"))}
-	var cost := training_cost(player)
+		return {
+			"ok": false,
+			"message": "%s returns to training in %d week(s). Play ranked matches to advance the schedule."
+			% [str(player.get("name", "Player")), training_weeks_left(player)],
+		}
+	var cost := training_cost(player, program_id)
 	if int(data["cash"]) < cost:
-		return {"ok": false, "message": "Not enough cash for this session."}
-	if int(data["energy"]) < 9:
+		return {
+			"ok": false,
+			"message": "You need %s for %s."
+			% [GameDataRef.format_cash(cost), str(program.get("label", "training"))],
+		}
+	var energy_cost := int(program.get("energy", 8))
+	if int(data["energy"]) < energy_cost:
 		return {"ok": false, "message": "The staff needs more energy."}
-	if player_overall(player) >= int(player.get("potential", 99)):
-		return {"ok": false, "message": "This player has reached their current potential."}
+	var potential := int(player.get("potential", 99))
+	var program_gains: Dictionary = program.get("gains", {})
+	var unlocked_before: Array = DevelopmentDataRef.unlocked_mechanics(player)
+	var unlocked_before_ids: Array[String] = []
+	for move_value in unlocked_before:
+		var move: Dictionary = move_value
+		unlocked_before_ids.append(str(move.get("id", "")))
+	var has_development_room := false
+	for stat_key in program_gains:
+		if int(player.get(stat_key, 50)) < potential:
+			has_development_room = true
+			break
+	if not has_development_room:
+		return {"ok": false, "message": "This program cannot push the player beyond their potential."}
 	var coaching := facility_level("coaching")
-	var stats := ["mechanics", "game_sense", "teamwork", "mentality"]
-	var stat: String = stats[rng.randi_range(0, stats.size() - 1)]
-	var gain := 1
-	if rng.randf() < 0.18 + coaching * 0.035:
-		gain += 1
-	player[stat] = mini(int(player[stat]) + gain, int(player.get("potential", 99)))
+	var primary := str(program.get("primary", ""))
+	var breakthrough := rng.randf() < minf(0.48, 0.12 + float(coaching) * 0.04)
+	var applied_gains: Dictionary = {}
+	for stat_key in program_gains:
+		var requested_gain := int(program_gains[stat_key])
+		if str(stat_key) == primary and breakthrough:
+			requested_gain += 1
+		var before := int(player.get(stat_key, 50))
+		var after := mini(potential, before + requested_gain)
+		player[stat_key] = after
+		if after > before:
+			applied_gains[stat_key] = after - before
 	player["form"] = clampi(int(player.get("form", 50)) + rng.randi_range(2, 6), 25, 100)
-	player["fatigue"] = clampi(int(player.get("fatigue", 0)) + maxi(3, 9 - coaching), 0, 100)
+	var fatigue_relief := int(floor(float(coaching) / 2.0))
+	var fatigue_gain := maxi(1, int(program.get("fatigue", 5)) - fatigue_relief)
+	player["fatigue"] = clampi(int(player.get("fatigue", 0)) + fatigue_gain, 0, 100)
 	data["cash"] = int(data["cash"]) - cost
-	data["energy"] = int(data["energy"]) - 9
+	data["energy"] = int(data["energy"]) - energy_cost
 	player["last_training_week"] = current_week_key()
+	player["last_training_program"] = program_id
+	var history: Array = player.get("training_history", [])
+	history.push_front({
+		"week": current_week_key(),
+		"program": program_id,
+		"cost": cost,
+		"gains": applied_gains.duplicate(true),
+	})
+	while history.size() > 10:
+		history.pop_back()
+	player["training_history"] = history
 	save_game()
+	var gain_parts: Array[String] = []
+	for stat_key in applied_gains:
+		var stat_definition := DevelopmentDataRef.stat_definition(str(stat_key))
+		gain_parts.append(
+			"+%d %s"
+			% [int(applied_gains[stat_key]), str(stat_definition.get("label", stat_key))]
+		)
+	var new_mechanics: Array = []
+	for move_value in DevelopmentDataRef.unlocked_mechanics(player):
+		var move: Dictionary = move_value
+		if str(move.get("id", "")) not in unlocked_before_ids:
+			new_mechanics.append(move)
+	var unlock_suffix := ""
+	if not new_mechanics.is_empty():
+		var unlock_names: Array[String] = []
+		for move_value in new_mechanics:
+			var move: Dictionary = move_value
+			unlock_names.append(str(move.get("label", "New mechanic")))
+		unlock_suffix = " • UNLOCKED: %s" % ", ".join(unlock_names)
 	return {
 		"ok": true,
-		"message": "%s gained +%d %s." % [player["name"], gain, stat.replace("_", " ")],
+		"message": "%s completed %s for %s: %s%s."
+		% [
+			player["name"],
+			str(program.get("label", "training")),
+			GameDataRef.format_cash(cost),
+			", ".join(gain_parts),
+			(" + breakthrough" if breakthrough else "") + unlock_suffix,
+		],
+		"program": program_id,
+		"cost": cost,
+		"gains": applied_gains,
+		"breakthrough": breakthrough,
+		"unlocked_mechanics": new_mechanics,
 	}
+
+
+func unlocked_mechanics(player: Dictionary) -> Array:
+	return DevelopmentDataRef.unlocked_mechanics(player)
+
+
+func next_mechanic(player: Dictionary) -> Dictionary:
+	return DevelopmentDataRef.next_mechanic(player)
 
 
 func rest_team(mode: String) -> Dictionary:
@@ -401,12 +525,20 @@ func generate_market(charge: bool = true) -> Dictionary:
 			"region": GameDataRef.REGIONS[rng.randi_range(0, GameDataRef.REGIONS.size() - 1)],
 			"age": rng.randi_range(maxi(16, 21 - scouting), 24),
 			"mechanics": clampi(base + rng.randi_range(-4, 5), 35, 95),
+			"rotation": clampi(base + rng.randi_range(-4, 5), 35, 95),
+			"shooting": clampi(base + rng.randi_range(-5, 5), 35, 95),
+			"defense": clampi(base + rng.randi_range(-5, 5), 35, 95),
 			"game_sense": clampi(base + rng.randi_range(-4, 5), 35, 95),
+			"boost_control": clampi(base + rng.randi_range(-4, 5), 35, 95),
+			"consistency": clampi(base + rng.randi_range(-6, 4), 35, 95),
 			"teamwork": clampi(base + rng.randi_range(-5, 5), 35, 95),
 			"mentality": clampi(base + rng.randi_range(-5, 5), 35, 95),
 			"potential": potential,
 			"form": rng.randi_range(45, 68),
 			"fatigue": 0,
+			"last_training_week": -1,
+			"last_training_program": "",
+			"training_history": [],
 		}
 		player["contract"] = 20 + player_overall(player) + int(round(float(potential) * 0.8))
 		prospects.append(player)
@@ -503,9 +635,13 @@ func prepare_match(mode: String) -> Dictionary:
 	var record: Dictionary = playlist_record(format) if mode == "Rocket League" else mode_record(mode)
 	var mmr_before := int(record.get("mmr", 100 if mode == "Rocket League" else 600))
 	var opponent_mmr := _opponent_mmr_for(mmr_before)
+	var team_stats := team_development_snapshot(mode, format)
 	var player_strength := _competitive_strength(mode, format)
 	player_strength += float(facility_level("analytics")) * 0.45
 	player_strength += float(facility_level("coaching")) * 0.25
+	var consistency := float(team_stats.get("consistency", 50))
+	var performance_swing := clampf(5.1 - consistency * 0.045, 0.8, 4.0)
+	player_strength += rng.randf_range(-performance_swing, performance_swing)
 	var profile: Dictionary = _roll_opponent_profile()
 	var expected_strength := 54.0 + float(opponent_mmr - 100) / 30.0
 	var opponent_strength := clampf(
@@ -534,12 +670,13 @@ func prepare_match(mode: String) -> Dictionary:
 		"mmr_before": mmr_before,
 		"player_strength": player_strength,
 		"opponent_strength": opponent_strength,
+		"team_stats": team_stats,
 		"turn": 0,
 		"regulation_turns": 6,
 		"our_score": 0,
 		"their_score": 0,
 		"decision_score": 0,
-		"boost": 45,
+		"boost": clampi(25 + int(round(float(team_stats.get("boost_control", 50)) * 0.55)), 35, 78),
 		"last_action": "",
 		"situations": situations,
 		"decisions": [],
@@ -599,8 +736,41 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		-0.18,
 		0.18
 	)
-	var our_goal_chance := clampf(0.20 + strength_edge + float(tactical_edge) * 0.13, 0.04, 0.54)
-	var their_goal_chance := clampf(0.20 - strength_edge - float(tactical_edge) * 0.11, 0.04, 0.50)
+	var team_stats: Dictionary = session.get("team_stats", {})
+	var action_attack := 0.0
+	if action == "press":
+		action_attack = (
+			float(team_stats.get("mechanics", 50))
+			+ float(team_stats.get("shooting", 50))
+			- 100.0
+		) / 1000.0
+	elif action == "control":
+		action_attack = (
+			float(team_stats.get("game_sense", 50))
+			+ float(team_stats.get("boost_control", 50))
+			- 100.0
+		) / 1150.0
+	else:
+		action_attack = (
+			float(team_stats.get("rotation", 50))
+			+ float(team_stats.get("shooting", 50))
+			- 100.0
+		) / 1050.0
+	var defensive_edge := (
+		float(team_stats.get("defense", 50))
+		+ float(team_stats.get("rotation", 50))
+		- 100.0
+	) / 1050.0
+	var our_goal_chance := clampf(
+		0.20 + strength_edge + float(tactical_edge) * 0.13 + action_attack,
+		0.04,
+		0.56
+	)
+	var their_goal_chance := clampf(
+		0.20 - strength_edge - float(tactical_edge) * 0.11 - defensive_edge,
+		0.04,
+		0.52
+	)
 	var roll := rng.randf()
 	var our_goal := 0
 	var their_goal := 0
@@ -620,7 +790,9 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		var decider_chance := clampf(
 			0.50
 			+ float(int(session.get("decision_score", 0)) + tactical_edge) * 0.045
-			+ strength_edge,
+			+ strength_edge
+			+ (float(team_stats.get("mentality", 50)) - 50.0) / 260.0
+			+ (float(team_stats.get("consistency", 50)) - 50.0) / 420.0,
 			0.16,
 			0.84
 		)
@@ -639,7 +811,10 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 	var event_text := "Both teams trade pressure without giving up the goal."
 	if our_goal > 0:
 		event_type = "good"
-		if action == "press":
+		var signature_text := _signature_goal_text(str(session.get("mode", "Rocket League")))
+		if not signature_text.is_empty():
+			event_text = signature_text
+		elif action == "press":
 			event_text = "Your press forces a rushed touch and TSK converts."
 		elif action == "control":
 			event_text = "Boost control creates space for a composed finish."
@@ -695,6 +870,24 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		"finished": finished,
 		"overtime": turn_after >= regulation_turns and not finished,
 	}
+
+
+func _signature_goal_text(mode: String) -> String:
+	if mode != "Rocket League":
+		return ""
+	var roster := roster_for(mode)
+	if roster.is_empty():
+		return ""
+	var player: Dictionary = roster[0]
+	var signature := DevelopmentDataRef.signature_move(player)
+	if signature.is_empty():
+		return ""
+	var mechanics := int(player.get("mechanics", 50))
+	var consistency := int(player.get("consistency", 50))
+	var trigger_chance := clampf(0.10 + float(mechanics - 50) * 0.009 + float(consistency - 50) * 0.003, 0.10, 0.52)
+	if rng.randf() > trigger_chance:
+		return ""
+	return "%s creates the goal with %s." % [str(player.get("name", "TSK")), str(signature.get("event", "an elite mechanic"))]
 
 
 func _interactive_event_time(turn: int) -> String:
@@ -818,6 +1011,7 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"mmr_after": mmr_after,
 		"old_rank": old_rank,
 		"new_rank": new_rank,
+		"stream_donation_cash": int(stream.get("donation_cash", 0)),
 		"timestamp": int(Time.get_unix_time_from_system()),
 	})
 	while data["history"].size() > 20:
@@ -848,7 +1042,7 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"mmr_delta": mmr_delta,
 		"mmr_before": mmr_before,
 		"mmr_after": mmr_after,
-		"cash": 0,
+		"cash": int(stream.get("donation_cash", 0)),
 		"fans": 0,
 		"attention": attention,
 		"streaming": bool(stream.get("live", false)),
@@ -856,6 +1050,8 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"live_chat": stream.get("chat", []),
 		"comments": stream.get("comments", []),
 		"stream_followers": int(stream.get("followers", 0)),
+		"stream_donation_cash": int(stream.get("donation_cash", 0)),
+		"stream_donations": stream.get("donations", []),
 		"decision_score": decision_score,
 		"tactical_grade": tactical_grade,
 		"decisions": session.get("decisions", []),
@@ -1085,6 +1281,7 @@ func accept_contact(contact_id: String) -> Dictionary:
 	player["id"] = "player_%d" % int(Time.get_ticks_msec())
 	player["form"] = 52
 	player["fatigue"] = 0
+	_ensure_player_development_stats(player)
 	player.erase("source")
 	data["roster"].append(player)
 	data["contacts"].erase(selected)
@@ -1197,7 +1394,12 @@ func _make_contact(mode: String, source: String) -> Dictionary:
 		"region": GameDataRef.REGIONS[rng.randi_range(0, GameDataRef.REGIONS.size() - 1)],
 		"age": rng.randi_range(16, 22),
 		"mechanics": clampi(base + rng.randi_range(-4, 5), 35, 95),
+		"rotation": clampi(base + rng.randi_range(-4, 5), 35, 95),
+		"shooting": clampi(base + rng.randi_range(-5, 5), 35, 95),
+		"defense": clampi(base + rng.randi_range(-5, 5), 35, 95),
 		"game_sense": clampi(base + rng.randi_range(-4, 5), 35, 95),
+		"boost_control": clampi(base + rng.randi_range(-4, 5), 35, 95),
+		"consistency": clampi(base + rng.randi_range(-6, 4), 35, 95),
 		"teamwork": clampi(base + rng.randi_range(-5, 5), 35, 95),
 		"mentality": clampi(base + rng.randi_range(-5, 5), 35, 95),
 		"potential": potential,
@@ -1205,9 +1407,19 @@ func _make_contact(mode: String, source: String) -> Dictionary:
 	}
 
 
-func _stream_payload(won: bool, profile: Dictionary, format: String) -> Dictionary:
+func _stream_payload(
+	won: bool, profile: Dictionary, format: String, forced_donation_roll: float = -1.0
+) -> Dictionary:
 	if not streaming_enabled():
-		return {"live": false, "viewers": 0, "chat": [], "comments": [], "followers": 0}
+		return {
+			"live": false,
+			"viewers": 0,
+			"chat": [],
+			"comments": [],
+			"followers": 0,
+			"donation_cash": 0,
+			"donations": [],
+		}
 	var stream_data: Dictionary = data["streaming"]
 	var plan := stream_plan()
 	var followers := int(stream_data.get("followers", 0))
@@ -1261,10 +1473,26 @@ func _stream_payload(won: bool, profile: Dictionary, format: String) -> Dictiona
 		follower_gain = rng.randi_range(0, maxi(1, viewers / 3))
 		if won and rng.randf() < 0.45:
 			follower_gain += 1
+	var donation_result := _roll_stream_donations(viewers, won, plan, forced_donation_roll)
+	var donations: Array = donation_result.get("events", [])
+	var donation_cash := int(donation_result.get("cash", 0))
+	for donation in donations:
+		chat.append({
+			"user": str(donation.get("user", "viewer")),
+			"text": "DONATED %s  •  %s"
+			% [
+				GameDataRef.format_cash(int(donation.get("amount", 0))),
+				str(donation.get("message", "great stream")),
+			],
+		})
 	stream_data["followers"] = followers + follower_gain
 	stream_data["total_views"] = int(stream_data.get("total_views", 0)) + viewers
 	stream_data["peak_viewers"] = maxi(int(stream_data.get("peak_viewers", 0)), viewers)
 	stream_data["last_comments"] = comments
+	stream_data["last_donations"] = donations
+	stream_data["total_donations"] = int(stream_data.get("total_donations", 0)) + donations.size()
+	stream_data["total_donation_cash"] = int(stream_data.get("total_donation_cash", 0)) + donation_cash
+	data["cash"] = int(data.get("cash", 0)) + donation_cash
 	return {
 		"live": true,
 		"viewers": viewers,
@@ -1272,7 +1500,53 @@ func _stream_payload(won: bool, profile: Dictionary, format: String) -> Dictiona
 		"comments": comments,
 		"followers": follower_gain,
 		"format": format,
+		"donation_cash": donation_cash,
+		"donations": donations,
 	}
+
+
+func stream_donation_chance(viewers: int, won: bool, plan: String) -> float:
+	var chance := 0.16 + float(mini(viewers, 80)) * 0.006
+	if won:
+		chance += 0.06
+	if plan == "Creator":
+		chance += 0.035
+	elif plan == "Pro":
+		chance += 0.07
+	return clampf(chance, 0.16, 0.68)
+
+
+func _roll_stream_donations(
+	viewers: int, won: bool, plan: String, forced_roll: float = -1.0
+) -> Dictionary:
+	var roll := forced_roll if forced_roll >= 0.0 else rng.randf()
+	if roll > stream_donation_chance(viewers, won, plan):
+		return {"cash": 0, "events": []}
+	var donation_count := 1
+	if viewers >= 25 and rng.randf() < 0.32:
+		donation_count += 1
+	if viewers >= 80 and rng.randf() < 0.18:
+		donation_count += 1
+	var donors := ["boosted_ben", "aerial_aki", "gg_mate", "zero_ping", "rotation_police", "ranked_grinder"]
+	var messages := ["clean mechanics", "keep grinding", "that read was perfect", "for the road to SSL", "insane finish", "run it back"]
+	var events: Array = []
+	var total_cash := 0
+	for index in range(donation_count):
+		var amount := rng.randi_range(1, 4) + int(floor(float(viewers) / 12.0))
+		if plan == "Creator":
+			amount += 1
+		elif plan == "Pro":
+			amount += 2
+		if rng.randf() < 0.05:
+			amount *= 2
+		amount = clampi(amount, 1, 75)
+		total_cash += amount
+		events.append({
+			"user": donors[rng.randi_range(0, donors.size() - 1)],
+			"amount": amount,
+			"message": messages[rng.randi_range(0, messages.size() - 1)],
+		})
+	return {"cash": total_cash, "events": events}
 
 
 func _find_player(player_id: String) -> Dictionary:
@@ -1289,6 +1563,47 @@ func _role_for_mode(mode: String, index: int) -> String:
 	if mode == "Fortnite":
 		return ["IGL", "Fragger", "Support"][slot]
 	return ["IGL", "Slayer", "Flex"][slot]
+
+
+func _ensure_player_development_stats(player: Dictionary) -> void:
+	if str(player.get("id", "")) == "captain":
+		player["potential"] = maxi(96, int(player.get("potential", 96)))
+	var mechanics := int(player.get("mechanics", 50))
+	var game_sense := int(player.get("game_sense", 50))
+	var teamwork := int(player.get("teamwork", game_sense))
+	var mentality := int(player.get("mentality", 50))
+	if not player.has("rotation"):
+		player["rotation"] = clampi(int(round(float(game_sense + teamwork) / 2.0)), 1, 99)
+	if not player.has("shooting"):
+		player["shooting"] = clampi(
+			int(round(float(mechanics * 2 + mentality) / 3.0)),
+			1,
+			99
+		)
+	if not player.has("defense"):
+		player["defense"] = clampi(
+			int(round(float(game_sense + teamwork + mentality) / 3.0)),
+			1,
+			99
+		)
+	if not player.has("boost_control"):
+		player["boost_control"] = clampi(
+			int(round(float(mechanics + game_sense) / 2.0)),
+			1,
+			99
+		)
+	if not player.has("consistency"):
+		player["consistency"] = clampi(
+			int(round(float(game_sense + teamwork + mentality) / 3.0)),
+			1,
+			99
+		)
+	if not player.has("last_training_week"):
+		player["last_training_week"] = -1
+	if not player.has("last_training_program"):
+		player["last_training_program"] = ""
+	if not player.has("training_history") or typeof(player["training_history"]) != TYPE_ARRAY:
+		player["training_history"] = []
 
 
 func _migrate_save(from_version: int) -> void:
@@ -1337,18 +1652,28 @@ func _migrate_save(from_version: int) -> void:
 			record["gc_reward_wins"] = 0
 		if not record.has("ssl_reward_wins"):
 			record["ssl_reward_wins"] = 0
-	for player in data.get("roster", []):
-		if typeof(player) == TYPE_DICTIONARY and not player.has("last_training_week"):
-			player["last_training_week"] = -1
+	for collection_key in ["roster", "market", "contacts"]:
+		for player in data.get(collection_key, []):
+			if typeof(player) == TYPE_DICTIONARY:
+				_ensure_player_development_stats(player)
 	if not data.has("last_rest_week") or typeof(data["last_rest_week"]) != TYPE_DICTIONARY:
 		data["last_rest_week"] = {}
 	if not data.has("earned_titles") or typeof(data["earned_titles"]) != TYPE_ARRAY:
 		data["earned_titles"] = []
 	if not data.has("equipped_title_id"):
 		data["equipped_title_id"] = ""
+	if not data.has("streaming") or typeof(data["streaming"]) != TYPE_DICTIONARY:
+		data["streaming"] = {}
+	var streaming: Dictionary = data["streaming"]
+	if not streaming.has("total_donations"):
+		streaming["total_donations"] = 0
+	if not streaming.has("total_donation_cash"):
+		streaming["total_donation_cash"] = 0
+	if not streaming.has("last_donations") or typeof(streaming["last_donations"]) != TYPE_ARRAY:
+		streaming["last_donations"] = []
 	data["selected_rl_playlist"] = RankedDataRef.normalize_playlist(str(data.get("selected_rl_playlist", "1v1")))
-	if from_version < 7:
-		data["version"] = 7
+	if from_version < 8:
+		data["version"] = 8
 
 
 func _new_ranked_record(starting_mmr: int = 100, mmr_schema: int = 2) -> Dictionary:
@@ -1415,6 +1740,9 @@ func _new_save() -> Dictionary:
 			"total_views": 0,
 			"peak_viewers": 0,
 			"last_comments": [],
+			"total_donations": 0,
+			"total_donation_cash": 0,
+			"last_donations": [],
 		},
 		"market": [],
 		"history": [],
@@ -1422,7 +1750,7 @@ func _new_save() -> Dictionary:
 
 func _starter_roster() -> Array:
 	return [
-		_player("captain", "KESHI", "Rocket League", "Captain", "EU", 58, 58, 55, 60, 92),
+		_player("captain", "KESHI", "Rocket League", "Captain", "EU", 58, 58, 55, 60, 96),
 	]
 
 func _player(
@@ -1445,13 +1773,20 @@ func _player(
 		"region": region,
 		"age": 18,
 		"mechanics": mechanics,
+		"rotation": int(round(float(game_sense + teamwork) / 2.0)),
+		"shooting": int(round(float(mechanics * 2 + mentality) / 3.0)),
+		"defense": int(round(float(game_sense + teamwork + mentality) / 3.0)),
 		"game_sense": game_sense,
+		"boost_control": int(round(float(mechanics + game_sense) / 2.0)),
+		"consistency": int(round(float(game_sense + teamwork + mentality) / 3.0)),
 		"teamwork": teamwork,
 		"mentality": mentality,
 		"potential": potential,
 		"form": 55,
 		"fatigue": 0,
 		"last_training_week": -1,
+		"last_training_program": "",
+		"training_history": [],
 	}
 
 
