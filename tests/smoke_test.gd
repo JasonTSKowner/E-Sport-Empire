@@ -6,6 +6,7 @@ const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
 const TitleDataRef = preload("res://scripts/title_data.gd")
 const DevelopmentDataRef = preload("res://scripts/development_data.gd")
+const CoachingDataRef = preload("res://scripts/coaching_data.gd")
 const MainScene = preload("res://scenes/Main.tscn")
 
 var failures: Array[String] = []
@@ -27,6 +28,8 @@ func _run() -> void:
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
 	_check(state.data.get("market", []).size() == 6, "market generation")
+	_check(state.data.get("coaching_market", []).size() == CoachingDataRef.OFFER_COUNT, "coaching market generation")
+	_check(not state.data.has("energy"), "global energy removed")
 	_check(state.selected_rl_playlist() == "1v1", "default playlist")
 	for playlist in RankedDataRef.PLAYLISTS:
 		var record := state.playlist_record(playlist)
@@ -64,6 +67,9 @@ func _run() -> void:
 	var opening_result: Dictionary = tactical_state.play_match_turn(tactical_session, opening_call)
 	_check(int(opening_result.get("quality", 0)) == 1, "correct tactical read rewarded")
 	_check(int(opening_result.get("boost_after", 0)) != boost_before, "tactical boost changes")
+	var opening_odds: Dictionary = opening_result.get("odds", {})
+	_check(not opening_odds.is_empty(), "match action exposes odds")
+	_check(abs(float(opening_odds.get("our_goal", 0.0)) + float(opening_odds.get("their_goal", 0.0)) + float(opening_odds.get("neutral", 0.0)) - 1.0) < 0.001, "match action odds total 100 percent")
 
 	var normal_record := state.playlist_record("1v1")
 	normal_record["placements"] = 10
@@ -83,7 +89,7 @@ func _run() -> void:
 	_check(bool(two_match.get("ok", false)), "2v2 match creation")
 	_check(str(two_match.get("format", "")) == "2v2", "2v2 format")
 
-	print("SMOKE 3/6: reveal, cooldowns and migration")
+	print("SMOKE 3/6: real time, coaching and migration")
 	var schedule_state: EmpireStateRef = EmpireStateRef.new()
 	schedule_state.reset_game()
 	var captain: Dictionary = schedule_state.data["roster"][0]
@@ -91,7 +97,6 @@ func _run() -> void:
 	_check(schedule_state.training_cost(captain, "rotation_review") > 0, "captain training costs cash")
 	_check(not bool(schedule_state.train_player("captain", "rotation_review").get("ok", true)), "zero-cash training blocked")
 	schedule_state.data["cash"] = 500
-	_check(schedule_state.can_train_player(captain), "training initially available")
 	var rotation_before := int(captain.get("rotation", 0))
 	var sense_before := int(captain.get("game_sense", 0))
 	var cash_before_training := int(schedule_state.data["cash"])
@@ -101,14 +106,34 @@ func _run() -> void:
 	_check(int(captain.get("game_sense", 0)) >= sense_before + 1, "rotation program improves game sense")
 	_check(int(schedule_state.data["cash"]) < cash_before_training, "training deducts cash")
 	_check(captain.get("training_history", []).size() == 1, "training history recorded")
-	_check(not bool(schedule_state.train_player("captain", "mechanics_lab").get("ok", true)), "training spam blocked")
-	_check(bool(schedule_state.rest_team("Rocket League").get("ok", false)), "first recovery succeeds")
-	_check(not bool(schedule_state.rest_team("Rocket League").get("ok", true)), "recovery spam blocked")
-	schedule_state.data["week"] = int(schedule_state.data["week"]) + 2
-	_check(not schedule_state.can_train_player(captain), "training stays locked for two weeks")
-	schedule_state.data["week"] = int(schedule_state.data["week"]) + 1
-	_check(schedule_state.can_train_player(captain), "training returns after three weeks")
-	_check(schedule_state.can_rest_team("Rocket League"), "recovery returns after three weeks")
+	_check(schedule_state.training_breakthrough_chance() >= 0.12, "training exposes breakthrough chance")
+	_check(bool(schedule_state.train_player("captain", "mechanics_lab").get("ok", false)), "training can repeat immediately")
+	_check(captain.get("training_history", []).size() == 2, "repeat training history recorded")
+	var coach_odds_total := 0.0
+	for odds_value in schedule_state.coaching_rank_odds():
+		coach_odds_total += float(odds_value.get("chance", 0.0))
+	_check(abs(coach_odds_total - 1.0) < 0.001, "coach rank odds total 100 percent")
+	_check(schedule_state.coaching_free_offer_chance() > 0.0 and schedule_state.coaching_free_offer_chance() < 0.02, "free coach offer is extremely rare")
+	var first_offer: Dictionary = schedule_state.data["coaching_market"][0]
+	first_offer["price"] = 0
+	first_offer["free"] = true
+	var coached_stat := str(first_offer.get("specialty", "mechanics"))
+	var coached_before := int(captain.get(coached_stat, 0))
+	var coaching_result := schedule_state.book_coaching_session(str(first_offer["id"]), "captain")
+	_check(bool(coaching_result.get("ok", false)), "coaching session succeeds")
+	_check(int(captain.get(coached_stat, 0)) > coached_before, "coaching guarantees stat gain")
+	_check(float(coaching_result.get("bonus_chance", 0.0)) > 0.0, "coaching result exposes bonus chance")
+	captain["fatigue"] = 20
+	schedule_state.data["fatigue_updated_at"] = schedule_state.real_time_now() - 5 * 60
+	var recovered := schedule_state.apply_real_time_fatigue_recovery(false)
+	_check(recovered >= 5, "fatigue recovers with real elapsed time")
+	_check(int(captain.get("fatigue", 0)) <= 15, "automatic recovery lowers fatigue")
+	var real_time_match := schedule_state.create_match("Rocket League")
+	_check(bool(real_time_match.get("ok", false)), "real-time schedule match")
+	_check(int(schedule_state.data.get("season_match", 0)) == 1, "match advances season fixture only")
+	_check(schedule_state.real_time_label().contains(":"), "device clock label")
+	_check(schedule_state.community_cup_win_chance("Rocket League") >= 0.16, "community cup exposes win chance")
+	_check(schedule_state.scouting_elite_potential_chance() >= 0.0, "scouting exposes elite chance")
 
 	var reveal_state: EmpireStateRef = EmpireStateRef.new()
 	reveal_state.reset_game()
@@ -127,26 +152,29 @@ func _run() -> void:
 	migrated.data["rl_playlists"]["1v1"]["peak_mmr"] = 650
 	migrated.data["rl_playlists"]["1v1"]["season_peak_mmr"] = 640
 	migrated.data["rl_playlists"]["1v1"]["mmr_history"] = [600, 625]
-	migrated.data["roster"][0].erase("last_training_week")
 	migrated.data["roster"][0].erase("rotation")
 	migrated.data["roster"][0].erase("shooting")
 	migrated.data["roster"][0].erase("defense")
 	migrated.data["roster"][0].erase("boost_control")
 	migrated.data["roster"][0].erase("consistency")
-	migrated.data.erase("last_rest_week")
+	migrated.data.erase("fatigue_updated_at")
+	migrated.data.erase("coaching_market")
+	migrated.data.erase("season_match")
+	migrated.data["week"] = 7
 	migrated._migrate_save(5)
 	_check(int(migrated.data.get("cash", 0)) == 47, "migration preserves economy")
 	_check(int(migrated.data["rl_playlists"]["1v1"]["mmr"]) == 125, "migration rebases current MMR")
 	_check(int(migrated.data["rl_playlists"]["1v1"]["peak_mmr"]) == 150, "migration rebases peak MMR")
 	_check(migrated.data["rl_playlists"]["1v1"]["mmr_history"] == [100, 125], "migration rebases MMR history")
-	_check(migrated.data["roster"][0].has("last_training_week"), "migration adds training cooldown")
 	_check(migrated.data["roster"][0].has("rotation"), "migration adds rotation")
 	_check(migrated.data["roster"][0].has("shooting"), "migration adds shooting")
 	_check(migrated.data["roster"][0].has("defense"), "migration adds defense")
 	_check(migrated.data["roster"][0].has("boost_control"), "migration adds boost control")
 	_check(migrated.data["roster"][0].has("consistency"), "migration adds consistency")
 	_check(int(migrated.data["roster"][0].get("potential", 0)) >= 96, "captain can reach complete mechanics arsenal")
-	_check(migrated.data.has("last_rest_week"), "migration adds recovery cooldown")
+	_check(migrated.data.has("fatigue_updated_at"), "migration adds real-time fatigue recovery")
+	_check(migrated.data.has("coaching_market"), "migration adds coaching market")
+	_check(int(migrated.data.get("season_match", -1)) == 6, "migration converts old week to season fixture")
 	_check(migrated.data.has("earned_titles"), "migration adds title locker")
 	_check(migrated.playlist_record("1v1").has("gc_reward_wins"), "migration adds title progress")
 	_check(migrated.data.get("streaming", {}).has("total_donation_cash"), "migration adds donation totals")
@@ -155,6 +183,7 @@ func _run() -> void:
 	_check(int(donation_roll.get("cash", 0)) > 0, "stream donation can generate virtual cash")
 	_check(donation_roll.get("events", []).size() >= 1, "stream donation event generated")
 	_check(schedule_state.stream_donation_chance(3, true, "Free") < 0.30, "early donations stay occasional")
+	_check(schedule_state.estimated_stream_donation_chance(true) >= schedule_state.estimated_stream_donation_chance(false), "stream odds expose win bonus")
 	schedule_state.set_streaming_enabled(true)
 	var stream_cash_before := int(schedule_state.data.get("cash", 0))
 	var integrated_stream := schedule_state._stream_payload(true, {"key": "normal"}, "1v1", 0.0)
@@ -198,6 +227,7 @@ func _run() -> void:
 	var season_titles := placement_state._finish_season()
 	_check(season_titles.size() == 1, "world number one title unlock")
 	_check(str(season_titles[0].get("label", "")).contains("WORLD #1"), "world number one title label")
+	_check(int(placement_state.data.get("season_match", -1)) == 0, "new season resets fixture count")
 
 	print("SMOKE 4/6: mobile ranked UI")
 	var main := MainScene.instantiate()
@@ -229,7 +259,10 @@ func _run() -> void:
 	main.game.data["cash"] = 500
 	main._show_page("team", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 7, "development page content")
+	_check(main.page_content.get_child_count() >= 8, "development and coaching page content")
+	_check(main.season_label.text.contains("MATCH"), "real-time season header")
+	_check(main.reputation_label.text == "0", "reputation replaces energy in header")
+	_check(main._chance_text(0.125) == "13%", "chance formatting")
 	var stat_grid: Control = main._development_stat_grid(main.game.data["roster"][0])
 	_check(stat_grid.get_child_count() == 2, "development stat grid rows")
 	_check(stat_grid.get_child(0).get_child_count() == 4, "development stat grid columns")
@@ -266,7 +299,7 @@ func _run() -> void:
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v0.4.8 smoke test: PASS")
+		print("E-Sport Empire v0.4.9 smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:

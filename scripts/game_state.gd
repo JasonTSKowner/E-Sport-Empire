@@ -6,8 +6,9 @@ const GameDataRef = preload("res://scripts/game_data.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const TitleDataRef = preload("res://scripts/title_data.gd")
 const DevelopmentDataRef = preload("res://scripts/development_data.gd")
-const TRAINING_COOLDOWN_WEEKS := 3
-const RECOVERY_COOLDOWN_WEEKS := 3
+const CoachingDataRef = preload("res://scripts/coaching_data.gd")
+const FATIGUE_RECOVERY_INTERVAL_SECONDS := 60
+const SEASON_MATCH_LIMIT := 36
 
 const MATCH_ACTIONS := [
 	{
@@ -76,6 +77,8 @@ func load_game() -> Dictionary:
 	data["version"] = GameDataRef.VERSION
 	if not data.has("market") or data["market"].is_empty():
 		generate_market(false)
+	if not data.has("coaching_market") or data["coaching_market"].is_empty():
+		generate_coaching_market()
 	offline = apply_offline_progress()
 	save_game()
 	return offline
@@ -90,6 +93,7 @@ func save_game() -> void:
 func reset_game() -> void:
 	data = _new_save()
 	generate_market(false)
+	generate_coaching_market()
 	save_game()
 
 
@@ -99,11 +103,40 @@ func apply_offline_progress() -> Dictionary:
 	var elapsed := clampi(now - previous, 0, 8 * 60 * 60)
 	var income := int(round(float(passive_income_per_hour()) * float(elapsed) / 3600.0))
 	var new_fans := int(round(float(passive_fans_per_hour()) * float(elapsed) / 3600.0))
+	var fatigue_recovered := apply_real_time_fatigue_recovery(false)
 	if elapsed >= 60:
 		data["cash"] = int(data["cash"]) + income
 		data["fans"] = int(data["fans"]) + new_fans
 	data["last_seen"] = now
-	return {"seconds": elapsed, "cash": income, "fans": new_fans}
+	return {
+		"seconds": elapsed,
+		"cash": income,
+		"fans": new_fans,
+		"fatigue_recovered": fatigue_recovered,
+	}
+
+
+func apply_real_time_fatigue_recovery(save_after: bool = true) -> int:
+	var now := real_time_now()
+	var previous := int(data.get("fatigue_updated_at", now))
+	if previous > now:
+		previous = now
+	var recovery_points := maxi(
+		0,
+		int(floor(float(now - previous) / float(FATIGUE_RECOVERY_INTERVAL_SECONDS)))
+	)
+	if recovery_points <= 0:
+		return 0
+	var total_recovered := 0
+	for player in data.get("roster", []):
+		var before := int(player.get("fatigue", 0))
+		var after := maxi(0, before - recovery_points)
+		player["fatigue"] = after
+		total_recovered += before - after
+	data["fatigue_updated_at"] = previous + recovery_points * FATIGUE_RECOVERY_INTERVAL_SECONDS
+	if save_after:
+		save_game()
+	return total_recovered
 
 
 func passive_income_per_hour() -> int:
@@ -356,40 +389,37 @@ func training_cost(player: Dictionary, program_id: String = "mechanics_lab") -> 
 	return maxi(8, int(round(raw_cost * (1.0 - coaching_discount))))
 
 
-func current_week_key() -> int:
-	return (int(data.get("season", 1)) - 1) * 12 + int(data.get("week", 1))
+func real_time_now() -> int:
+	return int(Time.get_unix_time_from_system())
 
 
-func can_train_player(player: Dictionary) -> bool:
-	var last_week := int(player.get("last_training_week", -1))
-	return last_week < 0 or current_week_key() - last_week >= TRAINING_COOLDOWN_WEEKS
+func real_time_label() -> String:
+	var datetime := Time.get_datetime_dict_from_system(false)
+	var months := ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+	var month_index := clampi(int(datetime.get("month", 1)) - 1, 0, months.size() - 1)
+	return "%02d %s  %02d:%02d" % [
+		int(datetime.get("day", 1)),
+		months[month_index],
+		int(datetime.get("hour", 0)),
+		int(datetime.get("minute", 0)),
+	]
 
 
-func training_weeks_left(player: Dictionary) -> int:
-	var last_week := int(player.get("last_training_week", -1))
-	if last_week < 0:
-		return 0
-	return maxi(0, TRAINING_COOLDOWN_WEEKS - (current_week_key() - last_week))
+func season_match_progress() -> int:
+	return clampi(int(data.get("season_match", 0)), 0, SEASON_MATCH_LIMIT)
 
 
-func can_rest_team(mode: String) -> bool:
-	var rest_weeks: Dictionary = data.get("last_rest_week", {})
-	var last_week := int(rest_weeks.get(mode, -1))
-	return last_week < 0 or current_week_key() - last_week >= RECOVERY_COOLDOWN_WEEKS
+func training_breakthrough_chance() -> float:
+	return minf(0.48, 0.12 + float(facility_level("coaching")) * 0.04)
 
 func train_player(player_id: String, program_id: String = "mechanics_lab") -> Dictionary:
+	apply_real_time_fatigue_recovery(false)
 	var player := _find_player(player_id)
 	if player.is_empty():
 		return {"ok": false, "message": "Player not found."}
 	var program := DevelopmentDataRef.program(program_id)
 	if program.is_empty():
 		return {"ok": false, "message": "Unknown development program."}
-	if not can_train_player(player):
-		return {
-			"ok": false,
-			"message": "%s returns to training in %d week(s). Play ranked matches to advance the schedule."
-			% [str(player.get("name", "Player")), training_weeks_left(player)],
-		}
 	var cost := training_cost(player, program_id)
 	if int(data["cash"]) < cost:
 		return {
@@ -397,9 +427,6 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 			"message": "You need %s for %s."
 			% [GameDataRef.format_cash(cost), str(program.get("label", "training"))],
 		}
-	var energy_cost := int(program.get("energy", 8))
-	if int(data["energy"]) < energy_cost:
-		return {"ok": false, "message": "The staff needs more energy."}
 	var potential := int(player.get("potential", 99))
 	var program_gains: Dictionary = program.get("gains", {})
 	var unlocked_before: Array = DevelopmentDataRef.unlocked_mechanics(player)
@@ -416,7 +443,8 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 		return {"ok": false, "message": "This program cannot push the player beyond their potential."}
 	var coaching := facility_level("coaching")
 	var primary := str(program.get("primary", ""))
-	var breakthrough := rng.randf() < minf(0.48, 0.12 + float(coaching) * 0.04)
+	var breakthrough_chance := training_breakthrough_chance()
+	var breakthrough := rng.randf() < breakthrough_chance
 	var applied_gains: Dictionary = {}
 	for stat_key in program_gains:
 		var requested_gain := int(program_gains[stat_key])
@@ -432,13 +460,13 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 	var fatigue_gain := maxi(1, int(program.get("fatigue", 5)) - fatigue_relief)
 	player["fatigue"] = clampi(int(player.get("fatigue", 0)) + fatigue_gain, 0, 100)
 	data["cash"] = int(data["cash"]) - cost
-	data["energy"] = int(data["energy"]) - energy_cost
-	player["last_training_week"] = current_week_key()
 	player["last_training_program"] = program_id
 	var history: Array = player.get("training_history", [])
 	history.push_front({
-		"week": current_week_key(),
+		"kind": "training",
+		"timestamp": real_time_now(),
 		"program": program_id,
+		"label": str(program.get("label", "Training")),
 		"cost": cost,
 		"gains": applied_gains.duplicate(true),
 	})
@@ -479,7 +507,177 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 		"cost": cost,
 		"gains": applied_gains,
 		"breakthrough": breakthrough,
+		"breakthrough_chance": breakthrough_chance,
 		"unlocked_mechanics": new_mechanics,
+	}
+
+
+func coaching_rank_odds() -> Array:
+	var weighted: Array = []
+	var total := 0.0
+	var access_score := float(facility_level("coaching")) + float(int(data.get("reputation", 0))) / 6.0
+	for index in range(CoachingDataRef.RANKS.size()):
+		var definition: Dictionary = CoachingDataRef.RANKS[index]
+		var high_rank_multiplier := 1.0 + access_score * 0.025 * float(index)
+		var weight := float(definition.get("base_weight", 1.0)) * high_rank_multiplier
+		weighted.append({"index": index, "weight": weight})
+		total += weight
+	var result: Array = []
+	for value in weighted:
+		var item: Dictionary = value
+		var definition: Dictionary = CoachingDataRef.RANKS[int(item["index"])]
+		result.append({
+			"index": int(item["index"]),
+			"family": str(definition.get("family", "Bronze")),
+			"label": str(definition.get("label", "Bronze III")),
+			"chance": float(item["weight"]) / maxf(total, 0.001),
+		})
+	return result
+
+
+func coaching_free_offer_chance() -> float:
+	return CoachingDataRef.FREE_OFFER_CHANCE
+
+
+func generate_coaching_market() -> Dictionary:
+	var odds := coaching_rank_odds()
+	var offers: Array = []
+	for offer_index in range(CoachingDataRef.OFFER_COUNT):
+		var roll := rng.randf()
+		var cumulative := 0.0
+		var rank_index := 0
+		for odds_value in odds:
+			var odds_item: Dictionary = odds_value
+			cumulative += float(odds_item.get("chance", 0.0))
+			if roll <= cumulative:
+				rank_index = int(odds_item.get("index", 0))
+				break
+		var definition: Dictionary = CoachingDataRef.rank_definition(rank_index)
+		var family := str(definition.get("family", "Bronze"))
+		var rank_tier := 0
+		var rank_division := 0
+		var detail_progress := 1.0
+		var rank_label := family
+		if family != "Supersonic Legend":
+			rank_tier = rng.randi_range(1, 3)
+			rank_division = rng.randi_range(1, 4)
+			detail_progress = float((rank_tier - 1) * 4 + (rank_division - 1)) / 11.0
+			rank_label = "%s %s  •  DIV %s" % [
+				family,
+				RankedDataRef.DIVISION_ROMAN[rank_tier - 1],
+				RankedDataRef.DIVISION_ROMAN[rank_division - 1],
+			]
+		var stat_definition: Dictionary = DevelopmentDataRef.PLAYER_STATS[
+			rng.randi_range(0, DevelopmentDataRef.PLAYER_STATS.size() - 1)
+		]
+		var is_free := rng.randf() < coaching_free_offer_chance()
+		var facility_discount := minf(0.24, float(facility_level("coaching")) * 0.03)
+		var detail_price_multiplier := 0.90 + detail_progress * 0.20
+		var price := int(round(
+			float(definition.get("base_price", 20))
+			* detail_price_multiplier
+			* (1.0 - facility_discount)
+		))
+		if is_free:
+			price = 0
+		offers.append({
+			"id": "coach_%d_%d_%d" % [real_time_now(), int(Time.get_ticks_msec()), offer_index],
+			"name": CoachingDataRef.COACH_NAMES[rng.randi_range(0, CoachingDataRef.COACH_NAMES.size() - 1)],
+			"region": GameDataRef.REGIONS[rng.randi_range(0, GameDataRef.REGIONS.size() - 1)],
+			"style": CoachingDataRef.STYLES[rng.randi_range(0, CoachingDataRef.STYLES.size() - 1)],
+			"rank_index": rank_index,
+			"rank_family": family,
+			"rank_tier": rank_tier,
+			"rank_division": rank_division,
+			"rank_label": rank_label,
+			"coach_rating": clampi(48 + rank_index * 6 + int(round(detail_progress * 7.0)), 48, 99),
+			"specialty": str(stat_definition.get("key", "mechanics")),
+			"specialty_label": str(stat_definition.get("label", "Mechanics")),
+			"guaranteed_gain": int(definition.get("guaranteed_gain", 1)),
+			"bonus_gain": int(definition.get("bonus_gain", 1)),
+			"bonus_chance": minf(0.75, float(definition.get("bonus_chance", 0.10)) + detail_progress * 0.04),
+			"fatigue": int(definition.get("fatigue", 2)),
+			"price": price,
+			"free": is_free,
+		})
+	data["coaching_market"] = offers
+	return {"ok": true, "message": "A fresh coaching board is available.", "offers": offers}
+
+
+func book_coaching_session(offer_id: String, player_id: String) -> Dictionary:
+	apply_real_time_fatigue_recovery(false)
+	var player := _find_player(player_id)
+	if player.is_empty():
+		return {"ok": false, "message": "Player not found."}
+	var offer: Dictionary = {}
+	for offer_value in data.get("coaching_market", []):
+		var candidate: Dictionary = offer_value
+		if str(candidate.get("id", "")) == offer_id:
+			offer = candidate
+			break
+	if offer.is_empty():
+		return {"ok": false, "message": "That coach is no longer on the board."}
+	var stat_key := str(offer.get("specialty", "mechanics"))
+	var potential := int(player.get("potential", 99))
+	if int(player.get(stat_key, 50)) >= potential:
+		return {
+			"ok": false,
+			"message": "%s has already reached their potential in %s."
+			% [str(player.get("name", "Player")), str(offer.get("specialty_label", "this stat"))],
+		}
+	var cost := int(offer.get("price", 0))
+	if int(data.get("cash", 0)) < cost:
+		return {"ok": false, "message": "You need %s for this coaching session." % GameDataRef.format_cash(cost)}
+	var bonus_chance := float(offer.get("bonus_chance", 0.10))
+	var bonus_hit := rng.randf() < bonus_chance
+	var requested_gain := int(offer.get("guaranteed_gain", 1))
+	if bonus_hit:
+		requested_gain += int(offer.get("bonus_gain", 1))
+	var before := int(player.get(stat_key, 50))
+	var after := mini(potential, before + requested_gain)
+	var applied_gain := after - before
+	player[stat_key] = after
+	player["form"] = clampi(int(player.get("form", 50)) + 2, 25, 100)
+	player["fatigue"] = clampi(
+		int(player.get("fatigue", 0)) + int(offer.get("fatigue", 2)),
+		0,
+		100
+	)
+	data["cash"] = int(data.get("cash", 0)) - cost
+	var history: Array = player.get("training_history", [])
+	history.push_front({
+		"kind": "coaching",
+		"timestamp": real_time_now(),
+		"program": "",
+		"label": "%s coaching" % str(offer.get("rank_label", "Ranked")),
+		"cost": cost,
+		"gains": {stat_key: applied_gain},
+	})
+	while history.size() > 10:
+		history.pop_back()
+	player["training_history"] = history
+	data["coaching_market"].erase(offer)
+	var board_refilled := false
+	if data["coaching_market"].is_empty():
+		generate_coaching_market()
+		board_refilled = true
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s coached %s: +%d %s%s."
+		% [
+			str(offer.get("name", "Coach")),
+			str(player.get("name", "Player")),
+			applied_gain,
+			str(offer.get("specialty_label", stat_key)),
+			" (bonus hit)" if bonus_hit else "",
+		],
+		"cost": cost,
+		"gain": applied_gain,
+		"stat": stat_key,
+		"bonus_hit": bonus_hit,
+		"bonus_chance": bonus_chance,
+		"board_refilled": board_refilled,
 	}
 
 
@@ -489,20 +687,6 @@ func unlocked_mechanics(player: Dictionary) -> Array:
 
 func next_mechanic(player: Dictionary) -> Dictionary:
 	return DevelopmentDataRef.next_mechanic(player)
-
-
-func rest_team(mode: String) -> Dictionary:
-	if not can_rest_team(mode):
-		return {"ok": false, "message": "%s recovery is on a three-week cooldown." % mode}
-	for player in roster_for(mode):
-		player["fatigue"] = maxi(0, int(player.get("fatigue", 0)) - 24)
-		player["form"] = clampi(int(player.get("form", 50)) + 2, 25, 100)
-	data["energy"] = mini(100, int(data["energy"]) + 12)
-	var rest_weeks: Dictionary = data.get("last_rest_week", {})
-	rest_weeks[mode] = current_week_key()
-	data["last_rest_week"] = rest_weeks
-	save_game()
-	return {"ok": true, "message": "%s division completed recovery." % mode}
 
 func generate_market(charge: bool = true) -> Dictionary:
 	var cost := 5
@@ -536,7 +720,6 @@ func generate_market(charge: bool = true) -> Dictionary:
 			"potential": potential,
 			"form": rng.randi_range(45, 68),
 			"fatigue": 0,
-			"last_training_week": -1,
 			"last_training_program": "",
 			"training_history": [],
 		}
@@ -546,6 +729,24 @@ func generate_market(charge: bool = true) -> Dictionary:
 	if charge:
 		save_game()
 	return {"ok": true, "message": "Fresh amateur scouting reports are ready."}
+
+
+func scouting_elite_potential_chance() -> float:
+	var scouting := facility_level("scouting")
+	var raw_base_min := 47 + scouting
+	var raw_base_max := 57 + scouting * 2
+	var offset_min := 8
+	var offset_max := 18 + scouting
+	var elite_results := 0
+	var total_results := 0
+	for raw_base in range(raw_base_min, raw_base_max + 1):
+		var base := clampi(raw_base, 42, 91)
+		for offset in range(offset_min, offset_max + 1):
+			var potential := clampi(base + offset, base + 2, 99)
+			total_results += 1
+			if potential >= 90:
+				elite_results += 1
+	return float(elite_results) / float(maxi(1, total_results))
 
 func sign_player(prospect_id: String) -> Dictionary:
 	var prospect: Dictionary = {}
@@ -623,6 +824,7 @@ func can_play_match_action(session: Dictionary, action: String) -> bool:
 
 
 func prepare_match(mode: String) -> Dictionary:
+	apply_real_time_fatigue_recovery(false)
 	var roster := roster_for(mode)
 	if roster.is_empty():
 		return {"ok": false, "message": "You need at least one active player before queueing."}
@@ -659,7 +861,7 @@ func prepare_match(mode: String) -> Dictionary:
 	var situation_keys := ["press", "control", "counter"]
 	for index in range(6):
 		situations.append(str(situation_keys[rng.randi_range(0, situation_keys.size() - 1)]))
-	return {
+	var session := {
 		"ok": true,
 		"resolved": false,
 		"mode": mode,
@@ -682,6 +884,22 @@ func prepare_match(mode: String) -> Dictionary:
 		"decisions": [],
 		"events": [],
 	}
+	session["estimated_win_chance"] = estimated_match_win_chance(session)
+	return session
+
+
+func estimated_match_win_chance(session: Dictionary) -> float:
+	var strength_gap := (
+		float(session.get("player_strength", 50.0))
+		- float(session.get("opponent_strength", 50.0))
+	)
+	var team_stats: Dictionary = session.get("team_stats", {})
+	var composure_bonus := (
+		float(team_stats.get("mentality", 50))
+		+ float(team_stats.get("consistency", 50))
+		- 100.0
+	) / 500.0
+	return clampf(0.50 + strength_gap * 0.022 + composure_bonus, 0.12, 0.88)
 
 
 func current_match_situation(session: Dictionary) -> Dictionary:
@@ -704,17 +922,13 @@ func current_match_situation(session: Dictionary) -> Dictionary:
 	}
 
 
-func play_match_turn(session: Dictionary, action: String) -> Dictionary:
-	if bool(session.get("resolved", false)):
-		return {"ok": false, "message": "This match is already complete."}
+func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 	var action_definition: Dictionary = _match_action_definition(action)
-	if action_definition.is_empty():
-		return {"ok": false, "message": "Unknown tactical call."}
-	if not can_play_match_action(session, action):
-		return {"ok": false, "message": "Not enough tactical boost for that call. Use BOOST CONTROL to recharge."}
+	if action_definition.is_empty() or not can_play_match_action(session, action):
+		return {}
 	var situation: Dictionary = current_match_situation(session)
 	if situation.is_empty():
-		return {"ok": false, "message": "The match situation could not be loaded."}
+		return {}
 	var opponent_action := str(situation["opponent_action"])
 	var perfect_action := str(TACTIC_COUNTER[opponent_action])
 	var opponent_counter := str(TACTIC_COUNTER[action])
@@ -725,12 +939,7 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		tactical_edge = -1
 	var repeated_call := action == str(session.get("last_action", ""))
 	if repeated_call:
-		# Repeating a call is readable: even a correct counter loses its full edge.
 		tactical_edge = maxi(-1, tactical_edge - 1)
-	var boost_before := int(session.get("boost", 45))
-	var boost_after := clampi(boost_before + int(action_definition.get("boost_delta", 0)), 0, 100)
-	session["boost"] = boost_after
-	session["last_action"] = action
 	var strength_edge := clampf(
 		(float(session.get("player_strength", 50.0)) - float(session.get("opponent_strength", 50.0))) / 100.0,
 		-0.18,
@@ -771,6 +980,51 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		0.04,
 		0.52
 	)
+	var turn := int(session.get("turn", 0))
+	if turn >= 7:
+		our_goal_chance = clampf(
+			0.50
+			+ float(int(session.get("decision_score", 0)) + tactical_edge) * 0.045
+			+ strength_edge
+			+ (float(team_stats.get("mentality", 50)) - 50.0) / 260.0
+			+ (float(team_stats.get("consistency", 50)) - 50.0) / 420.0,
+			0.16,
+			0.84
+		)
+		their_goal_chance = 1.0 - our_goal_chance
+	return {
+		"our_goal": our_goal_chance,
+		"their_goal": their_goal_chance,
+		"neutral": maxf(0.0, 1.0 - our_goal_chance - their_goal_chance),
+		"tactical_edge": tactical_edge,
+		"repeated": repeated_call,
+		"decider": turn >= 7,
+	}
+
+
+func play_match_turn(session: Dictionary, action: String) -> Dictionary:
+	if bool(session.get("resolved", false)):
+		return {"ok": false, "message": "This match is already complete."}
+	var action_definition: Dictionary = _match_action_definition(action)
+	if action_definition.is_empty():
+		return {"ok": false, "message": "Unknown tactical call."}
+	if not can_play_match_action(session, action):
+		return {"ok": false, "message": "Not enough tactical boost for that call. Use BOOST CONTROL to recharge."}
+	var situation: Dictionary = current_match_situation(session)
+	if situation.is_empty():
+		return {"ok": false, "message": "The match situation could not be loaded."}
+	var opponent_action := str(situation["opponent_action"])
+	var odds := match_action_odds(session, action)
+	if odds.is_empty():
+		return {"ok": false, "message": "The odds for that tactical call could not be calculated."}
+	var tactical_edge := int(odds.get("tactical_edge", 0))
+	var repeated_call := bool(odds.get("repeated", false))
+	var boost_before := int(session.get("boost", 45))
+	var boost_after := clampi(boost_before + int(action_definition.get("boost_delta", 0)), 0, 100)
+	session["boost"] = boost_after
+	session["last_action"] = action
+	var our_goal_chance := float(odds.get("our_goal", 0.0))
+	var their_goal_chance := float(odds.get("their_goal", 0.0))
 	var roll := rng.randf()
 	var our_goal := 0
 	var their_goal := 0
@@ -784,29 +1038,6 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 	var score_before_theirs := int(session.get("their_score", 0))
 	var our_score := score_before_ours + our_goal
 	var their_score := score_before_theirs + their_goal
-	# The eighth decision is a guaranteed overtime decider so a match can
-	# never become an endless tapping loop.
-	if turn >= 7:
-		var decider_chance := clampf(
-			0.50
-			+ float(int(session.get("decision_score", 0)) + tactical_edge) * 0.045
-			+ strength_edge
-			+ (float(team_stats.get("mentality", 50)) - 50.0) / 260.0
-			+ (float(team_stats.get("consistency", 50)) - 50.0) / 420.0,
-			0.16,
-			0.84
-		)
-		if rng.randf() <= decider_chance:
-			our_goal = 1
-			their_goal = 0
-			our_score = score_before_ours + 1
-			their_score = score_before_theirs
-		else:
-			our_goal = 0
-			their_goal = 1
-			our_score = score_before_ours
-			their_score = score_before_theirs + 1
-
 	var event_type := "neutral"
 	var event_text := "Both teams trade pressure without giving up the goal."
 	if our_goal > 0:
@@ -856,7 +1087,14 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 	events.append(event)
 	session["events"] = events
 	var decisions: Array = session.get("decisions", [])
-	decisions.append({"turn": turn, "action": action, "opponent_action": opponent_action, "quality": tactical_edge})
+	decisions.append({
+		"turn": turn,
+		"action": action,
+		"opponent_action": opponent_action,
+		"quality": tactical_edge,
+		"our_goal_chance": our_goal_chance,
+		"their_goal_chance": their_goal_chance,
+	})
 	session["decisions"] = decisions
 	var regulation_turns := int(session.get("regulation_turns", 6))
 	var finished := turn_after >= regulation_turns and our_score != their_score
@@ -867,6 +1105,7 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		"quality": tactical_edge,
 		"boost_before": boost_before,
 		"boost_after": boost_after,
+		"odds": odds,
 		"finished": finished,
 		"overtime": turn_after >= regulation_turns and not finished,
 	}
@@ -882,12 +1121,20 @@ func _signature_goal_text(mode: String) -> String:
 	var signature := DevelopmentDataRef.signature_move(player)
 	if signature.is_empty():
 		return ""
-	var mechanics := int(player.get("mechanics", 50))
-	var consistency := int(player.get("consistency", 50))
-	var trigger_chance := clampf(0.10 + float(mechanics - 50) * 0.009 + float(consistency - 50) * 0.003, 0.10, 0.52)
+	var trigger_chance := signature_move_chance(player)
 	if rng.randf() > trigger_chance:
 		return ""
 	return "%s creates the goal with %s." % [str(player.get("name", "TSK")), str(signature.get("event", "an elite mechanic"))]
+
+
+func signature_move_chance(player: Dictionary) -> float:
+	var mechanics := int(player.get("mechanics", 50))
+	var consistency := int(player.get("consistency", 50))
+	return clampf(
+		0.10 + float(mechanics - 50) * 0.009 + float(consistency - 50) * 0.003,
+		0.10,
+		0.52
+	)
 
 
 func _interactive_event_time(turn: int) -> String:
@@ -965,7 +1212,6 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		last_results.pop_back()
 	record["last_results"] = last_results
 
-	data["energy"] = maxi(0, int(data["energy"]) - 5)
 	var roster := roster_for(mode)
 	var participating_players := roster.size()
 	if mode == "Rocket League":
@@ -1012,12 +1258,13 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"old_rank": old_rank,
 		"new_rank": new_rank,
 		"stream_donation_cash": int(stream.get("donation_cash", 0)),
+		"stream_donation_chance": float(stream.get("donation_chance", 0.0)),
 		"timestamp": int(Time.get_unix_time_from_system()),
 	})
 	while data["history"].size() > 20:
 		data["history"].pop_back()
-	data["week"] = int(data.get("week", 1)) + 1
-	if int(data["week"]) > 12:
+	data["season_match"] = int(data.get("season_match", 0)) + 1
+	if int(data["season_match"]) >= SEASON_MATCH_LIMIT:
 		unlocked_titles.append_array(_finish_season())
 	session["resolved"] = true
 	save_game()
@@ -1045,12 +1292,15 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"cash": int(stream.get("donation_cash", 0)),
 		"fans": 0,
 		"attention": attention,
+		"attention_chance": float(attention.get("chance", 0.0)),
+		"estimated_win_chance": float(session.get("estimated_win_chance", 0.5)),
 		"streaming": bool(stream.get("live", false)),
 		"stream_viewers": int(stream.get("viewers", 0)),
 		"live_chat": stream.get("chat", []),
 		"comments": stream.get("comments", []),
 		"stream_followers": int(stream.get("followers", 0)),
 		"stream_donation_cash": int(stream.get("donation_cash", 0)),
+		"stream_donation_chance": float(stream.get("donation_chance", 0.0)),
 		"stream_donations": stream.get("donations", []),
 		"decision_score": decision_score,
 		"tactical_grade": tactical_grade,
@@ -1196,7 +1446,7 @@ func _finish_season() -> Array:
 				if _grant_title(placement_title):
 					unlocked.append(placement_title)
 	data["season"] = finished_season + 1
-	data["week"] = 1
+	data["season_match"] = 0
 	data["season_bonus"] = 0
 	for playlist in RankedDataRef.PLAYLISTS:
 		var record := playlist_record(playlist)
@@ -1293,18 +1543,22 @@ func accept_contact(contact_id: String) -> Dictionary:
 	}
 
 
+func community_cup_win_chance(mode: String) -> float:
+	var strength := float(team_overall(mode))
+	return clampf(0.34 + (strength - 55.0) * 0.018, 0.16, 0.72)
+
+
+func cup_seconds_left() -> int:
+	return maxi(0, int(data.get("cup_ready_at", 0)) - real_time_now())
+
+
 func play_community_cup(mode: String) -> Dictionary:
 	var now := int(Time.get_unix_time_from_system())
 	if int(mode_record(mode).get("played", 0)) < 3:
 		return {"ok": false, "message": "Play at least 3 ranked matches before entering a community cup."}
 	if now < int(data.get("cup_ready_at", 0)):
 		return {"ok": false, "message": "No new community cup is open yet."}
-	var entry_fee := 0 if int(data.get("reputation", 0)) < 4 else 5
-	if int(data.get("cash", 0)) < entry_fee:
-		return {"ok": false, "message": "You need %s for the entry fee." % GameDataRef.format_cash(entry_fee)}
-	data["cash"] = int(data["cash"]) - entry_fee
-	var strength := float(team_overall(mode))
-	var win_chance := clampf(0.34 + (strength - 55.0) * 0.018, 0.16, 0.72)
+	var win_chance := community_cup_win_chance(mode)
 	var won := rng.randf() <= win_chance
 	var prize := 0
 	if won:
@@ -1329,6 +1583,7 @@ func play_community_cup(mode: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
+		"win_chance": win_chance,
 		"message": ("Cup win: +%s prize money." % GameDataRef.format_cash(prize)) if won else "You were knocked out. Ranked still pays €0 — cups are where money starts.",
 	}
 
@@ -1348,9 +1603,18 @@ func _roll_opponent_profile() -> Dictionary:
 	return {"key": "normal", "label": "NORMAL MATCH", "strength_mod": 0.0, "attention_mult": 1.0}
 
 
-func _attention_roll(
-	won: bool, profile: Dictionary, mode: String, format: String, viewers: int
-) -> Dictionary:
+func opponent_profile_odds() -> Array:
+	return [
+		{"label": "SMURF", "chance": 0.08},
+		{"label": "BOOSTED", "chance": 0.06},
+		{"label": "PEAKING", "chance": 0.08},
+		{"label": "TILTED", "chance": 0.08},
+		{"label": "RETURNING", "chance": 0.06},
+		{"label": "NORMAL", "chance": 0.64},
+	]
+
+
+func attention_chance(won: bool, profile: Dictionary, viewers: int) -> float:
 	var chance := 0.08
 	if won:
 		chance += 0.08
@@ -1358,8 +1622,20 @@ func _attention_roll(
 		chance += 0.12
 	chance += minf(0.12, float(viewers) * 0.006)
 	chance *= float(profile.get("attention_mult", 1.0))
+	return clampf(chance, 0.0, 0.95)
+
+
+func _attention_roll(
+	won: bool, profile: Dictionary, mode: String, format: String, viewers: int
+) -> Dictionary:
+	var chance := attention_chance(won, profile, viewers)
 	if rng.randf() > chance:
-		return {"points": 0, "reputation": 0, "text": "No unusual attention after this match."}
+		return {
+			"points": 0,
+			"reputation": 0,
+			"chance": chance,
+			"text": "No unusual attention after this match.",
+		}
 	var roll := rng.randf()
 	var points := rng.randi_range(1, 4)
 	var reputation_gain := 0
@@ -1380,7 +1656,13 @@ func _attention_roll(
 		text = "A small tournament organizer noticed your recent results."
 		points += 3
 		reputation_gain = 1
-	return {"points": points, "reputation": reputation_gain, "text": text, "contact": contact}
+	return {
+		"points": points,
+		"reputation": reputation_gain,
+		"chance": chance,
+		"text": text,
+		"contact": contact,
+	}
 
 
 func _make_contact(mode: String, source: String) -> Dictionary:
@@ -1418,6 +1700,7 @@ func _stream_payload(
 			"comments": [],
 			"followers": 0,
 			"donation_cash": 0,
+			"donation_chance": 0.0,
 			"donations": [],
 		}
 	var stream_data: Dictionary = data["streaming"]
@@ -1473,6 +1756,7 @@ func _stream_payload(
 		follower_gain = rng.randi_range(0, maxi(1, viewers / 3))
 		if won and rng.randf() < 0.45:
 			follower_gain += 1
+	var donation_chance := stream_donation_chance(viewers, won, plan)
 	var donation_result := _roll_stream_donations(viewers, won, plan, forced_donation_roll)
 	var donations: Array = donation_result.get("events", [])
 	var donation_cash := int(donation_result.get("cash", 0))
@@ -1501,6 +1785,7 @@ func _stream_payload(
 		"followers": follower_gain,
 		"format": format,
 		"donation_cash": donation_cash,
+		"donation_chance": donation_chance,
 		"donations": donations,
 	}
 
@@ -1514,6 +1799,25 @@ func stream_donation_chance(viewers: int, won: bool, plan: String) -> float:
 	elif plan == "Pro":
 		chance += 0.07
 	return clampf(chance, 0.16, 0.68)
+
+
+func estimated_stream_viewers() -> int:
+	var stream_data: Dictionary = data.get("streaming", {})
+	var plan := stream_plan()
+	var followers := int(stream_data.get("followers", 0))
+	var plan_mult := 1.0
+	if plan == "Creator":
+		plan_mult = 1.12
+	elif plan == "Pro":
+		plan_mult = 1.28
+	return maxi(
+		1,
+		int(round(float(1 + followers / 25 + int(data.get("reputation", 0)) / 2) * plan_mult)) + 1
+	)
+
+
+func estimated_stream_donation_chance(won: bool) -> float:
+	return stream_donation_chance(estimated_stream_viewers(), won, stream_plan())
 
 
 func _roll_stream_donations(
@@ -1598,8 +1902,6 @@ func _ensure_player_development_stats(player: Dictionary) -> void:
 			1,
 			99
 		)
-	if not player.has("last_training_week"):
-		player["last_training_week"] = -1
 	if not player.has("last_training_program"):
 		player["last_training_program"] = ""
 	if not player.has("training_history") or typeof(player["training_history"]) != TYPE_ARRAY:
@@ -1656,8 +1958,14 @@ func _migrate_save(from_version: int) -> void:
 		for player in data.get(collection_key, []):
 			if typeof(player) == TYPE_DICTIONARY:
 				_ensure_player_development_stats(player)
-	if not data.has("last_rest_week") or typeof(data["last_rest_week"]) != TYPE_DICTIONARY:
-		data["last_rest_week"] = {}
+	if not data.has("fatigue_updated_at"):
+		data["fatigue_updated_at"] = real_time_now()
+	if not data.has("coaching_market") or typeof(data["coaching_market"]) != TYPE_ARRAY:
+		data["coaching_market"] = []
+	if not data.has("season_match"):
+		# Old saves used one match as one whole week. Start the new real-time
+		# schedule at the equivalent point without moving the device clock.
+		data["season_match"] = clampi(int(data.get("week", 1)) - 1, 0, SEASON_MATCH_LIMIT - 1)
 	if not data.has("earned_titles") or typeof(data["earned_titles"]) != TYPE_ARRAY:
 		data["earned_titles"] = []
 	if not data.has("equipped_title_id"):
@@ -1672,8 +1980,8 @@ func _migrate_save(from_version: int) -> void:
 	if not streaming.has("last_donations") or typeof(streaming["last_donations"]) != TYPE_ARRAY:
 		streaming["last_donations"] = []
 	data["selected_rl_playlist"] = RankedDataRef.normalize_playlist(str(data.get("selected_rl_playlist", "1v1")))
-	if from_version < 8:
-		data["version"] = 8
+	if from_version < 9:
+		data["version"] = 9
 
 
 func _new_ranked_record(starting_mmr: int = 100, mmr_schema: int = 2) -> Dictionary:
@@ -1705,19 +2013,18 @@ func _new_save() -> Dictionary:
 		"fans": 0,
 		"reputation": 0,
 		"attention": 0,
-		"energy": 100,
 		"season": 1,
-		"week": 1,
+		"season_match": 0,
 		"selected_mode": "Rocket League",
 		"selected_rl_playlist": "1v1",
 		"last_seen": now,
+		"fatigue_updated_at": now,
 		"sponsor_ready_at": 0,
 		"season_bonus": 0,
 		"cup_ready_at": 0,
 		"earned_prize_money": 0,
 		"earned_titles": [],
 		"equipped_title_id": "",
-		"last_rest_week": {},
 		"facilities": {"hq": 0, "coaching": 0, "scouting": 0, "analytics": 0, "studio": 0},
 		"rl_playlists": {
 			"1v1": _new_ranked_record(100),
@@ -1745,6 +2052,7 @@ func _new_save() -> Dictionary:
 			"last_donations": [],
 		},
 		"market": [],
+		"coaching_market": [],
 		"history": [],
 	}
 
@@ -1784,7 +2092,6 @@ func _player(
 		"potential": potential,
 		"form": 55,
 		"fatigue": 0,
-		"last_training_week": -1,
 		"last_training_program": "",
 		"training_history": [],
 	}
