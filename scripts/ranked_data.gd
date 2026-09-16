@@ -178,7 +178,7 @@ static func rank_for_mmr(mmr: int, playlist: String) -> Dictionary:
 	var division_next := int(round(float(tier_min) + division_step * float(division)))
 	if division == 4:
 		division_next = next_tier_min
-	var division_roman := DIVISION_ROMAN[division - 1]
+	var division_roman: String = str(DIVISION_ROMAN[division - 1])
 	return {
 		"name": "%s Division %s" % [str(tier_data["tier_name"]), division_roman],
 		"compact_name": "%s • Div %s" % [str(tier_data["tier_name"]), division_roman],
@@ -283,7 +283,7 @@ static func top_ladder(playlist: String) -> Array:
 static func around_player(mmr: int, playlist: String) -> Array:
 	var key := normalize_playlist(playlist)
 	var own_position := estimated_position(mmr, key)
-	var seed := abs((mmr * 17 + key.hash()) % AROUND_NAMES.size())
+	var seed: int = absi((mmr * 17 + key.hash()) % AROUND_NAMES.size())
 	var result: Array = []
 	for offset in range(-3, 4):
 		var rating := maxi(0, mmr - offset * 4)
