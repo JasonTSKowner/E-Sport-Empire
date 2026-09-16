@@ -1,7 +1,9 @@
 class_name GameData
 extends RefCounted
 
-const VERSION := 4
+const RankedDataRef = preload("res://scripts/ranked_data.gd")
+
+const VERSION := 5
 const MODES := ["Rocket League", "Fortnite", "Warzone"]
 
 const MODE_SHORT := {
@@ -270,53 +272,11 @@ static func next_rank_for_mmr(mmr: int) -> Dictionary:
 
 
 static func rl_rank_for_mmr(mmr: int, playlist: String) -> Dictionary:
-	var key := playlist if playlist in ["1v1", "2v2", "3v3"] else "1v1"
-	var bases: Array = RL_RANK_BASES[key]
-	var major_index := 0
-	for index in range(bases.size()):
-		if mmr >= int(bases[index]["minimum"]):
-			major_index = index
-
-	var major: Dictionary = bases[major_index]
-	if major_index == bases.size() - 1:
-		return {
-			"name": "Supersonic Legend",
-			"short_name": "SSL",
-			"minimum": int(major["minimum"]),
-			"next_minimum": int(major["minimum"]),
-			"accent": str(major["accent"]),
-			"tier": 0,
-			"division": 0,
-		}
-
-	var next_major: Dictionary = bases[major_index + 1]
-	var span := maxi(12, int(next_major["minimum"]) - int(major["minimum"]))
-	var step := maxf(1.0, float(span) / 12.0)
-	var slot := clampi(int(floor(float(mmr - int(major["minimum"])) / step)), 0, 11)
-	var tier := int(slot / 4) + 1
-	var division := slot % 4 + 1
-	var tier_roman := ["I", "II", "III"][tier - 1]
-	var minimum := int(round(float(major["minimum"]) + step * float(slot)))
-	var next_minimum := int(round(float(major["minimum"]) + step * float(slot + 1)))
-	if slot == 11:
-		next_minimum = int(next_major["minimum"])
-
-	return {
-		"name": "%s %s Div %d" % [str(major["name"]), tier_roman, division],
-		"short_name": "%s %s D%d" % [str(major["name"]), tier_roman, division],
-		"minimum": minimum,
-		"next_minimum": next_minimum,
-		"accent": str(major["accent"]),
-		"tier": tier,
-		"division": division,
-	}
+	return RankedDataRef.rank_for_mmr(mmr, playlist)
 
 
 static func rl_next_rank_for_mmr(mmr: int, playlist: String) -> Dictionary:
-	var current := rl_rank_for_mmr(mmr, playlist)
-	if str(current["name"]) == "Supersonic Legend":
-		return current
-	return rl_rank_for_mmr(int(current["next_minimum"]), playlist)
+	return RankedDataRef.next_rank_for_mmr(mmr, playlist)
 
 
 static func format_cash(value: int) -> String:

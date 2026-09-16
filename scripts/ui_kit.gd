@@ -33,6 +33,9 @@ static func box(
 	style.content_margin_right = 16.0
 	style.content_margin_top = 14.0
 	style.content_margin_bottom = 14.0
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.24)
+	style.shadow_size = 5
+	style.shadow_offset = Vector2(0.0, 3.0)
 	style.anti_aliasing = true
 	return style
 
@@ -42,7 +45,10 @@ static func card(accent: Color = Color.TRANSPARENT) -> PanelContainer:
 	var border := Color(0.24, 0.34, 0.62, 0.28)
 	if accent.a > 0.0:
 		border = Color(accent.r, accent.g, accent.b, 0.42)
-	panel.add_theme_stylebox_override("panel", box(Color(0.045, 0.071, 0.16, 0.96), 20, border, 1))
+	var style := box(Color(0.045, 0.071, 0.16, 0.96), 20, border, 1)
+	if accent.a > 0.0:
+		style.border_width_left = 4
+	panel.add_theme_stylebox_override("panel", style)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	return panel
@@ -56,7 +62,10 @@ static func label(text: String, size: int = 16, color: Color = TEXT, weight: int
 	if weight >= 700:
 		node.add_theme_constant_override("outline_size", 1)
 		node.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.24))
+	# Never fall back to character-by-character wrapping on narrow phones.
+	# Long copy wraps only at word boundaries throughout the app.
 	node.autowrap_mode = TextServer.AUTOWRAP_WORD
+	node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return node
 
@@ -78,8 +87,10 @@ static func button(
 	node.text = text
 	node.focus_mode = Control.FOCUS_NONE
 	node.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	node.mouse_filter = Control.MOUSE_FILTER_PASS
+	node.keep_pressed_outside = false
 	node.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	node.custom_minimum_size = Vector2(0.0, 50.0 if compact else 62.0)
+	node.custom_minimum_size = Vector2(0.0, 54.0 if compact else 64.0)
 	node.add_theme_font_size_override("font_size", 15 if compact else 17)
 	node.add_theme_color_override("font_color", TEXT if filled else accent)
 	node.add_theme_color_override("font_hover_color", TEXT)
@@ -163,6 +174,7 @@ static func margin(
 
 static func stat_chip(caption: String, value: String, accent: Color = CYAN) -> PanelContainer:
 	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_theme_stylebox_override(
 		"panel",
@@ -182,6 +194,7 @@ static func stat_chip(caption: String, value: String, accent: Color = CYAN) -> P
 
 static func badge(text: String, accent: Color = CYAN) -> PanelContainer:
 	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override(
 		"panel",
 		box(

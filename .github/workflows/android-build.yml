@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix]
+    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul]
   workflow_dispatch:
 
 permissions:
@@ -52,6 +52,24 @@ jobs:
             printf "%s" "$PASS" > .android-signing/password.txt
             keytool -genkeypair -noprompt               -keystore .android-signing/e-sport-empire.keystore               -storepass "$PASS"               -keypass "$PASS"               -alias esportempire               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=E-Sport Empire Alpha,O=TSK,C=DE"
           fi
+
+      - name: Install Godot test runtime
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 \
+            https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip \
+            --output /tmp/godot-runtime.zip
+          mkdir -p /tmp/godot-runtime
+          unzip -q /tmp/godot-runtime.zip -d /tmp/godot-runtime
+          chmod +x /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64
+
+      - name: Run ranked and mobile smoke test
+        shell: bash
+        run: |
+          /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
+            --headless \
+            --path . \
+            --script res://tests/smoke_test.gd
 
       - name: Import and export Godot project
         id: export
