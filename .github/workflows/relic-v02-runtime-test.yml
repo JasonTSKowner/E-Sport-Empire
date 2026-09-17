@@ -24,7 +24,7 @@ jobs:
           base64 -d /tmp/relic_v02.b64 > /tmp/relic_v02.zip
           unzip -q /tmp/relic_v02.zip -d relic-build/runtime-src
 
-      - name: Apply cold-start fix
+      - name: Apply cold-start and 3D runtime fixes
         shell: bash
         run: |
           python3 - <<'PY'
@@ -52,6 +52,10 @@ jobs:
           s = s.replace('func _is_upgrade(item: LootItem) -> bool:', 'func _is_upgrade(item: LootItemScript) -> bool:')
           s = s.replace('var current: LootItem = equipped[item.slot]', 'var current: LootItemScript = equipped[item.slot]')
           s = s.replace('RarityData.base_chance', 'RarityDataScript.base_chance')
+          s = s.replace('    orb.global_position = hero_root.global_position + Vector3(0.55, 1.15, 0.25)\n    add_child(orb)\n',
+                        '    add_child(orb)\n    orb.global_position = hero_root.global_position + Vector3(0.55, 1.15, 0.25)\n')
+          s = s.replace('        mote.global_position = origin\n        add_child(mote)\n',
+                        '        add_child(mote)\n        mote.global_position = origin\n')
           p.write_text(s)
 
           p = root / "scripts/loot_item.gd"
