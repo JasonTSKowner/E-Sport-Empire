@@ -56,12 +56,21 @@ jobs:
                         '    add_child(orb)\n    orb.global_position = hero_root.global_position + Vector3(0.55, 1.15, 0.25)\n')
           s = s.replace('        mote.global_position = origin\n        add_child(mote)\n',
                         '        add_child(mote)\n        mote.global_position = origin\n')
+          s = s.replace('    camera.position = Vector3(0.0, 3.55, 7.6)\\n    camera.fov = 39.0\\n    camera.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)\\n    add_child(camera)\\n',
+                        '    camera.position = Vector3(0.0, 3.55, 7.6)\\n    camera.fov = 39.0\\n    add_child(camera)\\n    camera.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)\\n')
+          s = s.replace('    if is_instance_valid(core_root):\\n        var scale_bonus := 1.0 + minf(0.30, float(core_level - 1) * 0.003)\\n        if not create_tween().is_running():\\n            core_root.scale = Vector3.ONE * scale_bonus\\n',
+                        '    if is_instance_valid(core_root):\\n        var scale_bonus := 1.0 + minf(0.30, float(core_level - 1) * 0.003)\\n        core_root.scale = Vector3.ONE * scale_bonus\\n')
           p.write_text(s)
 
           p = root / "scripts/loot_item.gd"
           s = p.read_text()
           s = s.replace('extends RefCounted\n\n', 'extends RefCounted\n\nconst RarityDataScript = preload("res://scripts/rarity_data.gd")\n\n', 1)
           s = s.replace('RarityData.multiplier', 'RarityDataScript.multiplier')
+          s = s.replace('class_name LootItem\\nextends RefCounted\\n', 'extends RefCounted\\n')
+          s = s.replace('static func generate(rng: RandomNumberGenerator, rarity: int, core_level: int, quality_level: int) -> LootItem:\\n    var item := LootItem.new()\\n',
+                        'static func generate(rng: RandomNumberGenerator, rarity: int, core_level: int, quality_level: int):\\n    var item = (load("res://scripts/loot_item.gd") as Script).new()\\n')
+          s = s.replace('static func from_dict(data: Dictionary) -> LootItem:\\n    var item := LootItem.new()\\n',
+                        'static func from_dict(data: Dictionary):\\n    var item = (load("res://scripts/loot_item.gd") as Script).new()\\n')
           p.write_text(s)
           PY
 
