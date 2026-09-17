@@ -1,4 +1,4 @@
-name: Runtime test Relic Ascension v0.2 3D
+name: Runtime test Relic Ascension v0.2.1 3D
 
 on:
   pull_request:
@@ -23,6 +23,43 @@ jobs:
           cat relic-build/v02.part1 relic-build/v02.part2 relic-build/v02.part3 relic-build/v02.part4 > /tmp/relic_v02.b64
           base64 -d /tmp/relic_v02.b64 > /tmp/relic_v02.zip
           unzip -q /tmp/relic_v02.zip -d relic-build/runtime-src
+
+      - name: Apply cold-start fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("relic-build/runtime-src/lootcore_rpg")
+          p = root / "scripts/main.gd"
+          s = p.read_text()
+          s = s.replace('extends Node3D\n\n', 'extends Node3D\n\nconst RarityDataScript = preload("res://scripts/rarity_data.gd")\nconst LootItemScript = preload("res://scripts/loot_item.gd")\nconst SaveManagerScript = preload("res://scripts/save_manager.gd")\n\n', 1)
+          s = s.replace('var last_item: LootItem = null', 'var last_item: LootItemScript = null')
+          s = s.replace('SaveManager.load_save()', 'SaveManagerScript.load_save()')
+          s = s.replace('LootItem.from_dict(item_data)', 'LootItemScript.from_dict(item_data)')
+          s = s.replace('var item: LootItem = equipped[slot]', 'var item: LootItemScript = equipped[slot]')
+          s = s.replace('SaveManager.save(state)', 'SaveManagerScript.save(state)')
+          s = s.replace('var weapon := hero_root.get_node_or_null("WeaponPivot")', 'var weapon := hero_root.get_node_or_null("WeaponPivot") as Node3D')
+          s = s.replace('var start_rot := weapon.rotation', 'var start_rot: Vector3 = weapon.rotation')
+          s = s.replace('var body := enemy_root.get_node_or_null("Body")', 'var body := enemy_root.get_node_or_null("Body") as MeshInstance3D')
+          s = s.replace('var original_scale := body.scale', 'var original_scale: Vector3 = body.scale')
+          s = s.replace('RarityData.roll_index', 'RarityDataScript.roll_index')
+          s = s.replace('LootItem.generate', 'LootItemScript.generate')
+          s = s.replace('RarityData.max_unlocked', 'RarityDataScript.max_unlocked')
+          s = s.replace('RarityData.NAMES', 'RarityDataScript.NAMES')
+          s = s.replace('RarityData.COLORS', 'RarityDataScript.COLORS')
+          s = s.replace('func _show_item(item: LootItem) -> void:', 'func _show_item(item: LootItemScript) -> void:')
+          s = s.replace('var previous: LootItem = equipped.get(slot, null)', 'var previous: LootItemScript = equipped.get(slot, null)')
+          s = s.replace('func _is_upgrade(item: LootItem) -> bool:', 'func _is_upgrade(item: LootItemScript) -> bool:')
+          s = s.replace('var current: LootItem = equipped[item.slot]', 'var current: LootItemScript = equipped[item.slot]')
+          s = s.replace('RarityData.base_chance', 'RarityDataScript.base_chance')
+          p.write_text(s)
+
+          p = root / "scripts/loot_item.gd"
+          s = p.read_text()
+          s = s.replace('extends RefCounted\n\n', 'extends RefCounted\n\nconst RarityDataScript = preload("res://scripts/rarity_data.gd")\n\n', 1)
+          s = s.replace('RarityData.multiplier', 'RarityDataScript.multiplier')
+          p.write_text(s)
+          PY
 
       - name: Install Godot 4.7.2
         shell: bash
