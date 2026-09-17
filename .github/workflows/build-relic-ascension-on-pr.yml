@@ -1,0 +1,102 @@
+name: Build Relic Ascension APK on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Relic build branch
+        uses: actions/checkout@v4
+        with:
+          ref: build/relic-ascension-v0.1-apk
+
+      - name: Prepare project
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf relic-build/src
+          mkdir -p relic-build/src
+          base64 -d relic-build/relic_ascension_v0.1.0-alpha.zip.b64 > /tmp/relic_ascension.zip
+          unzip -q /tmp/relic_ascension.zip -d relic-build/src
+
+          cat > relic-build/src/lootcore_rpg/export_presets.cfg <<'EOF'
+          [preset.0]
+
+          name="Android"
+          platform="Android"
+          runnable=true
+          advanced_options=false
+          dedicated_server=false
+          custom_features=""
+          export_filter="all_resources"
+          include_filter=""
+          exclude_filter=""
+          export_path="build/relic-ascension-v0.1.0-alpha.apk"
+          patches=PackedStringArray()
+          encryption_include_filters=""
+          encryption_exclude_filters=""
+          seed=0
+          encrypt_pck=false
+          encrypt_directory=false
+          script_export_mode=2
+
+          [preset.0.options]
+
+          custom_template/debug=""
+          custom_template/release=""
+          gradle_build/use_gradle_build=false
+          gradle_build/gradle_build_directory=""
+          gradle_build/android_source_template=""
+          gradle_build/compress_native_libraries=false
+          gradle_build/export_format=0
+          gradle_build/min_sdk=""
+          gradle_build/target_sdk=""
+          architectures/armeabi-v7a=false
+          architectures/arm64-v8a=true
+          architectures/x86=false
+          architectures/x86_64=false
+          version/code=1
+          version/name="0.1.0-alpha"
+          package/unique_name="com.tsk.relicascension"
+          package/name="Relic Ascension"
+          package/signed=true
+          package/app_category=0
+          EOF
+
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Android Debug,O=Relic Ascension,C=DE" \
+            -keyalg RSA -keysize 2048 -validity 10000
+
+      - name: Export Android APK
+        id: export
+        uses: firebelley/godot-export@v8.0.0
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /home/runner/.android/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        with:
+          godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
+          relative_project_path: relic-build/src/lootcore_rpg/
+          presets_to_export: Android
+          export_debug: true
+          cache: true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: relic-ascension-v0.1.0-alpha-apk
+          path: ${{ steps.export.outputs.build_directory }}/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
