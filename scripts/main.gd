@@ -6,6 +6,7 @@ const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
 const TitleDataRef = preload("res://scripts/title_data.gd")
 const DevelopmentDataRef = preload("res://scripts/development_data.gd")
+const CareerDataRef = preload("res://scripts/career_data.gd")
 const MMRGraphRef = preload("res://scripts/mmr_graph.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 
@@ -139,7 +140,7 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.4.9", UI.PURPLE)
+	var version_badge := UI.badge("ALPHA 0.5", UI.PURPLE)
 	version_badge.custom_minimum_size.x = 84
 	brand_row.add_child(version_badge)
 
@@ -349,17 +350,182 @@ func _build_home_page() -> void:
 		"One player. Zero cash. Zero fans. Earn attention first — the organization comes later."
 	)
 	page_content.add_child(_origin_card())
+	page_content.add_child(_career_hub_card())
 	page_content.add_child(_club_hero())
 	if not game.data.get("contacts", []).is_empty():
 		page_content.add_child(_section_title("PEOPLE NOTICING YOU", "Real contacts can become your first teammates."))
 		for contact in game.data.get("contacts", []):
 			page_content.add_child(_contact_card(contact))
 	page_content.add_child(_sponsor_card())
+	page_content.add_child(_rivals_card())
 	page_content.add_child(_section_title("DIVISION STATUS", "Rocket League starts solo. Other divisions need players."))
 	for mode in GameDataRef.MODES:
 		page_content.add_child(_division_row(mode))
 	page_content.add_child(_section_title("RECENT FORM", "Your latest organization results."))
 	_build_history_list(page_content, 4)
+
+
+func _career_hub_card() -> Control:
+	var level_data := game.career_level_data()
+	var progress := game.career_level_progress()
+	var identity := game.club_identity()
+	var accent := Color(str(level_data.get("color", "2de2ff")))
+	var panel := UI.card(accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	var details := VBoxContainer.new()
+	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	details.add_child(UI.overline("CAREER PATH", accent))
+	details.add_child(
+		UI.label(
+			"LEVEL %d  •  %s"
+			% [game.career_level(), str(level_data.get("name", "Unknown Grinder")).to_upper()],
+			18,
+			UI.TEXT,
+			800
+		)
+	)
+	details.add_child(
+		UI.label(
+			"%d Career XP  •  %d milestone rewards ready"
+			% [game.career_xp(), game.claimable_milestone_count()],
+			11,
+			UI.MUTED
+		)
+	)
+	top.add_child(details)
+	top.add_child(UI.badge(str(identity.get("short", "CLUB DNA")), Color(str(identity.get("color", "58e39b")))))
+	box.add_child(top)
+	if bool(progress.get("maxed", false)):
+		box.add_child(UI.progress(1, 1, accent, 8))
+		box.add_child(UI.label("MAX CAREER LEVEL REACHED", 10, accent, 800))
+	else:
+		box.add_child(UI.progress(float(progress.get("value", 0)), float(progress.get("maximum", 1)), accent, 8))
+		box.add_child(
+			UI.label(
+				"%d XP to %s  •  each level adds +0.15 match strength and 1%% development discount"
+				% [
+					int(progress.get("remaining", 0)),
+					str(game.next_career_level_data().get("name", "next level")),
+				],
+				10,
+				UI.MUTED
+			)
+		)
+	box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.24)))
+	box.add_child(UI.overline("NEXT MILESTONES", UI.GOLD))
+	var milestones := game.career_milestones()
+	var visible_milestones: Array = []
+	for milestone in milestones:
+		if bool(milestone.get("complete", false)) and not bool(milestone.get("claimed", false)):
+			visible_milestones.append(milestone)
+	for milestone in milestones:
+		if not bool(milestone.get("complete", false)) and not bool(milestone.get("claimed", false)):
+			visible_milestones.append(milestone)
+	for milestone in milestones:
+		if bool(milestone.get("claimed", false)):
+			visible_milestones.append(milestone)
+	for index in range(mini(4, visible_milestones.size())):
+		box.add_child(_career_milestone_row(visible_milestones[index]))
+	return panel
+
+
+func _career_milestone_row(milestone: Dictionary) -> Control:
+	var complete := bool(milestone.get("complete", false))
+	var claimed := bool(milestone.get("claimed", false))
+	var accent := UI.GREEN if complete else UI.GOLD
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override(
+		"panel",
+		UI.box(
+			Color(accent.r, accent.g, accent.b, 0.07),
+			13,
+			Color(accent.r, accent.g, accent.b, 0.22),
+			1
+		)
+	)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	panel.add_child(box)
+	var top := HBoxContainer.new()
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(UI.label(str(milestone.get("label", "MILESTONE")), 12, UI.TEXT, 800))
+	identity.add_child(UI.label(str(milestone.get("detail", "Career objective")), 10, UI.MUTED))
+	top.add_child(identity)
+	var button_text := "CLAIM" if complete and not claimed else "CLAIMED" if claimed else "%d/%d" % [int(milestone.get("progress", 0)), int(milestone.get("target", 1))]
+	var claim := UI.button(button_text, accent, complete and not claimed, true)
+	claim.custom_minimum_size.x = 94
+	claim.disabled = not complete or claimed
+	claim.pressed.connect(_claim_career_milestone.bind(str(milestone.get("id", ""))))
+	top.add_child(claim)
+	box.add_child(top)
+	box.add_child(
+		UI.progress(
+			float(milestone.get("progress", 0)),
+			float(maxi(1, int(milestone.get("target", 1)))),
+			accent,
+			5
+		)
+	)
+	box.add_child(
+		UI.label(
+			"GUARANTEED  •  %s  •  +%d XP"
+			% [
+				GameDataRef.format_cash(int(milestone.get("cash", 0))),
+				int(milestone.get("xp", 0)),
+			],
+			9,
+			accent,
+			700
+		)
+	)
+	return panel
+
+
+func _rivals_card() -> Control:
+	var panel := UI.card(UI.RED)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	box.add_child(UI.overline("RIVAL WATCH", UI.RED))
+	var rivals := game.top_rivals(3)
+	if rivals.is_empty():
+		box.add_child(UI.label("No history yet", 17, UI.TEXT, 800))
+		box.add_child(UI.label("Opponents enter the watchlist after your first meeting. Three meetings create a rivalry; rivalry wins grant guaranteed bonus fans.", 11, UI.MUTED))
+		return panel
+	box.add_child(UI.label("Persistent head-to-head records", 17, UI.TEXT, 800))
+	for rival_value in rivals:
+		var rival: Dictionary = rival_value
+		var row := HBoxContainer.new()
+		var info := VBoxContainer.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_child(UI.label(str(rival.get("opponent", "Unknown")), 13, UI.TEXT, 800))
+		info.add_child(
+			UI.label(
+				"%s  •  %s  •  LAST %s"
+				% [
+					str(rival.get("format", "1v1")),
+					str(rival.get("tier", "WATCHLIST")),
+					str(rival.get("last_result", "—")),
+				],
+				9,
+				UI.MUTED,
+				700
+			)
+		)
+		row.add_child(info)
+		row.add_child(
+			UI.badge(
+				"%dW–%dL" % [int(rival.get("wins", 0)), int(rival.get("losses", 0))],
+				UI.GREEN if int(rival.get("wins", 0)) >= int(rival.get("losses", 0)) else UI.RED
+			)
+		)
+		box.add_child(row)
+	return panel
 
 func _origin_card() -> Control:
 	var panel := UI.card(UI.CYAN)
@@ -399,8 +565,7 @@ func _contact_card(contact: Dictionary) -> Control:
 		UI.MUTED
 	))
 	row.add_child(info)
-	var accept := UI.button("QUEUE
-TOGETHER", accent, true, true)
+	var accept := UI.button("QUEUE\nTOGETHER", accent, true, true)
 	accept.custom_minimum_size.x = 116
 	accept.pressed.connect(_accept_contact.bind(str(contact.get("id", ""))))
 	row.add_child(accept)
@@ -591,6 +756,31 @@ func _build_team_page() -> void:
 		_metric_block("FATIGUE", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD)
 	)
 	summary_box.add_child(summary_row)
+	var chemistry_row := HBoxContainer.new()
+	var chemistry := game.team_chemistry(mode)
+	var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
+	chemistry_row.add_child(_metric_block("CHEMISTRY", "%d%%" % chemistry, UI.PURPLE))
+	chemistry_row.add_child(_metric_block("SCRIM GAIN", "+%d" % scrim_gain, UI.GREEN))
+	chemistry_row.add_child(_metric_block("CAREER XP", "+8", UI.CYAN))
+	summary_box.add_child(chemistry_row)
+	var scrim_cost := game.scrim_cost(mode)
+	var scrim_ready := (
+		game.roster_for(mode).size() >= 2
+		and int(game.data.get("cash", 0)) >= scrim_cost
+		and chemistry < 100
+	)
+	var scrim_text := (
+		"TEAM SCRIM  •  %s  •  +%d CHEM"
+		% [GameDataRef.format_cash(scrim_cost), scrim_gain]
+	)
+	if game.roster_for(mode).size() < 2:
+		scrim_text = "TEAM SCRIM  •  NEEDS 2 PLAYERS"
+	elif chemistry >= 100:
+		scrim_text = "TEAM CHEMISTRY MAXED"
+	var scrim_button := UI.button(scrim_text, UI.PURPLE, scrim_ready)
+	scrim_button.disabled = not scrim_ready
+	scrim_button.pressed.connect(_team_scrim.bind(mode))
+	summary_box.add_child(scrim_button)
 	var recovery_note := UI.label(
 		"No energy bar and no training cooldown. Fatigue recovers automatically by 1 point per real minute, including offline; matches never skip the calendar.",
 		11,
@@ -824,6 +1014,15 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 			11,
 			UI.MUTED,
 			700
+		)
+	)
+	var archetype := DevelopmentDataRef.player_archetype(player)
+	identity.add_child(
+		UI.label(
+			"%s  •  DYNAMIC PLAYSTYLE" % str(archetype.get("label", "Complete Player")).to_upper(),
+			10,
+			Color(str(archetype.get("color", "f2efff"))),
+			800
 		)
 	)
 	identity.add_child(UI.label("Potential %d" % int(player["potential"]), 11, accent))
@@ -1741,7 +1940,11 @@ func _match_prep_card(mode: String) -> Control:
 	panel.add_child(box)
 	var form := _team_average(mode, "form")
 	var fatigue := _team_average(mode, "fatigue")
-	var snapshot := game.team_development_snapshot(mode, game.match_format(mode))
+	var format := game.match_format(mode)
+	var snapshot := game.team_development_snapshot(mode, format)
+	var chemistry := game.team_chemistry(mode, format)
+	var identity := game.club_identity()
+	var identity_accent := Color(str(identity.get("color", "58e39b")))
 	var attack_rating := int(round(
 		(float(snapshot.get("mechanics", 50)) + float(snapshot.get("shooting", 50))) / 2.0
 	))
@@ -1755,6 +1958,30 @@ func _match_prep_card(mode: String) -> Control:
 	box.add_child(
 		_prep_line(
 			"Freshness", 100 - fatigue, UI.CYAN, "Ready" if fatigue < 40 else "Needs recovery"
+		)
+	)
+	box.add_child(
+		_prep_line(
+			"Team chemistry",
+			chemistry,
+			UI.PURPLE,
+			"Solo — no modifier" if mode == "Rocket League" and format == "1v1" else "%+.2f strength" % (float(chemistry - 50) * 0.035)
+		)
+	)
+	box.add_child(
+		_prep_line(
+			"Club DNA",
+			100,
+			identity_accent,
+			"%s +4pp" % str(identity.get("action_label", "FAST COUNTER"))
+		)
+	)
+	box.add_child(
+		_prep_line(
+			"Career experience",
+			mini(100, game.career_level() * 10),
+			UI.GOLD,
+			"Level %d  •  +%.2f strength" % [game.career_level(), float(game.career_level() - 1) * 0.15]
 		)
 	)
 	box.add_child(_prep_line("Attack package", attack_rating, UI.GOLD, "Mechanics + shooting"))
@@ -1886,6 +2113,7 @@ func _build_empire_page() -> void:
 		"Build the Empire",
 		"Upgrade the infrastructure behind every player, match and future trophy."
 	)
+	page_content.add_child(_club_identity_card())
 	var economy := UI.card(UI.GOLD)
 	var economy_box := VBoxContainer.new()
 	economy_box.add_theme_constant_override("separation", 11)
@@ -1913,6 +2141,49 @@ func _build_empire_page() -> void:
 	)
 	for key in GameDataRef.FACILITIES:
 		page_content.add_child(_facility_card(key))
+
+
+func _club_identity_card() -> Control:
+	var active := game.club_identity()
+	var active_accent := Color(str(active.get("color", "58e39b")))
+	var panel := UI.card(active_accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	box.add_child(UI.overline("CLUB DNA", active_accent))
+	box.add_child(UI.label(str(active.get("name", "Counter Culture")), 19, UI.TEXT, 800))
+	box.add_child(UI.label(str(active.get("detail", "Choose how the club wants to play.")), 11, UI.MUTED))
+	box.add_child(
+		UI.label(
+			"The bonus is deterministic and appears inside every tactical probability before you choose. Switching identity is always free.",
+			10,
+			UI.DIM
+		)
+	)
+	for identity_value in CareerDataRef.CLUB_IDENTITIES:
+		var identity: Dictionary = identity_value
+		var identity_id := str(identity.get("id", ""))
+		var selected := identity_id == str(active.get("id", ""))
+		var accent := Color(str(identity.get("color", "2de2ff")))
+		var choose := UI.button(
+			(
+				"ACTIVE  •  %s\n%s"
+				if selected
+				else "%s\n%s"
+			)
+			% [
+				str(identity.get("name", "Club identity")).to_upper(),
+				str(identity.get("detail", "+4 percentage points")),
+			],
+			accent,
+			not selected,
+			true
+		)
+		choose.custom_minimum_size.y = 62
+		choose.disabled = selected
+		choose.pressed.connect(_set_club_identity.bind(identity_id))
+		box.add_child(choose)
+	return panel
 
 
 func _facility_card(key: String) -> Control:
@@ -2047,6 +2318,18 @@ func _history_row(entry: Dictionary) -> Control:
 
 func _accept_contact(contact_id: String) -> void:
 	_handle_action(game.accept_contact(contact_id), "home")
+
+
+func _claim_career_milestone(milestone_id: String) -> void:
+	_handle_action(game.claim_career_milestone(milestone_id), "home")
+
+
+func _team_scrim(mode: String) -> void:
+	_handle_action(game.team_scrim(mode), "team")
+
+
+func _set_club_identity(identity_id: String) -> void:
+	_handle_action(game.set_club_identity(identity_id), "empire")
 
 
 func _toggle_stream() -> void:
@@ -2351,6 +2634,18 @@ func _present_match_decision() -> void:
 	match_decision_box.add_child(read_card)
 	match_decision_box.add_child(UI.label("Choose the counter-call. Your read changes the scoring chance; rating still changes only from the final win or loss.", 11, UI.DIM))
 	match_decision_box.add_child(UI.badge("BOOST %d  •  REPEATED CALLS BECOME READABLE" % int(match_session.get("boost", 0)), UI.CYAN))
+	var match_identity := game.club_identity()
+	var match_identity_accent := Color(str(match_identity.get("color", "58e39b")))
+	match_decision_box.add_child(
+		UI.badge(
+			"%s  •  %s +4pp"
+			% [
+				str(match_identity.get("short", "CLUB DNA")),
+				str(match_identity.get("action_label", "FAST COUNTER")),
+			],
+			match_identity_accent
+		)
+	)
 	var definitions: Array = game.match_action_definitions()
 	for definition_value in definitions:
 		var definition: Dictionary = definition_value
@@ -2366,16 +2661,19 @@ func _present_match_decision() -> void:
 				_chance_text(float(odds.get("their_goal", 0.0))),
 				_chance_text(float(odds.get("neutral", 0.0))),
 			]
+			if bool(odds.get("identity_active", false)):
+				chance_line += "\nCLUB DNA ACTIVE  •  +%dpp SCORE" % int(round(float(odds.get("identity_bonus", 0.0)) * 100.0))
+		var action_accent := match_identity_accent if bool(odds.get("identity_active", false)) else UI.CYAN
 		var action_button := UI.button(
 			"%s  •  %s%s" % [str(definition.get("label", "MAKE CALL")), boost_text, chance_line]
 			if action_available
 			else "%s  •  NEED %d BOOST" % [str(definition.get("label", "MAKE CALL")), int(definition.get("minimum_boost", 0))],
-			UI.CYAN,
+			action_accent,
 			action_available,
 			true
 		)
 		action_button.disabled = not action_available
-		action_button.custom_minimum_size.y = 62
+		action_button.custom_minimum_size.y = 76 if bool(odds.get("identity_active", false)) else 62
 		action_button.add_theme_font_size_override("font_size", 10)
 		action_button.pressed.connect(_choose_match_action.bind(action_key))
 		match_decision_box.add_child(action_button)
@@ -2541,6 +2839,40 @@ func _finish_match_animation() -> void:
 		tactical_row.add_child(_metric_block("TACTICAL GRADE", str(match_result.get("tactical_grade", "C")), UI.CYAN))
 		tactical_row.add_child(_metric_block("READ SCORE", "%+d" % int(match_result.get("decision_score", 0)), UI.GOLD))
 		result_box.add_child(tactical_row)
+	var career_row := HBoxContainer.new()
+	career_row.add_child(
+		_metric_block("CAREER XP", "+%d" % int(match_result.get("career_xp", 0)), UI.GOLD)
+	)
+	career_row.add_child(
+		_metric_block(
+			"CHEMISTRY",
+			"SOLO" if is_rocket_league and str(match_result.get("format", "1v1")) == "1v1" else "%+d  →  %d%%" % [int(match_result.get("chemistry_gain", 0)), int(match_result.get("team_chemistry", 0))],
+			UI.PURPLE
+		)
+	)
+	result_box.add_child(career_row)
+	if bool(match_result.get("career_level_up", false)):
+		result_box.add_child(
+			UI.badge(
+				"CAREER LEVEL UP  •  LV %d %s"
+				% [
+					int(match_result.get("career_level", 1)),
+					str(match_result.get("career_level_name", "NEW LEVEL")).to_upper(),
+				],
+				UI.GOLD
+			)
+		)
+	var rival: Dictionary = match_result.get("rival", {})
+	if not rival.is_empty():
+		var rivalry_text := "%s  •  %s  •  %dW–%dL" % [
+			str(rival.get("tier", "WATCHLIST")),
+			str(rival.get("opponent", "Opponent")),
+			int(rival.get("wins", 0)),
+			int(rival.get("losses", 0)),
+		]
+		if int(match_result.get("rival_bonus_fans", 0)) > 0:
+			rivalry_text += "  •  +%d RIVAL FANS" % int(match_result.get("rival_bonus_fans", 0))
+		result_box.add_child(UI.badge(rivalry_text, UI.RED))
 	match_result_box.add_child(result_panel)
 
 	if is_rocket_league:

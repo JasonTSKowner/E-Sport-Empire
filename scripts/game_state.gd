@@ -7,6 +7,7 @@ const RankedDataRef = preload("res://scripts/ranked_data.gd")
 const TitleDataRef = preload("res://scripts/title_data.gd")
 const DevelopmentDataRef = preload("res://scripts/development_data.gd")
 const CoachingDataRef = preload("res://scripts/coaching_data.gd")
+const CareerDataRef = preload("res://scripts/career_data.gd")
 const FATIGUE_RECOVERY_INTERVAL_SECONDS := 60
 const SEASON_MATCH_LIMIT := 36
 
@@ -163,6 +164,284 @@ func set_selected_rl_playlist(playlist: String) -> void:
 	var normalized := RankedDataRef.normalize_playlist(playlist)
 	data["selected_rl_playlist"] = normalized
 	save_game()
+
+
+func career_xp() -> int:
+	return maxi(0, int(data.get("career_xp", 0)))
+
+
+func career_level_data() -> Dictionary:
+	return CareerDataRef.level_for_xp(career_xp())
+
+
+func next_career_level_data() -> Dictionary:
+	return CareerDataRef.next_level_for_xp(career_xp())
+
+
+func career_level() -> int:
+	return int(career_level_data().get("level", 1))
+
+
+func career_level_progress() -> Dictionary:
+	var current := career_level_data()
+	var next := next_career_level_data()
+	var current_min := int(current.get("minimum_xp", 0))
+	var next_min := int(next.get("minimum_xp", current_min))
+	if next_min <= current_min:
+		return {"value": 1, "maximum": 1, "remaining": 0, "maxed": true}
+	return {
+		"value": career_xp() - current_min,
+		"maximum": next_min - current_min,
+		"remaining": maxi(0, next_min - career_xp()),
+		"maxed": false,
+	}
+
+
+func _award_career_xp(amount: int) -> Dictionary:
+	var granted := maxi(0, amount)
+	var before := career_level_data()
+	data["career_xp"] = career_xp() + granted
+	var after := career_level_data()
+	return {
+		"xp": granted,
+		"level_before": int(before.get("level", 1)),
+		"level_after": int(after.get("level", 1)),
+		"level_up": int(after.get("level", 1)) > int(before.get("level", 1)),
+		"level_name": str(after.get("name", "Unknown Grinder")),
+	}
+
+
+func club_identity() -> Dictionary:
+	return CareerDataRef.identity(str(data.get("club_identity", "counter")))
+
+
+func set_club_identity(identity_id: String) -> Dictionary:
+	var identity := CareerDataRef.identity(identity_id)
+	if str(identity.get("id", "")) != identity_id:
+		return {"ok": false, "message": "Unknown club identity."}
+	data["club_identity"] = identity_id
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s is now the club DNA." % str(identity.get("name", "Club identity")),
+	}
+
+
+func team_chemistry(mode: String, format: String = "") -> int:
+	if mode == "Rocket League" and format == "1v1":
+		return 100
+	return clampi(int(data.get("team_chemistry", {}).get(mode, 35)), 0, 100)
+
+
+func scrim_cost(mode: String) -> int:
+	return maxi(35, 24 + int(round(float(team_overall(mode)) * 0.52)))
+
+
+func team_scrim(mode: String) -> Dictionary:
+	apply_real_time_fatigue_recovery(false)
+	var roster := roster_for(mode)
+	if roster.size() < 2:
+		return {"ok": false, "message": "A team scrim needs at least two active players."}
+	var cost := scrim_cost(mode)
+	if int(data.get("cash", 0)) < cost:
+		return {"ok": false, "message": "You need %s for a team scrim." % GameDataRef.format_cash(cost)}
+	var before := team_chemistry(mode)
+	var gain := 5 + int(floor(float(facility_level("coaching")) / 3.0))
+	var after := mini(100, before + gain)
+	if after <= before:
+		return {"ok": false, "message": "Team chemistry is already maxed."}
+	data["cash"] = int(data.get("cash", 0)) - cost
+	data["team_chemistry"][mode] = after
+	for player in roster:
+		player["fatigue"] = clampi(int(player.get("fatigue", 0)) + 3, 0, 100)
+		player["form"] = clampi(int(player.get("form", 50)) + 1, 25, 100)
+	var career_reward := _award_career_xp(8)
+	save_game()
+	return {
+		"ok": true,
+		"message": "Team scrim complete: +%d chemistry, +8 Career XP for %s."
+		% [after - before, GameDataRef.format_cash(cost)],
+		"cost": cost,
+		"gain": after - before,
+		"chemistry": after,
+		"career": career_reward,
+	}
+
+
+func _change_team_chemistry(mode: String, amount: int) -> int:
+	if amount == 0:
+		return 0
+	var before := team_chemistry(mode)
+	var after := clampi(before + amount, 0, 100)
+	data["team_chemistry"][mode] = after
+	return after - before
+
+
+func _match_chemistry_gain(mode: String, format: String, won: bool) -> int:
+	if mode == "Rocket League" and format == "1v1":
+		return 0
+	return _change_team_chemistry(mode, 2 if won else 1)
+
+
+func career_milestone_progress(milestone: Dictionary) -> int:
+	var key := str(milestone.get("progress_key", ""))
+	if key == "ranked_matches" or key == "ranked_wins" or key == "placements":
+		var total_matches := 0
+		var total_wins := 0
+		var best_placements := 0
+		for playlist in RankedDataRef.PLAYLISTS:
+			var record := playlist_record(playlist)
+			total_matches += int(record.get("played", 0))
+			total_wins += int(record.get("wins", 0))
+			best_placements = maxi(best_placements, int(record.get("placements", 0)))
+		if key == "ranked_matches":
+			return total_matches
+		if key == "ranked_wins":
+			return total_wins
+		return best_placements
+	if key == "rl_roster":
+		return roster_for("Rocket League").size()
+	if key == "gold_rank" or key == "grand_champion":
+		var target_families := ["Gold", "Platinum", "Diamond", "Champion", "Grand Champion", "Supersonic Legend"]
+		if key == "grand_champion":
+			target_families = ["Grand Champion", "Supersonic Legend"]
+		for playlist in RankedDataRef.PLAYLISTS:
+			var record := playlist_record(playlist)
+			var family := str(RankedDataRef.rank_for_mmr(int(record.get("peak_mmr", 100)), playlist).get("family", "Bronze"))
+			if family in target_families:
+				return 1
+		return 0
+	if key == "musty_unlocked":
+		var captain := _find_player("captain")
+		if captain.is_empty():
+			return 0
+		for move_value in DevelopmentDataRef.unlocked_mechanics(captain):
+			var move: Dictionary = move_value
+			if str(move.get("id", "")) == "musty_flick":
+				return 1
+		return 0
+	if key == "chemistry":
+		return team_chemistry("Rocket League")
+	if key == "cup_wins":
+		return int(data.get("cup_wins", 0))
+	if key == "facility_levels":
+		var total_levels := 0
+		for facility_key in GameDataRef.FACILITIES:
+			total_levels += facility_level(str(facility_key))
+		return total_levels
+	if key == "followers":
+		return int(data.get("streaming", {}).get("followers", 0))
+	if key == "seasons_finished":
+		return int(data.get("seasons_finished", 0))
+	return 0
+
+
+func career_milestones() -> Array:
+	var result: Array = []
+	var claimed: Array = data.get("claimed_milestones", [])
+	for milestone_value in CareerDataRef.MILESTONES:
+		var milestone: Dictionary = milestone_value.duplicate(true)
+		var progress := career_milestone_progress(milestone)
+		var target := maxi(1, int(milestone.get("target", 1)))
+		milestone["progress"] = mini(progress, target)
+		milestone["complete"] = progress >= target
+		milestone["claimed"] = str(milestone.get("id", "")) in claimed
+		result.append(milestone)
+	return result
+
+
+func claimable_milestone_count() -> int:
+	var count := 0
+	for milestone in career_milestones():
+		if bool(milestone.get("complete", false)) and not bool(milestone.get("claimed", false)):
+			count += 1
+	return count
+
+
+func claim_career_milestone(milestone_id: String) -> Dictionary:
+	var definition := CareerDataRef.milestone(milestone_id)
+	if definition.is_empty():
+		return {"ok": false, "message": "Unknown career milestone."}
+	var claimed: Array = data.get("claimed_milestones", [])
+	if milestone_id in claimed:
+		return {"ok": false, "message": "That milestone reward was already claimed."}
+	if career_milestone_progress(definition) < int(definition.get("target", 1)):
+		return {"ok": false, "message": "That career milestone is not complete yet."}
+	var cash_reward := int(definition.get("cash", 0))
+	var xp_reward := int(definition.get("xp", 0))
+	data["cash"] = int(data.get("cash", 0)) + cash_reward
+	claimed.append(milestone_id)
+	data["claimed_milestones"] = claimed
+	var career_reward := _award_career_xp(xp_reward)
+	save_game()
+	var level_suffix := ""
+	if bool(career_reward.get("level_up", false)):
+		level_suffix = " Level up: %s." % str(career_reward.get("level_name", "New level"))
+	return {
+		"ok": true,
+		"message": "%s claimed: +%s and +%d Career XP.%s"
+		% [
+			str(definition.get("label", "Milestone")),
+			GameDataRef.format_cash(cash_reward),
+			xp_reward,
+			level_suffix,
+		],
+		"cash": cash_reward,
+		"xp": xp_reward,
+		"career": career_reward,
+	}
+
+
+func _update_rival(mode: String, format: String, opponent: String, won: bool) -> Dictionary:
+	var rival_key := "%s::%s" % [mode, opponent]
+	var rivals: Dictionary = data.get("rivals", {})
+	var record: Dictionary = rivals.get(rival_key, {
+		"id": rival_key,
+		"mode": mode,
+		"format": format,
+		"opponent": opponent,
+		"played": 0,
+		"wins": 0,
+		"losses": 0,
+		"streak": 0,
+		"last_result": "",
+	})
+	record["played"] = int(record.get("played", 0)) + 1
+	if won:
+		record["wins"] = int(record.get("wins", 0)) + 1
+		record["streak"] = maxi(1, int(record.get("streak", 0)) + 1)
+		record["last_result"] = "W"
+	else:
+		record["losses"] = int(record.get("losses", 0)) + 1
+		record["streak"] = mini(-1, int(record.get("streak", 0)) - 1)
+		record["last_result"] = "L"
+	record["last_played"] = real_time_now()
+	var meetings := int(record.get("played", 0))
+	record["tier"] = "NEMESIS" if meetings >= 6 else "RIVAL" if meetings >= 3 else "WATCHLIST"
+	var bonus_fans := 0
+	if won and meetings >= 3:
+		bonus_fans = 3 + mini(12, meetings * 2)
+		data["fans"] = int(data.get("fans", 0)) + bonus_fans
+	record["bonus_fans"] = bonus_fans
+	rivals[rival_key] = record
+	data["rivals"] = rivals
+	return record.duplicate(true)
+
+
+func top_rivals(limit: int = 3) -> Array:
+	var result: Array = []
+	for rival_key in data.get("rivals", {}):
+		result.append(data["rivals"][rival_key].duplicate(true))
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var a_played := int(a.get("played", 0))
+		var b_played := int(b.get("played", 0))
+		if a_played == b_played:
+			return int(a.get("last_played", 0)) > int(b.get("last_played", 0))
+		return a_played > b_played
+	)
+	if result.size() > limit:
+		result.resize(limit)
+	return result
 
 
 func earned_titles() -> Array:
@@ -368,10 +647,13 @@ func buy_facility(key: String) -> Dictionary:
 	data["cash"] = int(data["cash"]) - cost
 	data["facilities"][key] = level + 1
 	data["reputation"] = int(data["reputation"]) + 1
+	var career_reward := _award_career_xp(18)
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s reached level %d." % [GameDataRef.FACILITIES[key]["name"], level + 1],
+		"message": "%s reached level %d. +18 Career XP."
+		% [GameDataRef.FACILITIES[key]["name"], level + 1],
+		"career": career_reward,
 	}
 
 
@@ -386,7 +668,8 @@ func training_cost(player: Dictionary, program_id: String = "mechanics_lab") -> 
 	var raw_cost := float(program.get("base_cost", 15))
 	raw_cost += float(player_overall(player)) * float(program.get("rating_scale", 0.32))
 	var coaching_discount := minf(0.25, float(facility_level("coaching")) * 0.025)
-	return maxi(8, int(round(raw_cost * (1.0 - coaching_discount))))
+	var career_discount := minf(0.09, float(career_level() - 1) * 0.01)
+	return maxi(8, int(round(raw_cost * (1.0 - coaching_discount - career_discount))))
 
 
 func real_time_now() -> int:
@@ -473,6 +756,7 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 	while history.size() > 10:
 		history.pop_back()
 	player["training_history"] = history
+	var career_reward := _award_career_xp(6)
 	save_game()
 	var gain_parts: Array[String] = []
 	for stat_key in applied_gains:
@@ -495,7 +779,7 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 		unlock_suffix = " • UNLOCKED: %s" % ", ".join(unlock_names)
 	return {
 		"ok": true,
-		"message": "%s completed %s for %s: %s%s."
+		"message": "%s completed %s for %s: %s%s. +6 Career XP."
 		% [
 			player["name"],
 			str(program.get("label", "training")),
@@ -509,6 +793,7 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 		"breakthrough": breakthrough,
 		"breakthrough_chance": breakthrough_chance,
 		"unlocked_mechanics": new_mechanics,
+		"career": career_reward,
 	}
 
 
@@ -572,11 +857,12 @@ func generate_coaching_market() -> Dictionary:
 		]
 		var is_free := rng.randf() < coaching_free_offer_chance()
 		var facility_discount := minf(0.24, float(facility_level("coaching")) * 0.03)
+		var career_discount := minf(0.09, float(career_level() - 1) * 0.01)
 		var detail_price_multiplier := 0.90 + detail_progress * 0.20
 		var price := int(round(
 			float(definition.get("base_price", 20))
 			* detail_price_multiplier
-			* (1.0 - facility_discount)
+			* (1.0 - facility_discount - career_discount)
 		))
 		if is_free:
 			price = 0
@@ -661,10 +947,11 @@ func book_coaching_session(offer_id: String, player_id: String) -> Dictionary:
 	if data["coaching_market"].is_empty():
 		generate_coaching_market()
 		board_refilled = true
+	var career_reward := _award_career_xp(8)
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s coached %s: +%d %s%s."
+		"message": "%s coached %s: +%d %s%s. +8 Career XP."
 		% [
 			str(offer.get("name", "Coach")),
 			str(player.get("name", "Player")),
@@ -678,6 +965,7 @@ func book_coaching_session(offer_id: String, player_id: String) -> Dictionary:
 		"bonus_hit": bonus_hit,
 		"bonus_chance": bonus_chance,
 		"board_refilled": board_refilled,
+		"career": career_reward,
 	}
 
 
@@ -773,11 +1061,19 @@ func sign_player(prospect_id: String) -> Dictionary:
 	data["market"].erase(prospect)
 	data["cash"] = int(data["cash"]) - cost
 	data["reputation"] = int(data["reputation"]) + 1
+	var chemistry_change := _change_team_chemistry(mode, -7)
+	var career_reward := _award_career_xp(20)
 	save_game()
 	var message := "%s signed for the %s division." % [signed["name"], mode]
 	if not replaced.is_empty():
 		message += " %s was released." % replaced
-	return {"ok": true, "message": message}
+	message += " Chemistry %d. +20 Career XP." % chemistry_change
+	return {
+		"ok": true,
+		"message": message,
+		"chemistry_change": chemistry_change,
+		"career": career_reward,
+	}
 
 
 func sponsor_ready() -> bool:
@@ -798,10 +1094,13 @@ func collect_sponsor() -> Dictionary:
 	data["cash"] = int(data["cash"]) + reward
 	data["fans"] = int(data["fans"]) + fan_reward
 	data["sponsor_ready_at"] = int(Time.get_unix_time_from_system()) + 24 * 60 * 60
+	var career_reward := _award_career_xp(10)
 	save_game()
 	return {
 		"ok": true,
-		"message": "Small sponsor activation: +%s and +%d fans." % [GameDataRef.format_cash(reward), fan_reward],
+		"message": "Small sponsor activation: +%s, +%d fans and +10 Career XP."
+		% [GameDataRef.format_cash(reward), fan_reward],
+		"career": career_reward,
 	}
 
 func match_action_definitions() -> Array:
@@ -841,6 +1140,14 @@ func prepare_match(mode: String) -> Dictionary:
 	var player_strength := _competitive_strength(mode, format)
 	player_strength += float(facility_level("analytics")) * 0.45
 	player_strength += float(facility_level("coaching")) * 0.25
+	var chemistry := team_chemistry(mode, format)
+	var chemistry_strength_bonus := 0.0
+	if not (mode == "Rocket League" and format == "1v1"):
+		chemistry_strength_bonus = float(chemistry - 50) * 0.035
+	player_strength += chemistry_strength_bonus
+	var career_strength_bonus := float(career_level() - 1) * 0.15
+	player_strength += career_strength_bonus
+	var identity := club_identity()
 	var consistency := float(team_stats.get("consistency", 50))
 	var performance_swing := clampf(5.1 - consistency * 0.045, 0.8, 4.0)
 	player_strength += rng.randf_range(-performance_swing, performance_swing)
@@ -873,6 +1180,13 @@ func prepare_match(mode: String) -> Dictionary:
 		"player_strength": player_strength,
 		"opponent_strength": opponent_strength,
 		"team_stats": team_stats,
+		"team_chemistry": chemistry,
+		"chemistry_strength_bonus": chemistry_strength_bonus,
+		"career_strength_bonus": career_strength_bonus,
+		"club_identity": str(identity.get("id", "counter")),
+		"club_identity_name": str(identity.get("name", "Counter Culture")),
+		"club_identity_action": str(identity.get("action", "counter")),
+		"club_identity_goal_bonus": float(identity.get("goal_bonus", 0.04)),
 		"turn": 0,
 		"regulation_turns": 6,
 		"our_score": 0,
@@ -970,8 +1284,11 @@ func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 		+ float(team_stats.get("rotation", 50))
 		- 100.0
 	) / 1050.0
+	var identity_bonus := 0.0
+	if action == str(session.get("club_identity_action", "counter")):
+		identity_bonus = float(session.get("club_identity_goal_bonus", 0.04))
 	var our_goal_chance := clampf(
-		0.20 + strength_edge + float(tactical_edge) * 0.13 + action_attack,
+		0.20 + strength_edge + float(tactical_edge) * 0.13 + action_attack + identity_bonus,
 		0.04,
 		0.56
 	)
@@ -987,7 +1304,8 @@ func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 			+ float(int(session.get("decision_score", 0)) + tactical_edge) * 0.045
 			+ strength_edge
 			+ (float(team_stats.get("mentality", 50)) - 50.0) / 260.0
-			+ (float(team_stats.get("consistency", 50)) - 50.0) / 420.0,
+			+ (float(team_stats.get("consistency", 50)) - 50.0) / 420.0
+			+ identity_bonus,
 			0.16,
 			0.84
 		)
@@ -999,6 +1317,8 @@ func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 		"tactical_edge": tactical_edge,
 		"repeated": repeated_call,
 		"decider": turn >= 7,
+		"identity_bonus": identity_bonus,
+		"identity_active": identity_bonus > 0.0,
 	}
 
 
@@ -1224,6 +1544,10 @@ func finalize_match(session: Dictionary) -> Dictionary:
 			25,
 			100
 		)
+	var chemistry_gain := _match_chemistry_gain(mode, format, won)
+	var career_reward := _award_career_xp(18 if won else 10)
+	var rival := _update_rival(mode, format, opponent, won)
+	var rival_bonus_fans := int(rival.get("bonus_fans", 0))
 
 	var stream := _stream_payload(won, profile, format)
 	var attention := _attention_roll(won, profile, mode, format, int(stream.get("viewers", 0)))
@@ -1257,6 +1581,10 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"mmr_after": mmr_after,
 		"old_rank": old_rank,
 		"new_rank": new_rank,
+		"career_xp": int(career_reward.get("xp", 0)),
+		"chemistry_gain": chemistry_gain,
+		"rival_tier": str(rival.get("tier", "WATCHLIST")),
+		"rival_bonus_fans": rival_bonus_fans,
 		"stream_donation_cash": int(stream.get("donation_cash", 0)),
 		"stream_donation_chance": float(stream.get("donation_chance", 0.0)),
 		"timestamp": int(Time.get_unix_time_from_system()),
@@ -1290,7 +1618,15 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"mmr_before": mmr_before,
 		"mmr_after": mmr_after,
 		"cash": int(stream.get("donation_cash", 0)),
-		"fans": 0,
+		"fans": rival_bonus_fans,
+		"career_xp": int(career_reward.get("xp", 0)),
+		"career_level_up": bool(career_reward.get("level_up", false)),
+		"career_level": career_level(),
+		"career_level_name": str(career_level_data().get("name", "Unknown Grinder")),
+		"chemistry_gain": chemistry_gain,
+		"team_chemistry": team_chemistry(mode, format),
+		"rival": rival,
+		"rival_bonus_fans": rival_bonus_fans,
 		"attention": attention,
 		"attention_chance": float(attention.get("chance", 0.0)),
 		"estimated_win_chance": float(session.get("estimated_win_chance", 0.5)),
@@ -1448,6 +1784,8 @@ func _finish_season() -> Array:
 	data["season"] = finished_season + 1
 	data["season_match"] = 0
 	data["season_bonus"] = 0
+	data["seasons_finished"] = int(data.get("seasons_finished", 0)) + 1
+	_award_career_xp(75)
 	for playlist in RankedDataRef.PLAYLISTS:
 		var record := playlist_record(playlist)
 		record["season_wins"] = 0
@@ -1535,11 +1873,16 @@ func accept_contact(contact_id: String) -> Dictionary:
 	player.erase("source")
 	data["roster"].append(player)
 	data["contacts"].erase(selected)
+	var chemistry_change := _change_team_chemistry(mode, -7)
+	var career_reward := _award_career_xp(20)
 	save_game()
 	var available_format := "%dv%d" % [roster_for(mode).size(), roster_for(mode).size()]
 	return {
 		"ok": true,
-		"message": "%s joined your %s grind. %s is now available." % [player["name"], mode, available_format],
+		"message": "%s joined your %s grind. %s is now available. Chemistry %d. +20 Career XP."
+		% [player["name"], mode, available_format, chemistry_change],
+		"chemistry_change": chemistry_change,
+		"career": career_reward,
 	}
 
 
@@ -1567,6 +1910,8 @@ func play_community_cup(mode: String) -> Dictionary:
 		data["fans"] = int(data["fans"]) + rng.randi_range(2, 8)
 		data["reputation"] = int(data["reputation"]) + 1
 		data["earned_prize_money"] = int(data.get("earned_prize_money", 0)) + prize
+		data["cup_wins"] = int(data.get("cup_wins", 0)) + 1
+	var career_reward := _award_career_xp(35 if won else 12)
 	data["cup_ready_at"] = now + 30 * 60
 	data["history"].push_front({
 		"kind": "cup",
@@ -1584,7 +1929,12 @@ func play_community_cup(mode: String) -> Dictionary:
 	return {
 		"ok": true,
 		"win_chance": win_chance,
-		"message": ("Cup win: +%s prize money." % GameDataRef.format_cash(prize)) if won else "You were knocked out. Ranked still pays €0 — cups are where money starts.",
+		"message": (
+			"Cup win: +%s prize money and +35 Career XP." % GameDataRef.format_cash(prize)
+			if won
+			else "You were knocked out, but gained +12 Career XP. Ranked still pays €0 — cups are where money starts."
+		),
+		"career": career_reward,
 	}
 
 
@@ -1980,8 +2330,46 @@ func _migrate_save(from_version: int) -> void:
 	if not streaming.has("last_donations") or typeof(streaming["last_donations"]) != TYPE_ARRAY:
 		streaming["last_donations"] = []
 	data["selected_rl_playlist"] = RankedDataRef.normalize_playlist(str(data.get("selected_rl_playlist", "1v1")))
-	if from_version < 9:
-		data["version"] = 9
+	if not data.has("career_xp"):
+		var migrated_matches := 0
+		var migrated_wins := 0
+		for playlist in RankedDataRef.PLAYLISTS:
+			var migrated_record: Dictionary = data["rl_playlists"][playlist]
+			migrated_matches += int(migrated_record.get("played", 0))
+			migrated_wins += int(migrated_record.get("wins", 0))
+		var migrated_facilities := 0
+		for facility_key in GameDataRef.FACILITIES:
+			migrated_facilities += int(data.get("facilities", {}).get(facility_key, 0))
+		data["career_xp"] = (
+			migrated_matches * 10
+			+ migrated_wins * 8
+			+ int(data.get("reputation", 0)) * 15
+			+ migrated_facilities * 18
+			+ maxi(0, roster_for("Rocket League").size() - 1) * 20
+			+ data.get("earned_titles", []).size() * 75
+		)
+	if not data.has("claimed_milestones") or typeof(data["claimed_milestones"]) != TYPE_ARRAY:
+		data["claimed_milestones"] = []
+	if not data.has("club_identity"):
+		data["club_identity"] = "counter"
+	if not data.has("team_chemistry") or typeof(data["team_chemistry"]) != TYPE_DICTIONARY:
+		var rl_team_matches := (
+			int(data["rl_playlists"]["2v2"].get("played", 0))
+			+ int(data["rl_playlists"]["3v3"].get("played", 0))
+		)
+		data["team_chemistry"] = {
+			"Rocket League": mini(80, 35 + rl_team_matches),
+			"Fortnite": mini(80, 35 + int(data.get("modes", {}).get("Fortnite", {}).get("played", 0))),
+			"Warzone": mini(80, 35 + int(data.get("modes", {}).get("Warzone", {}).get("played", 0))),
+		}
+	if not data.has("rivals") or typeof(data["rivals"]) != TYPE_DICTIONARY:
+		data["rivals"] = {}
+	if not data.has("cup_wins"):
+		data["cup_wins"] = 0
+	if not data.has("seasons_finished"):
+		data["seasons_finished"] = maxi(0, int(data.get("season", 1)) - 1)
+	if from_version < 10:
+		data["version"] = 10
 
 
 func _new_ranked_record(starting_mmr: int = 100, mmr_schema: int = 2) -> Dictionary:
@@ -2013,8 +2401,14 @@ func _new_save() -> Dictionary:
 		"fans": 0,
 		"reputation": 0,
 		"attention": 0,
+		"career_xp": 0,
+		"claimed_milestones": [],
+		"club_identity": "counter",
+		"team_chemistry": {"Rocket League": 35, "Fortnite": 35, "Warzone": 35},
+		"rivals": {},
 		"season": 1,
 		"season_match": 0,
+		"seasons_finished": 0,
 		"selected_mode": "Rocket League",
 		"selected_rl_playlist": "1v1",
 		"last_seen": now,
@@ -2023,6 +2417,7 @@ func _new_save() -> Dictionary:
 		"season_bonus": 0,
 		"cup_ready_at": 0,
 		"earned_prize_money": 0,
+		"cup_wins": 0,
 		"earned_titles": [],
 		"equipped_title_id": "",
 		"facilities": {"hq": 0, "coaching": 0, "scouting": 0, "analytics": 0, "studio": 0},
