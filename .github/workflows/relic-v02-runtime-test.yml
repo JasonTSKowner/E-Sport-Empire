@@ -1,0 +1,48 @@
+name: Runtime test Relic Ascension v0.2 3D
+
+on:
+  pull_request:
+    branches: [main]
+    types: [reopened, synchronize]
+
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/relic-ascension-v0.1-apk
+
+      - name: Reconstruct project
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf relic-build/runtime-src
+          mkdir -p relic-build/runtime-src
+          cat relic-build/v02.part1 relic-build/v02.part2 relic-build/v02.part3 relic-build/v02.part4 > /tmp/relic_v02.b64
+          base64 -d /tmp/relic_v02.b64 > /tmp/relic_v02.zip
+          unzip -q /tmp/relic_v02.zip -d relic-build/runtime-src
+
+      - name: Install Godot 4.7.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.7.2-stable_linux.x86_64
+
+      - name: Launch game headless
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 12s /tmp/godot/Godot_v4.7.2-stable_linux.x86_64 --headless --path relic-build/runtime-src/lootcore_rpg 2>&1 | tee /tmp/runtime.log
+          code=${PIPESTATUS[0]}
+          if grep -E "SCRIPT ERROR|ERROR:|Invalid|Parse Error|Cannot" /tmp/runtime.log; then
+            echo "Runtime errors detected"
+            exit 1
+          fi
+          if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+            exit "$code"
+          fi
+          echo "Runtime smoke test passed"
