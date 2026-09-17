@@ -60,6 +60,10 @@ jobs:
                         '    camera.position = Vector3(0.0, 3.55, 7.6)\\n    camera.fov = 39.0\\n    add_child(camera)\\n    camera.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)\\n')
           s = s.replace('    if is_instance_valid(core_root):\\n        var scale_bonus := 1.0 + minf(0.30, float(core_level - 1) * 0.003)\\n        if not create_tween().is_running():\\n            core_root.scale = Vector3.ONE * scale_bonus\\n',
                         '    if is_instance_valid(core_root):\\n        var scale_bonus := 1.0 + minf(0.30, float(core_level - 1) * 0.003)\\n        core_root.scale = Vector3.ONE * scale_bonus\\n')
+          s = s.replace('    camera.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)\n    add_child(camera)', '    add_child(camera)\n    camera.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)')
+          s = s.replace('        if not create_tween().is_running():\n            core_root.scale = Vector3.ONE * scale_bonus', '        core_root.scale = Vector3.ONE * scale_bonus')
+          assert 'camera.look_at(Vector3(0.0, 1.05, 0.0), Vector3.UP)\n    add_child(camera)' not in s
+          assert 'if not create_tween().is_running()' not in s
           p.write_text(s)
 
           p = root / "scripts/loot_item.gd"
@@ -71,6 +75,12 @@ jobs:
                         'static func generate(rng: RandomNumberGenerator, rarity: int, core_level: int, quality_level: int):\\n    var item = (load("res://scripts/loot_item.gd") as Script).new()\\n')
           s = s.replace('static func from_dict(data: Dictionary) -> LootItem:\\n    var item := LootItem.new()\\n',
                         'static func from_dict(data: Dictionary):\\n    var item = (load("res://scripts/loot_item.gd") as Script).new()\\n')
+          s = s.replace('class_name LootItem\n', '')
+          s = s.replace(' -> LootItem:', ':')
+          s = s.replace('var item := LootItem.new()', 'var item = (load("res://scripts/loot_item.gd") as Script).new()')
+          assert 'LootItem.new()' not in s
+          assert '-> LootItem' not in s
+          assert not s.startswith('class_name LootItem')
           p.write_text(s)
           PY
 
