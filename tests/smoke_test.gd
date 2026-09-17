@@ -7,6 +7,7 @@ const RankEmblemRef = preload("res://scripts/rank_emblem.gd")
 const TitleDataRef = preload("res://scripts/title_data.gd")
 const DevelopmentDataRef = preload("res://scripts/development_data.gd")
 const CoachingDataRef = preload("res://scripts/coaching_data.gd")
+const CareerDataRef = preload("res://scripts/career_data.gd")
 const MainScene = preload("res://scenes/Main.tscn")
 
 var failures: Array[String] = []
@@ -30,6 +31,11 @@ func _run() -> void:
 	_check(state.data.get("market", []).size() == 6, "market generation")
 	_check(state.data.get("coaching_market", []).size() == CoachingDataRef.OFFER_COUNT, "coaching market generation")
 	_check(not state.data.has("energy"), "global energy removed")
+	_check(CareerDataRef.LEVELS.size() == 10, "ten career levels")
+	_check(CareerDataRef.MILESTONES.size() == 12, "twelve career milestones")
+	_check(state.career_xp() == 0 and state.career_level() == 1, "fresh career origin")
+	_check(str(state.club_identity().get("id", "")) == "counter", "counter culture default identity")
+	_check(state.team_chemistry("Rocket League") == 35, "fresh team chemistry")
 	_check(state.selected_rl_playlist() == "1v1", "default playlist")
 	for playlist in RankedDataRef.PLAYLISTS:
 		var record := state.playlist_record(playlist)
@@ -70,6 +76,8 @@ func _run() -> void:
 	var opening_odds: Dictionary = opening_result.get("odds", {})
 	_check(not opening_odds.is_empty(), "match action exposes odds")
 	_check(abs(float(opening_odds.get("our_goal", 0.0)) + float(opening_odds.get("their_goal", 0.0)) + float(opening_odds.get("neutral", 0.0)) - 1.0) < 0.001, "match action odds total 100 percent")
+	var identity_odds := tactical_state.match_action_odds(tactical_session, "counter")
+	_check(abs(float(identity_odds.get("identity_bonus", 0.0)) - 0.04) < 0.001, "club DNA exposes exact action bonus")
 
 	var normal_record := state.playlist_record("1v1")
 	normal_record["placements"] = 10
@@ -94,6 +102,7 @@ func _run() -> void:
 	schedule_state.reset_game()
 	var captain: Dictionary = schedule_state.data["roster"][0]
 	_check(DevelopmentDataRef.PLAYER_STATS.size() == 8, "eight player stats")
+	_check(not DevelopmentDataRef.player_archetype(captain).is_empty(), "dynamic player archetype")
 	_check(schedule_state.training_cost(captain, "rotation_review") > 0, "captain training costs cash")
 	_check(not bool(schedule_state.train_player("captain", "rotation_review").get("ok", true)), "zero-cash training blocked")
 	schedule_state.data["cash"] = 500
@@ -131,9 +140,41 @@ func _run() -> void:
 	var real_time_match := schedule_state.create_match("Rocket League")
 	_check(bool(real_time_match.get("ok", false)), "real-time schedule match")
 	_check(int(schedule_state.data.get("season_match", 0)) == 1, "match advances season fixture only")
+	_check(int(real_time_match.get("career_xp", 0)) >= 10, "match grants career XP")
+	var first_milestone: Dictionary = schedule_state.career_milestones()[0]
+	_check(bool(first_milestone.get("complete", false)), "first-match milestone completes")
+	var milestone_cash_before := int(schedule_state.data.get("cash", 0))
+	var milestone_claim := schedule_state.claim_career_milestone("first_match")
+	_check(bool(milestone_claim.get("ok", false)), "completed milestone claims")
+	_check(int(schedule_state.data.get("cash", 0)) > milestone_cash_before, "milestone guaranteed cash reward")
 	_check(schedule_state.real_time_label().contains(":"), "device clock label")
 	_check(schedule_state.community_cup_win_chance("Rocket League") >= 0.16, "community cup exposes win chance")
 	_check(schedule_state.scouting_elite_potential_chance() >= 0.0, "scouting exposes elite chance")
+
+	var chemistry_state: EmpireStateRef = EmpireStateRef.new()
+	chemistry_state.reset_game()
+	var chemistry_teammate: Dictionary = chemistry_state.data["roster"][0].duplicate(true)
+	chemistry_teammate["id"] = "chemistry_teammate"
+	chemistry_teammate["name"] = "SYNC"
+	chemistry_state.data["roster"].append(chemistry_teammate)
+	chemistry_state.data["cash"] = 500
+	var chemistry_before := chemistry_state.team_chemistry("Rocket League")
+	var scrim_result := chemistry_state.team_scrim("Rocket League")
+	_check(bool(scrim_result.get("ok", false)), "instant team scrim succeeds")
+	_check(chemistry_state.team_chemistry("Rocket League") > chemistry_before, "scrim guarantees chemistry")
+	_check(int(scrim_result.get("career", {}).get("xp", 0)) == 8, "scrim grants career XP")
+	_check(bool(chemistry_state.set_club_identity("pressure").get("ok", false)), "club identity switches freely")
+	chemistry_state.set_selected_rl_playlist("2v2")
+	var chemistry_session := chemistry_state.prepare_match("Rocket League")
+	_check(int(chemistry_session.get("team_chemistry", 0)) == chemistry_state.team_chemistry("Rocket League"), "match receives chemistry")
+	var pressure_odds := chemistry_state.match_action_odds(chemistry_session, "press")
+	_check(bool(pressure_odds.get("identity_active", false)), "selected club DNA activates")
+	chemistry_state._update_rival("Rocket League", "2v2", "Nova Union", false)
+	chemistry_state._update_rival("Rocket League", "2v2", "Nova Union", true)
+	var rivalry_result := chemistry_state._update_rival("Rocket League", "2v2", "Nova Union", true)
+	_check(str(rivalry_result.get("tier", "")) == "RIVAL", "three meetings create rivalry")
+	_check(int(rivalry_result.get("bonus_fans", 0)) > 0, "rivalry win guarantees fan bonus")
+	_check(chemistry_state.top_rivals(3).size() == 1, "rival tracker persists record")
 
 	var reveal_state: EmpireStateRef = EmpireStateRef.new()
 	reveal_state.reset_game()
@@ -160,6 +201,13 @@ func _run() -> void:
 	migrated.data.erase("fatigue_updated_at")
 	migrated.data.erase("coaching_market")
 	migrated.data.erase("season_match")
+	migrated.data.erase("career_xp")
+	migrated.data.erase("claimed_milestones")
+	migrated.data.erase("club_identity")
+	migrated.data.erase("team_chemistry")
+	migrated.data.erase("rivals")
+	migrated.data.erase("cup_wins")
+	migrated.data.erase("seasons_finished")
 	migrated.data["week"] = 7
 	migrated._migrate_save(5)
 	_check(int(migrated.data.get("cash", 0)) == 47, "migration preserves economy")
@@ -178,6 +226,11 @@ func _run() -> void:
 	_check(migrated.data.has("earned_titles"), "migration adds title locker")
 	_check(migrated.playlist_record("1v1").has("gc_reward_wins"), "migration adds title progress")
 	_check(migrated.data.get("streaming", {}).has("total_donation_cash"), "migration adds donation totals")
+	_check(migrated.data.has("career_xp"), "migration adds career XP")
+	_check(migrated.data.has("claimed_milestones"), "migration adds milestone claims")
+	_check(str(migrated.data.get("club_identity", "")) == "counter", "migration adds club DNA")
+	_check(migrated.data.has("team_chemistry"), "migration adds chemistry")
+	_check(migrated.data.has("rivals"), "migration adds rivals")
 
 	var donation_roll := schedule_state._roll_stream_donations(3, true, "Free", 0.0)
 	_check(int(donation_roll.get("cash", 0)) > 0, "stream donation can generate virtual cash")
@@ -237,6 +290,12 @@ func _run() -> void:
 	main.game.reset_game()
 	main.game.set_selected_mode("Rocket League")
 	main.game.set_selected_rl_playlist("1v1")
+	main._show_page("home", false)
+	await process_frame
+	_check(main.page_content.get_child_count() >= 10, "career home content")
+	main._show_page("empire", false)
+	await process_frame
+	_check(main.page_content.get_child_count() >= 8, "club DNA empire content")
 	main.ranked_view = "overview"
 	main._show_page("play", false)
 	await process_frame
@@ -299,7 +358,7 @@ func _run() -> void:
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v0.4.9 smoke test: PASS")
+		print("E-Sport Empire v0.5.0 smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:

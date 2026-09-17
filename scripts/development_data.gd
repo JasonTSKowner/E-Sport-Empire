@@ -161,6 +161,58 @@ static func stat_definition(stat_key: String) -> Dictionary:
 	return {}
 
 
+static func player_archetype(player: Dictionary) -> Dictionary:
+	var candidates := [
+		{
+			"id": "mechanical_finisher",
+			"label": "Mechanical Finisher",
+			"short": "FINISHER",
+			"color": "2de2ff",
+			"score": int(player.get("mechanics", 50)) + int(player.get("shooting", 50)),
+		},
+		{
+			"id": "defensive_anchor",
+			"label": "Defensive Anchor",
+			"short": "ANCHOR",
+			"color": "58e39b",
+			"score": int(player.get("rotation", 50)) + int(player.get("defense", 50)),
+		},
+		{
+			"id": "field_general",
+			"label": "Field General",
+			"short": "PLAYMAKER",
+			"color": "a779ff",
+			"score": int(player.get("game_sense", 50)) + int(player.get("boost_control", 50)),
+		},
+		{
+			"id": "clutch_specialist",
+			"label": "Clutch Specialist",
+			"short": "CLUTCH",
+			"color": "ffbf69",
+			"score": int(player.get("consistency", 50)) + int(player.get("mentality", 50)),
+		},
+	]
+	var highest := -1
+	var lowest := 999
+	var best: Dictionary = candidates[0]
+	for candidate_value in candidates:
+		var candidate: Dictionary = candidate_value
+		var score := int(candidate.get("score", 0))
+		lowest = mini(lowest, score)
+		if score > highest:
+			highest = score
+			best = candidate
+	if highest - lowest <= 6:
+		return {
+			"id": "complete_player",
+			"label": "Complete Player",
+			"short": "ALL-ROUND",
+			"color": "f2efff",
+			"score": highest,
+		}
+	return best.duplicate(true)
+
+
 static func requirements_met(player: Dictionary, move: Dictionary) -> bool:
 	var requirements: Dictionary = move.get("requirements", {})
 	for stat_key in requirements:
