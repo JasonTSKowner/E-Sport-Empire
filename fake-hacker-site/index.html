@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Access Terminal</title>
+  <style>
+    :root{
+      --bg:#020504;
+      --panel:rgba(3,12,8,.88);
+      --green:#39ff88;
+      --green2:#00d86f;
+      --dim:#0c6b3f;
+      --red:#ff3b59;
+      --text:#bfffd7;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:radial-gradient(circle at center,#062016 0%,#020504 58%,#000 100%);
+      color:var(--text);
+      font-family:Consolas,Monaco,"Courier New",monospace;
+      overflow:hidden;
+    }
+    canvas{
+      position:fixed;
+      inset:0;
+      z-index:0;
+      opacity:.28;
+    }
+    .scanlines{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:5;
+      background:repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,.018) 0px,
+        rgba(255,255,255,.018) 1px,
+        transparent 2px,
+        transparent 4px
+      );
+    }
+    .wrap{
+      position:relative;
+      z-index:2;
+      min-height:100vh;
+      display:grid;
+      place-items:center;
+      padding:20px;
+    }
+    .panel{
+      width:min(920px,96vw);
+      border:1px solid rgba(57,255,136,.35);
+      background:var(--panel);
+      box-shadow:0 0 40px rgba(0,255,120,.12), inset 0 0 30px rgba(0,255,120,.03);
+      backdrop-filter:blur(8px);
+      border-radius:14px;
+      overflow:hidden;
+    }
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:12px 16px;
+      border-bottom:1px solid rgba(57,255,136,.2);
+      background:rgba(0,255,120,.035);
+      font-size:13px;
+      letter-spacing:.08em;
+    }
+    .dots{display:flex;gap:7px}
+    .dot{width:9px;height:9px;border-radius:50%;background:#145a38}
+    .dot:nth-child(1){background:#ff405d}
+    .dot:nth-child(2){background:#ffc83d}
+    .dot:nth-child(3){background:#39ff88}
+    .status{color:#62ffa0}
+    .content{padding:28px}
+    h1{
+      margin:0 0 8px;
+      color:var(--green);
+      font-size:clamp(24px,5vw,44px);
+      letter-spacing:.08em;
+      text-shadow:0 0 16px rgba(57,255,136,.4);
+    }
+    .sub{
+      color:#6ebf8f;
+      margin-bottom:26px;
+      font-size:14px;
+    }
+    .login{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+    }
+    input{
+      width:100%;
+      background:#020906;
+      color:var(--green);
+      border:1px solid #17613d;
+      padding:15px 16px;
+      border-radius:8px;
+      outline:none;
+      font:inherit;
+      font-size:16px;
+      box-shadow:inset 0 0 18px rgba(0,255,120,.03);
+    }
+    input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(57,255,136,.07)}
+    button{
+      border:1px solid var(--green2);
+      color:#03140b;
+      background:var(--green);
+      padding:0 22px;
+      border-radius:8px;
+      cursor:pointer;
+      font:700 14px Consolas,monospace;
+      letter-spacing:.08em;
+      transition:.18s;
+    }
+    button:hover{transform:translateY(-1px);box-shadow:0 0 20px rgba(57,255,136,.25)}
+    .hint{margin-top:9px;font-size:12px;color:#3e8c61}
+    .terminal{
+      margin-top:24px;
+      height:360px;
+      overflow:auto;
+      padding:18px;
+      background:#010604;
+      border:1px solid rgba(57,255,136,.16);
+      border-radius:8px;
+      font-size:13px;
+      line-height:1.65;
+      box-shadow:inset 0 0 25px rgba(0,255,120,.025);
+    }
+    .line{white-space:pre-wrap}
+    .ok{color:var(--green)}
+    .warn{color:#ffcf57}
+    .bad{color:var(--red)}
+    .muted{color:#4e8969}
+    .progress{
+      margin-top:18px;
+      height:10px;
+      background:#03120b;
+      border:1px solid #124c31;
+      border-radius:999px;
+      overflow:hidden;
+      display:none;
+    }
+    .bar{
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,#00a85b,#39ff88);
+      box-shadow:0 0 16px rgba(57,255,136,.45);
+      transition:width .18s linear;
+    }
+    .granted{
+      display:none;
+      margin-top:18px;
+      padding:18px;
+      border:1px solid var(--green);
+      background:rgba(57,255,136,.07);
+      color:var(--green);
+      text-align:center;
+      font-size:clamp(18px,4vw,30px);
+      font-weight:800;
+      letter-spacing:.16em;
+      text-shadow:0 0 16px rgba(57,255,136,.55);
+    }
+    .shake{animation:shake .28s linear 1}
+    @keyframes shake{
+      0%,100%{transform:translateX(0)}
+      25%{transform:translateX(-7px)}
+      75%{transform:translateX(7px)}
+    }
+    .blink{animation:blink 1s steps(1) infinite}
+    @keyframes blink{50%{opacity:0}}
+    @media(max-width:620px){
+      .content{padding:18px}
+      .login{grid-template-columns:1fr}
+      button{padding:14px}
+      .terminal{height:330px}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <div class="scanlines"></div>
+
+  <div class="wrap">
+    <main class="panel" id="panel">
+      <div class="topbar">
+        <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+        <div>SECURE TERMINAL // NODE-07</div>
+        <div class="status">● ONLINE</div>
+      </div>
+
+      <section class="content">
+        <h1>ACCESS TERMINAL</h1>
+        <div class="sub">AUTHORIZATION REQUIRED // ENCRYPTED SESSION ACTIVE</div>
+
+        <div class="login">
+          <input id="code" type="password" placeholder="ENTER ACCESS CODE..." autocomplete="off" />
+          <button id="enter">AUTHENTICATE</button>
+        </div>
+        <div class="hint">Demo-Code: <b>TSK-ACCESS</b></div>
+
+        <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
+        <div class="granted" id="granted">ACCESS GRANTED</div>
+
+        <div class="terminal" id="terminal">
+          <div class="line muted">[BOOT] Secure shell interface initialized.</div>
+          <div class="line muted">[SYS] Waiting for authorization token...</div>
+          <div class="line ok">root@node-07:~$ <span class="blink">█</span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+  const terminal = document.getElementById("terminal");
+  const input = document.getElementById("code");
+  const button = document.getElementById("enter");
+  const panel = document.getElementById("panel");
+  const progress = document.getElementById("progress");
+  const bar = document.getElementById("bar");
+  const granted = document.getElementById("granted");
+
+  const ACCESS_CODE = "TSK-ACCESS";
+
+  function addLine(text, cls=""){
+    const div = document.createElement("div");
+    div.className = "line " + cls;
+    div.textContent = text;
+    terminal.appendChild(div);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  async function runSequence(){
+    input.disabled = true;
+    button.disabled = true;
+    progress.style.display = "block";
+    granted.style.display = "none";
+    bar.style.width = "0%";
+
+    const logs = [
+      ["[AUTH] Token accepted.", "ok"],
+      ["[NET] Establishing encrypted tunnel...", ""],
+      ["[NET] Route: 10.24.8.71 → relay-03 → node-07", "muted"],
+      ["[SYS] Loading isolated simulation environment...", ""],
+      ["[SCAN] Enumerating virtual endpoints...", ""],
+      ["[SCAN] 12 nodes discovered.", "ok"],
+      ["[CRYPT] Verifying SHA-256 signature...", ""],
+      ["[CRYPT] Signature valid.", "ok"],
+      ["[FIREWALL] Rule-set mirrored into sandbox.", "warn"],
+      ["[DATA] Mounting synthetic datastore...", ""],
+      ["[DATA] 1,248 simulated records indexed.", "ok"],
+      ["[CORE] Privilege simulation: LEVEL 7", "warn"],
+      ["[TRACE] Masking demo-session identifier...", ""],
+      ["[TRACE] Complete.", "ok"],
+      ["[FINAL] Authorization sequence complete.", "ok"]
+    ];
+
+    let p = 3;
+    for (const [text, cls] of logs){
+      await sleep(220 + Math.random()*360);
+      p += 5 + Math.random()*4;
+      bar.style.width = Math.min(p, 96) + "%";
+      addLine(text, cls);
+    }
+
+    await sleep(350);
+    bar.style.width = "100%";
+    await sleep(250);
+    granted.style.display = "block";
+    addLine("root@node-07:~$ session unlocked", "ok");
+    input.disabled = false;
+    button.disabled = false;
+  }
+
+  async function authenticate(){
+    const value = input.value.trim();
+    addLine("> AUTH REQUEST: " + (value ? "********" : "[EMPTY]"), "muted");
+
+    if(value === ACCESS_CODE){
+      await runSequence();
+    } else {
+      addLine("[DENIED] Invalid authorization code.", "bad");
+      panel.classList.remove("shake");
+      void panel.offsetWidth;
+      panel.classList.add("shake");
+    }
+  }
+
+  button.addEventListener("click", authenticate);
+  input.addEventListener("keydown", e => {
+    if(e.key === "Enter") authenticate();
+  });
+
+  const canvas = document.getElementById("matrix");
+  const ctx = canvas.getContext("2d");
+  let cols, drops;
+
+  function resize(){
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+    cols = Math.floor(canvas.width / 16);
+    drops = Array(cols).fill(1);
+  }
+  resize();
+  addEventListener("resize", resize);
+
+  const chars = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%&*+-<>[]{}";
+  function draw(){
+    ctx.fillStyle = "rgba(0, 5, 2, 0.08)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#23ff7b";
+    ctx.font = "14px monospace";
+
+    for(let i=0;i<drops.length;i++){
+      const char = chars[Math.floor(Math.random()*chars.length)];
+      ctx.fillText(char, i*16, drops[i]*16);
+      if(drops[i]*16 > canvas.height && Math.random() > .975) drops[i] = 0;
+      drops[i]++;
+    }
+  }
+  setInterval(draw, 45);
+</script>
+</body>
+</html>
