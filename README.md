@@ -1,6 +1,6 @@
 # E-Sport Empire
 
-**Alpha v0.5.0 — Career Identity**
+**Alpha v0.6.0 — Pro Circuit**
 
 A portrait-first Android esports career and organization game built with Godot 4. Start with zero cash, zero fans and only yourself as captain, then grow from solo ranked matches into a real esports organization.
 
@@ -19,8 +19,18 @@ A portrait-first Android esports career and organization game built with Godot 4
 - All three ladders now seed at 100 MMR; existing v0.4.5 progress is rebased without deleting earned/lost points
 - Interactive Rocket League matches with six tactical reads, meaningful counter-calls and limited overtime
 - Match decisions display exact score, concede and no-goal percentages before every call
+- Animated live arena with moving cars, ball sequences, goal flashes and a live momentum meter
+- Momentum reacts to reads, goals and readable repeats while changing visible odds by at most ±3 percentage points
+- Full post-match analytics for shots, saves, possession, perfect reads and final momentum
+- Three-tier Pro Circuit with Open, Challenger and Elite eight-team brackets, quarterfinals, semifinals and grand finals
+- Pro Circuit events are instantly playable after qualification and never alter ranked MMR or ranked fixture progress
+- Four Staff HQ departments with twelve hires: Head Coach, Tactical Analyst, Performance Director and Content Director
+- Staff bonuses integrate with match strength, scoring chances, scrims, training prices, breakthroughs, streams and sponsor income
+- Three transparent sponsor contracts with upfront pay, per-match pay, win bonuses, exact targets and completion bonuses
+- Six season objectives track matches, wins, tactical reads, streams, staff hires and circuit trophies
 - Full Bronze-to-SSL tier/division system with distinct scalable I/II/III emblem designs
-- Prestige-only Title Locker with GC/SSL reward progress and seasonal Top 100, Top 10 and World #1 titles
+- Full Bronze-to-SSL seasonal Title Locker; Bronze–Champion unlock on rank reveal while GC/SSL retain ten-win prestige progress
+- Seasonal Top 100, Top 10 and World #1 leaderboard titles remain the rarest finish rewards
 - Equipped titles appear on the captain profile, roster card and ranked ladder identity
 - 2v2 global ladder reaches the current 3002-MMR benchmark while SSL remains open-ended
 - Competitive overview with record, winrate, streak, peaks, Last 10 and MMR graph
@@ -40,9 +50,9 @@ A portrait-first Android esports career and organization game built with Godot 4
 - Mechanics Arsenal progression from recoveries and aerials through Mustys, resets, Psycho and Triple Reset
 - Player attributes directly influence attack, defense, boost, performance variance and overtime composure
 - Amateur scouting with visible 90+ potential odds and progressively priced facilities
-- Sponsors unlock only after enough reputation and audience growth
+- Sponsors unlock after exact reputation and audience gates, with no timer or hidden payout roll
 - Real device clock in the career header; ranked matches never skip a day or week, while 36 fixtures complete a season
-- Local JSON savegame with non-destructive v0.4.5 → v0.5 migration for MMR, career XP, chemistry, rivals, real-time fatigue, coaching, titles, development stats and stream revenue
+- Local JSON savegame with non-destructive v0.4.5 → v0.6 migration for MMR, career XP, chemistry, rivals, fatigue, coaching, titles, staff, sponsors, season goals and Pro Circuit progress
 - Mobile portrait UI with screen-wide swipe scrolling, safer release buttons and word-safe wrapping
 - Unchanged Android package ID and persistent update-signing workflow
 

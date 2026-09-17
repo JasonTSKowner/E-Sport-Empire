@@ -8,6 +8,8 @@ const TitleDataRef = preload("res://scripts/title_data.gd")
 const DevelopmentDataRef = preload("res://scripts/development_data.gd")
 const CoachingDataRef = preload("res://scripts/coaching_data.gd")
 const CareerDataRef = preload("res://scripts/career_data.gd")
+const DynastyDataRef = preload("res://scripts/dynasty_data.gd")
+const MatchVisualizerRef = preload("res://scripts/match_visualizer.gd")
 const MainScene = preload("res://scenes/Main.tscn")
 
 var failures: Array[String] = []
@@ -23,7 +25,7 @@ func _check(condition: bool, message: String) -> void:
 
 
 func _run() -> void:
-	print("SMOKE 1/6: ranked data")
+	print("SMOKE 1/7: ranked data")
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
@@ -33,6 +35,10 @@ func _run() -> void:
 	_check(not state.data.has("energy"), "global energy removed")
 	_check(CareerDataRef.LEVELS.size() == 10, "ten career levels")
 	_check(CareerDataRef.MILESTONES.size() == 12, "twelve career milestones")
+	_check(DynastyDataRef.STAFF_ROLES.size() == 4, "four staff departments")
+	_check(DynastyDataRef.SPONSOR_CONTRACTS.size() == 3, "three sponsor contracts")
+	_check(DynastyDataRef.CIRCUIT_EVENTS.size() == 3, "three circuit tiers")
+	_check(DynastyDataRef.SEASON_OBJECTIVES.size() == 6, "six season objectives")
 	_check(state.career_xp() == 0 and state.career_level() == 1, "fresh career origin")
 	_check(str(state.club_identity().get("id", "")) == "counter", "counter culture default identity")
 	_check(state.team_chemistry("Rocket League") == 35, "fresh team chemistry")
@@ -51,7 +57,7 @@ func _run() -> void:
 	_check(RankedDataRef.top_ladder("1v1").size() == 12, "top twelve ladder")
 	_check(RankedDataRef.around_player(100, "1v1").size() == 7, "around-you ladder")
 
-	print("SMOKE 2/6: queue and MMR")
+	print("SMOKE 2/7: queue and MMR")
 	var one_before := int(state.playlist_record("1v1")["mmr"])
 	var first_match: Dictionary = state.create_match("Rocket League")
 	_check(bool(first_match.get("ok", false)), "1v1 match creation")
@@ -73,6 +79,8 @@ func _run() -> void:
 	var opening_result: Dictionary = tactical_state.play_match_turn(tactical_session, opening_call)
 	_check(int(opening_result.get("quality", 0)) == 1, "correct tactical read rewarded")
 	_check(int(opening_result.get("boost_after", 0)) != boost_before, "tactical boost changes")
+	_check(int(opening_result.get("momentum", 0)) > 0, "perfect read creates momentum")
+	_check(int(opening_result.get("match_stats", {}).get("possession_ours", 0)) > 0, "live match stats update")
 	var opening_odds: Dictionary = opening_result.get("odds", {})
 	_check(not opening_odds.is_empty(), "match action exposes odds")
 	_check(abs(float(opening_odds.get("our_goal", 0.0)) + float(opening_odds.get("their_goal", 0.0)) + float(opening_odds.get("neutral", 0.0)) - 1.0) < 0.001, "match action odds total 100 percent")
@@ -97,7 +105,7 @@ func _run() -> void:
 	_check(bool(two_match.get("ok", false)), "2v2 match creation")
 	_check(str(two_match.get("format", "")) == "2v2", "2v2 format")
 
-	print("SMOKE 3/6: real time, coaching and migration")
+	print("SMOKE 3/7: real time, coaching and migration")
 	var schedule_state: EmpireStateRef = EmpireStateRef.new()
 	schedule_state.reset_game()
 	var captain: Dictionary = schedule_state.data["roster"][0]
@@ -231,6 +239,10 @@ func _run() -> void:
 	_check(str(migrated.data.get("club_identity", "")) == "counter", "migration adds club DNA")
 	_check(migrated.data.has("team_chemistry"), "migration adds chemistry")
 	_check(migrated.data.has("rivals"), "migration adds rivals")
+	_check(migrated.data.has("staff"), "migration adds staff HQ")
+	_check(migrated.data.has("season_stats"), "migration adds season objectives")
+	_check(migrated.data.has("active_sponsor"), "migration adds sponsor contracts")
+	_check(migrated.data.has("pro_circuit"), "migration adds Pro Circuit")
 
 	var donation_roll := schedule_state._roll_stream_donations(3, true, "Free", 0.0)
 	_check(int(donation_roll.get("cash", 0)) > 0, "stream donation can generate virtual cash")
@@ -260,6 +272,16 @@ func _run() -> void:
 
 	var title_state: EmpireStateRef = EmpireStateRef.new()
 	title_state.reset_game()
+	var bronze_record := title_state.playlist_record("1v1")
+	bronze_record["placements"] = 10
+	var bronze_titles := title_state._update_rank_title_progress(
+		bronze_record, RankedDataRef.rank_for_mmr(100, "1v1"), "1v1", false
+	)
+	_check(bronze_titles.size() == 1, "Bronze season title unlock")
+	_check(str(bronze_titles[0].get("label", "")).contains("BRONZE"), "Bronze title label")
+	_check(TitleDataRef.RANK_FAMILIES.size() == 8, "Bronze through SSL title catalog")
+	# Isolate the elite reward test from the automatic rank credential above.
+	title_state.reset_game()
 	var title_record := title_state.playlist_record("2v2")
 	title_record["placements"] = 10
 	var gc_rank := RankedDataRef.rank_for_mmr(1500, "2v2")
@@ -282,7 +304,80 @@ func _run() -> void:
 	_check(str(season_titles[0].get("label", "")).contains("WORLD #1"), "world number one title label")
 	_check(int(placement_state.data.get("season_match", -1)) == 0, "new season resets fixture count")
 
-	print("SMOKE 4/6: mobile ranked UI")
+	print("SMOKE 4/7: dynasty systems")
+	var dynasty_state: EmpireStateRef = EmpireStateRef.new()
+	dynasty_state.reset_game()
+	dynasty_state.data["cash"] = 5000
+	var dynasty_captain: Dictionary = dynasty_state.data["roster"][0]
+	var cost_before_staff := dynasty_state.training_cost(dynasty_captain, "mechanics_lab")
+	_check(bool(dynasty_state.hire_staff("performance_kael").get("ok", false)), "performance director hire")
+	_check(dynasty_state.training_cost(dynasty_captain, "mechanics_lab") < cost_before_staff, "performance staff discounts training")
+	_check(bool(dynasty_state.hire_staff("analyst_ivy").get("ok", false)), "tactical analyst hire")
+	_check(bool(dynasty_state.hire_staff("coach_mara").get("ok", false)), "head coach hire")
+	var staffed_session := dynasty_state.prepare_match("Rocket League")
+	var staffed_odds := dynasty_state.match_action_odds(staffed_session, "counter")
+	_check(abs(float(staffed_odds.get("analyst_bonus", 0.0)) - 0.006) < 0.001, "analyst exact scoring bonus")
+	_check(float(staffed_session.get("coach_strength_bonus", 0.0)) > 0.0, "head coach strength bonus")
+	_check(int(dynasty_state.data.get("season_stats", {}).get("staff_hires", 0)) == 3, "staff season progress")
+	dynasty_state.data["reputation"] = 3
+	dynasty_state.data["fans"] = 150
+	var sponsor_cash_before := int(dynasty_state.data.get("cash", 0))
+	_check(bool(dynasty_state.accept_sponsor_contract("local_launch").get("ok", false)), "sponsor contract signs")
+	_check(int(dynasty_state.data.get("cash", 0)) > sponsor_cash_before, "sponsor upfront is paid")
+	var sponsor_tick := dynasty_state._progress_sponsor_contract(true)
+	_check(int(sponsor_tick.get("matches", 0)) == 1 and int(sponsor_tick.get("wins", 0)) == 1, "sponsor progress tracks result")
+	_check(int(sponsor_tick.get("payout", 0)) > 0, "sponsor match payout")
+
+	var circuit_state: EmpireStateRef = EmpireStateRef.new()
+	circuit_state.reset_game()
+	circuit_state.playlist_record("1v1")["played"] = 3
+	_check(bool(circuit_state.start_pro_circuit("open_circuit").get("ok", false)), "open circuit starts")
+	var circuit_mmr_before := int(circuit_state.playlist_record("1v1").get("mmr", 0))
+	var circuit_fixture_before := int(circuit_state.data.get("season_match", 0))
+	var circuit_session := circuit_state.prepare_pro_circuit_match()
+	_check(str(circuit_session.get("competition", "")) == "pro_circuit", "circuit session type")
+	var circuit_finished := false
+	var circuit_safety := 0
+	var circuit_counters := {"press": "counter", "control": "press", "counter": "control"}
+	while not circuit_finished and circuit_safety < 10:
+		var circuit_situation := circuit_state.current_match_situation(circuit_session)
+		var circuit_action := str(circuit_counters.get(str(circuit_situation.get("opponent_action", "press")), "counter"))
+		if not circuit_state.can_play_match_action(circuit_session, circuit_action):
+			circuit_action = "control"
+		var circuit_turn := circuit_state.play_match_turn(circuit_session, circuit_action)
+		circuit_finished = bool(circuit_turn.get("finished", false))
+		circuit_safety += 1
+	var circuit_match := circuit_state.finalize_match(circuit_session)
+	_check(bool(circuit_match.get("ok", false)), "circuit match finalizes")
+	_check(not bool(circuit_match.get("ranked", true)), "circuit result is non-ranked")
+	_check(int(circuit_state.playlist_record("1v1").get("mmr", 0)) == circuit_mmr_before, "circuit never changes MMR")
+	_check(int(circuit_state.data.get("season_match", 0)) == circuit_fixture_before, "circuit does not consume ranked fixture")
+	_check(not circuit_match.get("circuit", {}).is_empty(), "circuit bracket advances or ends")
+	_check(circuit_match.get("match_stats", {}).has("shots_ours"), "circuit returns match analytics")
+	_check(int(circuit_state.data.get("season_stats", {}).get("matches", 0)) == 1, "circuit advances season objective")
+
+	var champion_state: EmpireStateRef = EmpireStateRef.new()
+	champion_state.reset_game()
+	champion_state.playlist_record("1v1")["played"] = 3
+	champion_state.start_pro_circuit("open_circuit")
+	champion_state._advance_pro_circuit(true)
+	champion_state._advance_pro_circuit(true)
+	var title_result := champion_state._advance_pro_circuit(true)
+	_check(bool(title_result.get("champion", false)), "three circuit wins lift trophy")
+	_check(int(champion_state.data.get("circuit_titles", 0)) == 1, "circuit title tracked")
+	_check(int(title_result.get("reward", {}).get("cash", 0)) == 180, "circuit prize exact")
+	_check(not title_result.get("unlocked_title", {}).is_empty(), "circuit champion title unlock")
+	_check(str(champion_state.equipped_title().get("category", "")) == "PRO CIRCUIT", "circuit title auto equips")
+
+	var visualizer := MatchVisualizerRef.new()
+	visualizer.configure({"format": "3v3", "momentum": 0})
+	visualizer.play_turn({"type": "good"}, "press", 1, 30)
+	var visual_state := visualizer.snapshot_state()
+	_check(int(visual_state.get("cars", 0)) == 6, "visualizer renders 3v3 cars")
+	_check(int(visual_state.get("momentum", 0)) == 30, "visualizer tracks momentum")
+	visualizer.free()
+
+	print("SMOKE 5/7: mobile ranked UI")
 	var main := MainScene.instantiate()
 	root.add_child(main)
 	for frame in range(3):
@@ -315,6 +410,10 @@ func _run() -> void:
 	main._show_page("play", false)
 	await process_frame
 	_check(main.page_content.get_child_count() >= 9, "title locker content")
+	main.ranked_view = "circuit"
+	main._show_page("play", false)
+	await process_frame
+	_check(main.page_content.get_child_count() >= 8, "Pro Circuit event board content")
 	main.game.data["cash"] = 500
 	main._show_page("team", false)
 	await process_frame
@@ -330,12 +429,13 @@ func _run() -> void:
 	_check(program_grid.get_child_count() == 6, "six mobile training program buttons")
 	program_grid.free()
 
-	print("SMOKE 5/6: full match flow")
+	print("SMOKE 6/7: full match flow")
 	main.ranked_view = "overview"
 	main._show_page("play", false)
 	main._start_match("Rocket League")
 	await process_frame
 	_check(main.match_interactive, "Rocket League match is interactive")
+	_check(main.match_visualizer != null, "live arena visualizer mounted")
 	var counters := {"press": "counter", "control": "press", "counter": "control"}
 	for decision_index in range(8):
 		if main.match_finished:
@@ -349,16 +449,17 @@ func _run() -> void:
 	_check(main.match_finished, "match finishes")
 	_check(bool(main.match_result.get("ok", false)), "interactive result saved")
 	_check(main.match_result.get("decisions", []).size() >= 6, "interactive decisions recorded")
+	_check(main.match_result.get("match_stats", {}).has("shots_ours"), "post-match analytics recorded")
 	_check(main.match_result_box.visible, "match result panel")
 	_check(main.match_continue_button.visible, "match continue button")
 	await main._close_match()
-	print("SMOKE 6/6: continue return")
+	print("SMOKE 7/7: continue return")
 	_check(main.match_overlay == null, "match overlay closes")
 	_check(main.current_page == "play", "returns to ranked")
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v0.5.0 smoke test: PASS")
+		print("E-Sport Empire v0.6.0 smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:
