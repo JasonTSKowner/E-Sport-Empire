@@ -8,6 +8,7 @@ const TitleDataRef = preload("res://scripts/title_data.gd")
 const DevelopmentDataRef = preload("res://scripts/development_data.gd")
 const CoachingDataRef = preload("res://scripts/coaching_data.gd")
 const CareerDataRef = preload("res://scripts/career_data.gd")
+const DynastyDataRef = preload("res://scripts/dynasty_data.gd")
 const FATIGUE_RECOVERY_INTERVAL_SECONDS := 60
 const SEASON_MATCH_LIMIT := 36
 
@@ -246,7 +247,11 @@ func team_scrim(mode: String) -> Dictionary:
 	if int(data.get("cash", 0)) < cost:
 		return {"ok": false, "message": "You need %s for a team scrim." % GameDataRef.format_cash(cost)}
 	var before := team_chemistry(mode)
-	var gain := 5 + int(floor(float(facility_level("coaching")) / 3.0))
+	var gain := (
+		5
+		+ int(floor(float(facility_level("coaching")) / 3.0))
+		+ staff_level("head_coach")
+	)
 	var after := mini(100, before + gain)
 	if after <= before:
 		return {"ok": false, "message": "Team chemistry is already maxed."}
@@ -442,6 +447,359 @@ func top_rivals(limit: int = 3) -> Array:
 	if result.size() > limit:
 		result.resize(limit)
 	return result
+
+
+func staff_member(role_id: String) -> Dictionary:
+	var staff: Dictionary = data.get("staff", {})
+	if staff.has(role_id) and typeof(staff[role_id]) == TYPE_DICTIONARY:
+		return staff[role_id]
+	return {}
+
+
+func staff_level(role_id: String) -> int:
+	return clampi(int(staff_member(role_id).get("level", 0)), 0, 3)
+
+
+func hire_staff(candidate_id: String) -> Dictionary:
+	var candidate := DynastyDataRef.staff_candidate(candidate_id)
+	if candidate.is_empty():
+		return {"ok": false, "message": "That staff candidate is unavailable."}
+	var role_id := str(candidate.get("role", ""))
+	var current := staff_member(role_id)
+	if str(current.get("id", "")) == candidate_id:
+		return {"ok": false, "message": "%s already works for the club." % str(candidate.get("name", "Staff member"))}
+	if int(current.get("level", 0)) >= int(candidate.get("level", 0)):
+		return {"ok": false, "message": "This hire would not improve the current department."}
+	var fee := int(candidate.get("fee", 0))
+	if int(data.get("cash", 0)) < fee:
+		return {"ok": false, "message": "You need %s to complete that staff signing." % GameDataRef.format_cash(fee)}
+	data["cash"] = int(data.get("cash", 0)) - fee
+	data["staff"][role_id] = candidate.duplicate(true)
+	data["staff_hires"] = int(data.get("staff_hires", 0)) + 1
+	data["season_stats"]["staff_hires"] = int(data["season_stats"].get("staff_hires", 0)) + 1
+	var career_reward := _award_career_xp(25 + int(candidate.get("level", 1)) * 5)
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s joined as %s. Department level %d is now active."
+		% [
+			str(candidate.get("name", "Staff member")),
+			str(DynastyDataRef.staff_role(role_id).get("name", "Staff")),
+			int(candidate.get("level", 1)),
+		],
+		"staff": candidate.duplicate(true),
+		"career": career_reward,
+	}
+
+
+func sponsor_income_multiplier() -> float:
+	return 1.0 + float(staff_level("content_director")) * 0.05
+
+
+func active_sponsor_contract() -> Dictionary:
+	var active: Dictionary = data.get("active_sponsor", {})
+	return active.duplicate(true) if not active.is_empty() else {}
+
+
+func sponsor_contract_offers() -> Array:
+	var offers: Array = []
+	for contract_value in DynastyDataRef.SPONSOR_CONTRACTS:
+		var contract: Dictionary = contract_value.duplicate(true)
+		contract["eligible"] = (
+			int(data.get("reputation", 0)) >= int(contract.get("min_reputation", 0))
+			and int(data.get("fans", 0)) >= int(contract.get("min_fans", 0))
+		)
+		offers.append(contract)
+	return offers
+
+
+func accept_sponsor_contract(contract_id: String) -> Dictionary:
+	if not data.get("active_sponsor", {}).is_empty():
+		return {"ok": false, "message": "Finish the active sponsor deal before signing another."}
+	var contract := DynastyDataRef.sponsor_contract(contract_id)
+	if contract.is_empty():
+		return {"ok": false, "message": "That sponsor offer is unavailable."}
+	if (
+		int(data.get("reputation", 0)) < int(contract.get("min_reputation", 0))
+		or int(data.get("fans", 0)) < int(contract.get("min_fans", 0))
+	):
+		return {"ok": false, "message": "The club does not meet this sponsor's requirements yet."}
+	var multiplier := sponsor_income_multiplier()
+	var upfront := int(round(float(contract.get("upfront", 0)) * multiplier))
+	data["cash"] = int(data.get("cash", 0)) + upfront
+	data["active_sponsor"] = {
+		"id": contract_id,
+		"matches": 0,
+		"wins": 0,
+		"earned": upfront,
+		"started_at": real_time_now(),
+	}
+	var career_reward := _award_career_xp(25)
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s signed: +%s guaranteed upfront. Every condition is visible."
+		% [str(contract.get("brand", "Sponsor")), GameDataRef.format_cash(upfront)],
+		"upfront": upfront,
+		"career": career_reward,
+	}
+
+
+func _progress_sponsor_contract(won: bool) -> Dictionary:
+	var active: Dictionary = data.get("active_sponsor", {})
+	if active.is_empty():
+		return {}
+	var contract := DynastyDataRef.sponsor_contract(str(active.get("id", "")))
+	if contract.is_empty():
+		data["active_sponsor"] = {}
+		return {}
+	active["matches"] = int(active.get("matches", 0)) + 1
+	if won:
+		active["wins"] = int(active.get("wins", 0)) + 1
+	var multiplier := sponsor_income_multiplier()
+	var match_pay := int(round(float(contract.get("per_match", 0)) * multiplier))
+	var win_pay := int(round(float(contract.get("per_win", 0)) * multiplier)) if won else 0
+	var payout := match_pay + win_pay
+	active["earned"] = int(active.get("earned", 0)) + payout
+	data["cash"] = int(data.get("cash", 0)) + payout
+	var ended := int(active.get("matches", 0)) >= int(contract.get("duration", 1))
+	var completed := int(active.get("wins", 0)) >= int(contract.get("win_target", 1))
+	var completion_bonus := 0
+	if ended:
+		if completed:
+			completion_bonus = int(round(float(contract.get("completion", 0)) * multiplier))
+			data["cash"] = int(data.get("cash", 0)) + completion_bonus
+			active["earned"] = int(active.get("earned", 0)) + completion_bonus
+		var history: Array = data.get("sponsor_history", [])
+		history.push_front({
+			"id": str(active.get("id", "")),
+			"brand": str(contract.get("brand", "Sponsor")),
+			"completed": completed,
+			"earned": int(active.get("earned", 0)),
+			"wins": int(active.get("wins", 0)),
+		})
+		while history.size() > 8:
+			history.pop_back()
+		data["sponsor_history"] = history
+		data["active_sponsor"] = {}
+	else:
+		data["active_sponsor"] = active
+	return {
+		"brand": str(contract.get("brand", "Sponsor")),
+		"payout": payout,
+		"matches": int(active.get("matches", 0)),
+		"duration": int(contract.get("duration", 1)),
+		"wins": int(active.get("wins", 0)),
+		"win_target": int(contract.get("win_target", 1)),
+		"ended": ended,
+		"completed": completed,
+		"completion_bonus": completion_bonus,
+	}
+
+
+func season_objectives() -> Array:
+	var objectives: Array = []
+	var claimed: Array = data.get("claimed_season_objectives", [])
+	var stats: Dictionary = data.get("season_stats", {})
+	for definition_value in DynastyDataRef.SEASON_OBJECTIVES:
+		var definition: Dictionary = definition_value.duplicate(true)
+		var progress := int(stats.get(str(definition.get("key", "")), 0))
+		var target := int(definition.get("target", 1))
+		definition["progress"] = mini(progress, target)
+		definition["complete"] = progress >= target
+		definition["claimed"] = str(definition.get("id", "")) in claimed
+		objectives.append(definition)
+	return objectives
+
+
+func claim_season_objective(objective_id: String) -> Dictionary:
+	var definition := DynastyDataRef.season_objective(objective_id)
+	if definition.is_empty():
+		return {"ok": false, "message": "Unknown season objective."}
+	var claimed: Array = data.get("claimed_season_objectives", [])
+	if objective_id in claimed:
+		return {"ok": false, "message": "That season objective was already claimed."}
+	var progress := int(data.get("season_stats", {}).get(str(definition.get("key", "")), 0))
+	if progress < int(definition.get("target", 1)):
+		return {"ok": false, "message": "That season objective is not complete yet."}
+	var cash_reward := int(definition.get("cash", 0))
+	data["cash"] = int(data.get("cash", 0)) + cash_reward
+	claimed.append(objective_id)
+	data["claimed_season_objectives"] = claimed
+	var career_reward := _award_career_xp(int(definition.get("xp", 0)))
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s claimed: +%s and +%d Career XP."
+		% [
+			str(definition.get("label", "Objective")),
+			GameDataRef.format_cash(cash_reward),
+			int(definition.get("xp", 0)),
+		],
+		"career": career_reward,
+	}
+
+
+func active_pro_circuit() -> Dictionary:
+	var circuit: Dictionary = data.get("pro_circuit", {})
+	return circuit.duplicate(true) if not circuit.is_empty() else {}
+
+
+func pro_circuit_events() -> Array:
+	var events: Array = []
+	var played := int(playlist_record(selected_rl_playlist()).get("played", 0))
+	for event_value in DynastyDataRef.CIRCUIT_EVENTS:
+		var event: Dictionary = event_value.duplicate(true)
+		event["eligible"] = (
+			played >= int(event.get("min_matches", 0))
+			and career_level() >= int(event.get("min_level", 1))
+			and int(data.get("reputation", 0)) >= int(event.get("min_reputation", 0))
+		)
+		event["played"] = played
+		events.append(event)
+	return events
+
+
+func start_pro_circuit(event_id: String) -> Dictionary:
+	var current: Dictionary = data.get("pro_circuit", {})
+	if bool(current.get("active", false)):
+		return {"ok": false, "message": "Finish the active Pro Circuit bracket first."}
+	var event := DynastyDataRef.circuit_event(event_id)
+	if event.is_empty():
+		return {"ok": false, "message": "Unknown Pro Circuit event."}
+	var format := selected_rl_playlist()
+	if not can_queue_playlist(format):
+		return {"ok": false, "message": "%s needs %d active players." % [format, playlist_required_players(format)]}
+	var played := int(playlist_record(format).get("played", 0))
+	if (
+		played < int(event.get("min_matches", 0))
+		or career_level() < int(event.get("min_level", 1))
+		or int(data.get("reputation", 0)) < int(event.get("min_reputation", 0))
+	):
+		return {"ok": false, "message": "The club does not meet this event's entry requirements."}
+	var pool := DynastyDataRef.CIRCUIT_TEAMS.duplicate(true)
+	pool.shuffle()
+	var opponents: Array = []
+	for index in range(3):
+		opponents.append(pool[index].duplicate(true))
+	data["pro_circuit"] = {
+		"active": true,
+		"event_id": event_id,
+		"event_name": str(event.get("name", "PRO CIRCUIT")),
+		"format": format,
+		"stage": 0,
+		"wins": 0,
+		"opponents": opponents,
+		"results": [],
+		"started_at": real_time_now(),
+		"champion": false,
+		"eliminated": false,
+	}
+	save_game()
+	return {
+		"ok": true,
+		"message": "%s bracket created. Quarterfinal opponent: %s."
+		% [str(event.get("name", "Pro Circuit")), str(opponents[0].get("name", "Opponent"))],
+	}
+
+
+func circuit_round_name(stage: int) -> String:
+	return ["QUARTERFINAL", "SEMIFINAL", "GRAND FINAL"][clampi(stage, 0, 2)]
+
+
+func prepare_pro_circuit_match() -> Dictionary:
+	var circuit: Dictionary = data.get("pro_circuit", {})
+	if not bool(circuit.get("active", false)):
+		return {"ok": false, "message": "Start a Pro Circuit bracket first."}
+	var original_playlist := selected_rl_playlist()
+	var circuit_format := str(circuit.get("format", original_playlist))
+	data["selected_rl_playlist"] = circuit_format
+	var session := prepare_match("Rocket League")
+	data["selected_rl_playlist"] = original_playlist
+	if not bool(session.get("ok", false)):
+		return session
+	var stage := int(circuit.get("stage", 0))
+	var opponents: Array = circuit.get("opponents", [])
+	if stage >= opponents.size():
+		return {"ok": false, "message": "The Pro Circuit bracket is already complete."}
+	var opponent: Dictionary = opponents[stage]
+	var event := DynastyDataRef.circuit_event(str(circuit.get("event_id", "open_circuit")))
+	var strength_add := float(event.get("strength_mod", 0.0)) + float(opponent.get("strength", 0.0)) + float(stage) * 1.5
+	session["opponent"] = str(opponent.get("name", "Circuit Opponent"))
+	session["opponent_mmr"] = maxi(0, int(session.get("mmr_before", 100)) + int(round(strength_add * 24.0)))
+	session["opponent_strength"] = clampf(float(session.get("player_strength", 50.0)) + strength_add, 32.0, 99.0)
+	session["opponent_profile"] = {
+		"key": "circuit",
+		"label": "%s  •  SEED #%d" % [circuit_round_name(stage), int(opponent.get("seed", stage + 1))],
+		"strength_mod": strength_add,
+		"attention_mult": 1.4 + float(stage) * 0.25,
+	}
+	session["competition"] = "pro_circuit"
+	session["ranked"] = false
+	session["circuit_stage"] = stage
+	session["circuit_event_id"] = str(circuit.get("event_id", ""))
+	session["estimated_win_chance"] = estimated_match_win_chance(session)
+	return session
+
+
+func _advance_pro_circuit(won: bool) -> Dictionary:
+	var circuit: Dictionary = data.get("pro_circuit", {})
+	if not bool(circuit.get("active", false)):
+		return {}
+	var stage := int(circuit.get("stage", 0))
+	var opponents: Array = circuit.get("opponents", [])
+	var opponent: Dictionary = opponents[stage] if stage < opponents.size() else {}
+	var results: Array = circuit.get("results", [])
+	results.append({
+		"round": circuit_round_name(stage),
+		"opponent": str(opponent.get("name", "Opponent")),
+		"won": won,
+	})
+	circuit["results"] = results
+	var reward := {"cash": 0, "fans": 0, "xp": 0}
+	var unlocked_title: Dictionary = {}
+	if not won:
+		circuit["active"] = false
+		circuit["eliminated"] = true
+	elif stage < 2:
+		circuit["wins"] = int(circuit.get("wins", 0)) + 1
+		circuit["stage"] = stage + 1
+	else:
+		var event := DynastyDataRef.circuit_event(str(circuit.get("event_id", "open_circuit")))
+		circuit["wins"] = 3
+		circuit["active"] = false
+		circuit["champion"] = true
+		reward = {
+			"cash": int(event.get("prize", 0)),
+			"fans": int(event.get("fans", 0)),
+			"xp": int(event.get("xp", 0)),
+		}
+		data["cash"] = int(data.get("cash", 0)) + int(reward["cash"])
+		data["fans"] = int(data.get("fans", 0)) + int(reward["fans"])
+		data["earned_prize_money"] = int(data.get("earned_prize_money", 0)) + int(reward["cash"])
+		data["circuit_titles"] = int(data.get("circuit_titles", 0)) + 1
+		data["season_stats"]["circuit_titles"] = int(data["season_stats"].get("circuit_titles", 0)) + 1
+		_award_career_xp(int(reward["xp"]))
+		var title := TitleDataRef.circuit_title(
+			int(data.get("season", 1)),
+			str(circuit.get("event_id", "open_circuit")),
+			str(circuit.get("event_name", "PRO CIRCUIT"))
+		)
+		if _grant_title(title):
+			unlocked_title = title
+	data["pro_circuit"] = circuit
+	return {
+		"stage": stage,
+		"round": circuit_round_name(stage),
+		"won": won,
+		"active": bool(circuit.get("active", false)),
+		"champion": bool(circuit.get("champion", false)),
+		"eliminated": bool(circuit.get("eliminated", false)),
+		"next_round": circuit_round_name(int(circuit.get("stage", stage))) if bool(circuit.get("active", false)) else "",
+		"reward": reward,
+		"unlocked_title": unlocked_title,
+		"circuit": circuit.duplicate(true),
+	}
 
 
 func earned_titles() -> Array:
@@ -669,7 +1027,11 @@ func training_cost(player: Dictionary, program_id: String = "mechanics_lab") -> 
 	raw_cost += float(player_overall(player)) * float(program.get("rating_scale", 0.32))
 	var coaching_discount := minf(0.25, float(facility_level("coaching")) * 0.025)
 	var career_discount := minf(0.09, float(career_level() - 1) * 0.01)
-	return maxi(8, int(round(raw_cost * (1.0 - coaching_discount - career_discount))))
+	var staff_discount := float(staff_level("performance_director")) * 0.03
+	return maxi(
+		8,
+		int(round(raw_cost * (1.0 - coaching_discount - career_discount - staff_discount)))
+	)
 
 
 func real_time_now() -> int:
@@ -693,7 +1055,12 @@ func season_match_progress() -> int:
 
 
 func training_breakthrough_chance() -> float:
-	return minf(0.48, 0.12 + float(facility_level("coaching")) * 0.04)
+	return minf(
+		0.54,
+		0.12
+		+ float(facility_level("coaching")) * 0.04
+		+ float(staff_level("performance_director")) * 0.015
+	)
 
 func train_player(player_id: String, program_id: String = "mechanics_lab") -> Dictionary:
 	apply_real_time_fatigue_recovery(false)
@@ -1140,6 +1507,8 @@ func prepare_match(mode: String) -> Dictionary:
 	var player_strength := _competitive_strength(mode, format)
 	player_strength += float(facility_level("analytics")) * 0.45
 	player_strength += float(facility_level("coaching")) * 0.25
+	var coach_strength_bonus := float(staff_level("head_coach")) * 0.25
+	player_strength += coach_strength_bonus
 	var chemistry := team_chemistry(mode, format)
 	var chemistry_strength_bonus := 0.0
 	if not (mode == "Rocket League" and format == "1v1"):
@@ -1171,6 +1540,8 @@ func prepare_match(mode: String) -> Dictionary:
 	var session := {
 		"ok": true,
 		"resolved": false,
+		"ranked": true,
+		"competition": "ranked",
 		"mode": mode,
 		"format": format,
 		"opponent": opponent,
@@ -1183,6 +1554,8 @@ func prepare_match(mode: String) -> Dictionary:
 		"team_chemistry": chemistry,
 		"chemistry_strength_bonus": chemistry_strength_bonus,
 		"career_strength_bonus": career_strength_bonus,
+		"coach_strength_bonus": coach_strength_bonus,
+		"analyst_goal_bonus": float(staff_level("tactical_analyst")) * 0.006,
 		"club_identity": str(identity.get("id", "counter")),
 		"club_identity_name": str(identity.get("name", "Counter Culture")),
 		"club_identity_action": str(identity.get("action", "counter")),
@@ -1192,6 +1565,16 @@ func prepare_match(mode: String) -> Dictionary:
 		"our_score": 0,
 		"their_score": 0,
 		"decision_score": 0,
+		"perfect_reads": 0,
+		"momentum": 0,
+		"match_stats": {
+			"shots_ours": 0,
+			"shots_theirs": 0,
+			"saves_ours": 0,
+			"saves_theirs": 0,
+			"possession_ours": 0,
+			"possession_theirs": 0,
+		},
 		"boost": clampi(25 + int(round(float(team_stats.get("boost_control", 50)) * 0.55)), 35, 78),
 		"last_action": "",
 		"situations": situations,
@@ -1287,13 +1670,21 @@ func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 	var identity_bonus := 0.0
 	if action == str(session.get("club_identity_action", "counter")):
 		identity_bonus = float(session.get("club_identity_goal_bonus", 0.04))
+	var momentum_bonus := clampf(float(session.get("momentum", 0)) / 100.0 * 0.03, -0.03, 0.03)
+	var analyst_bonus := float(session.get("analyst_goal_bonus", 0.0))
 	var our_goal_chance := clampf(
-		0.20 + strength_edge + float(tactical_edge) * 0.13 + action_attack + identity_bonus,
+		0.20
+		+ strength_edge
+		+ float(tactical_edge) * 0.13
+		+ action_attack
+		+ identity_bonus
+		+ momentum_bonus
+		+ analyst_bonus,
 		0.04,
 		0.56
 	)
 	var their_goal_chance := clampf(
-		0.20 - strength_edge - float(tactical_edge) * 0.11 - defensive_edge,
+		0.20 - strength_edge - float(tactical_edge) * 0.11 - defensive_edge - momentum_bonus,
 		0.04,
 		0.52
 	)
@@ -1305,11 +1696,17 @@ func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 			+ strength_edge
 			+ (float(team_stats.get("mentality", 50)) - 50.0) / 260.0
 			+ (float(team_stats.get("consistency", 50)) - 50.0) / 420.0
-			+ identity_bonus,
+			+ identity_bonus
+			+ momentum_bonus
+			+ analyst_bonus,
 			0.16,
 			0.84
 		)
 		their_goal_chance = 1.0 - our_goal_chance
+	elif our_goal_chance + their_goal_chance > 0.92:
+		var chance_scale := 0.92 / (our_goal_chance + their_goal_chance)
+		our_goal_chance *= chance_scale
+		their_goal_chance *= chance_scale
 	return {
 		"our_goal": our_goal_chance,
 		"their_goal": their_goal_chance,
@@ -1319,6 +1716,8 @@ func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 		"decider": turn >= 7,
 		"identity_bonus": identity_bonus,
 		"identity_active": identity_bonus > 0.0,
+		"momentum_bonus": momentum_bonus,
+		"analyst_bonus": analyst_bonus,
 	}
 
 
@@ -1382,6 +1781,33 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 	elif tactical_edge < 0:
 		event_text = "The call is countered, but the defense survives the pressure."
 
+	var match_stats: Dictionary = session.get("match_stats", {})
+	if our_goal > 0:
+		match_stats["shots_ours"] = int(match_stats.get("shots_ours", 0)) + 1
+	elif their_goal > 0:
+		match_stats["shots_theirs"] = int(match_stats.get("shots_theirs", 0)) + 1
+	elif tactical_edge > 0:
+		match_stats["shots_ours"] = int(match_stats.get("shots_ours", 0)) + 1
+		match_stats["saves_theirs"] = int(match_stats.get("saves_theirs", 0)) + 1
+	elif tactical_edge < 0:
+		match_stats["shots_theirs"] = int(match_stats.get("shots_theirs", 0)) + 1
+		match_stats["saves_ours"] = int(match_stats.get("saves_ours", 0)) + 1
+	if tactical_edge > 0:
+		match_stats["possession_ours"] = int(match_stats.get("possession_ours", 0)) + 2
+	elif tactical_edge < 0:
+		match_stats["possession_theirs"] = int(match_stats.get("possession_theirs", 0)) + 2
+	else:
+		match_stats["possession_ours"] = int(match_stats.get("possession_ours", 0)) + 1
+		match_stats["possession_theirs"] = int(match_stats.get("possession_theirs", 0)) + 1
+	session["match_stats"] = match_stats
+	if tactical_edge > 0:
+		session["perfect_reads"] = int(session.get("perfect_reads", 0)) + 1
+	var momentum_delta := tactical_edge * 12 + our_goal * 18 - their_goal * 18
+	if repeated_call and tactical_edge <= 0:
+		momentum_delta -= 4
+	var momentum := clampi(int(session.get("momentum", 0)) + momentum_delta, -100, 100)
+	session["momentum"] = momentum
+
 	var turn_after := turn + 1
 	session["turn"] = turn_after
 	session["our_score"] = our_score
@@ -1402,6 +1828,11 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		"call": action,
 		"feedback": feedback,
 		"boost": boost_after,
+		"quality": tactical_edge,
+		"momentum": momentum,
+		"momentum_delta": momentum_delta,
+		"our_goal_chance": our_goal_chance,
+		"their_goal_chance": their_goal_chance,
 	}
 	var events: Array = session.get("events", [])
 	events.append(event)
@@ -1426,6 +1857,8 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 		"boost_before": boost_before,
 		"boost_after": boost_after,
 		"odds": odds,
+		"momentum": momentum,
+		"match_stats": match_stats,
 		"finished": finished,
 		"overtime": turn_after >= regulation_turns and not finished,
 	}
@@ -1501,36 +1934,39 @@ func finalize_match(session: Dictionary) -> Dictionary:
 	var profile: Dictionary = session.get("opponent_profile", {})
 	var events: Array = session.get("events", [])
 	var won := our_score > their_score
+	var is_ranked := bool(session.get("ranked", true))
+	var competition := str(session.get("competition", "ranked"))
 	var record: Dictionary = playlist_record(format) if mode == "Rocket League" else mode_record(mode)
 	var mmr_before := int(session.get("mmr_before", record.get("mmr", 100)))
 
 	var placements_before := int(record.get("placements", 0))
-	var mmr_delta := _mmr_delta_for(mode, record, mmr_before, opponent_mmr, won)
+	var mmr_delta := _mmr_delta_for(mode, record, mmr_before, opponent_mmr, won) if is_ranked else 0
 	var old_rank_data := GameDataRef.rl_rank_for_mmr(mmr_before, format) if mode == "Rocket League" else GameDataRef.rank_for_mmr(mmr_before)
 	var old_rank := "UNRANKED" if mode == "Rocket League" and placements_before < placement_target(mode) else str(old_rank_data["name"])
-	record["mmr"] = maxi(0, mmr_before + mmr_delta)
-	record["played"] = int(record.get("played", 0)) + 1
-	if won:
-		record["wins"] = int(record.get("wins", 0)) + 1
-		record["season_wins"] = int(record.get("season_wins", 0)) + 1
-		record["streak"] = maxi(1, int(record.get("streak", 0)) + 1)
-	else:
-		record["losses"] = int(record.get("losses", 0)) + 1
-		record["season_losses"] = int(record.get("season_losses", 0)) + 1
-		record["streak"] = mini(-1, int(record.get("streak", 0)) - 1)
-	record["placements"] = mini(placement_target(mode), int(record.get("placements", 0)) + 1)
-	record["peak_mmr"] = maxi(int(record.get("peak_mmr", mmr_before)), int(record["mmr"]))
-	record["season_peak_mmr"] = maxi(int(record.get("season_peak_mmr", mmr_before)), int(record["mmr"]))
-	var mmr_history: Array = record.get("mmr_history", [])
-	mmr_history.append(int(record["mmr"]))
-	while mmr_history.size() > 30:
-		mmr_history.pop_front()
-	record["mmr_history"] = mmr_history
-	var last_results: Array = record.get("last_results", [])
-	last_results.push_front("W" if won else "L")
-	while last_results.size() > 10:
-		last_results.pop_back()
-	record["last_results"] = last_results
+	if is_ranked:
+		record["mmr"] = maxi(0, mmr_before + mmr_delta)
+		record["played"] = int(record.get("played", 0)) + 1
+		if won:
+			record["wins"] = int(record.get("wins", 0)) + 1
+			record["season_wins"] = int(record.get("season_wins", 0)) + 1
+			record["streak"] = maxi(1, int(record.get("streak", 0)) + 1)
+		else:
+			record["losses"] = int(record.get("losses", 0)) + 1
+			record["season_losses"] = int(record.get("season_losses", 0)) + 1
+			record["streak"] = mini(-1, int(record.get("streak", 0)) - 1)
+		record["placements"] = mini(placement_target(mode), int(record.get("placements", 0)) + 1)
+		record["peak_mmr"] = maxi(int(record.get("peak_mmr", mmr_before)), int(record["mmr"]))
+		record["season_peak_mmr"] = maxi(int(record.get("season_peak_mmr", mmr_before)), int(record["mmr"]))
+		var mmr_history: Array = record.get("mmr_history", [])
+		mmr_history.append(int(record["mmr"]))
+		while mmr_history.size() > 30:
+			mmr_history.pop_front()
+		record["mmr_history"] = mmr_history
+		var last_results: Array = record.get("last_results", [])
+		last_results.push_front("W" if won else "L")
+		while last_results.size() > 10:
+			last_results.pop_back()
+		record["last_results"] = last_results
 
 	var roster := roster_for(mode)
 	var participating_players := roster.size()
@@ -1545,11 +1981,24 @@ func finalize_match(session: Dictionary) -> Dictionary:
 			100
 		)
 	var chemistry_gain := _match_chemistry_gain(mode, format, won)
-	var career_reward := _award_career_xp(18 if won else 10)
+	var career_xp_gain := (24 if won else 14) if competition == "pro_circuit" else (18 if won else 10)
+	var career_reward := _award_career_xp(career_xp_gain)
 	var rival := _update_rival(mode, format, opponent, won)
 	var rival_bonus_fans := int(rival.get("bonus_fans", 0))
 
 	var stream := _stream_payload(won, profile, format)
+	var sponsor_progress := _progress_sponsor_contract(won)
+	var season_stats: Dictionary = data.get("season_stats", {})
+	season_stats["matches"] = int(season_stats.get("matches", 0)) + 1
+	if won:
+		season_stats["wins"] = int(season_stats.get("wins", 0)) + 1
+	season_stats["perfect_reads"] = (
+		int(season_stats.get("perfect_reads", 0)) + int(session.get("perfect_reads", 0))
+	)
+	if bool(stream.get("live", false)):
+		season_stats["streamed_matches"] = int(season_stats.get("streamed_matches", 0)) + 1
+	data["season_stats"] = season_stats
+	var circuit_result := _advance_pro_circuit(won) if competition == "pro_circuit" else {}
 	var attention := _attention_roll(won, profile, mode, format, int(stream.get("viewers", 0)))
 	data["attention"] = int(data.get("attention", 0)) + int(attention.get("points", 0))
 	data["reputation"] = int(data.get("reputation", 0)) + int(attention.get("reputation", 0))
@@ -1561,19 +2010,22 @@ func finalize_match(session: Dictionary) -> Dictionary:
 				data["contacts"].pop_back()
 
 	var placements_after := int(record.get("placements", 0))
-	var mmr_after := int(record["mmr"])
+	var mmr_after := int(record.get("mmr", mmr_before))
 	var new_rank_data := GameDataRef.rl_rank_for_mmr(mmr_after, format) if mode == "Rocket League" else GameDataRef.rank_for_mmr(mmr_after)
 	var new_rank := "UNRANKED" if mode == "Rocket League" and placements_after < placement_target(mode) else str(new_rank_data["name"])
 	var unlocked_titles: Array = []
-	if mode == "Rocket League":
+	if mode == "Rocket League" and is_ranked:
 		unlocked_titles = _update_rank_title_progress(record, new_rank_data, format, won)
+	var circuit_title: Dictionary = circuit_result.get("unlocked_title", {})
+	if not circuit_title.is_empty():
+		unlocked_titles.append(circuit_title)
 	data["history"].push_front({
-		"kind": "ranked",
+		"kind": competition,
 		"mode": mode,
 		"format": format,
 		"opponent": opponent,
 		"opponent_mmr": opponent_mmr,
-		"opponent_profile": str(profile["label"]),
+		"opponent_profile": str(profile.get("label", "Competitive")),
 		"won": won,
 		"score": "%d - %d" % [our_score, their_score],
 		"mmr_delta": mmr_delta,
@@ -1587,13 +2039,17 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"rival_bonus_fans": rival_bonus_fans,
 		"stream_donation_cash": int(stream.get("donation_cash", 0)),
 		"stream_donation_chance": float(stream.get("donation_chance", 0.0)),
+		"perfect_reads": int(session.get("perfect_reads", 0)),
+		"momentum": int(session.get("momentum", 0)),
+		"match_stats": session.get("match_stats", {}).duplicate(true),
 		"timestamp": int(Time.get_unix_time_from_system()),
 	})
 	while data["history"].size() > 20:
 		data["history"].pop_back()
-	data["season_match"] = int(data.get("season_match", 0)) + 1
-	if int(data["season_match"]) >= SEASON_MATCH_LIMIT:
-		unlocked_titles.append_array(_finish_season())
+	if is_ranked:
+		data["season_match"] = int(data.get("season_match", 0)) + 1
+		if int(data["season_match"]) >= SEASON_MATCH_LIMIT:
+			unlocked_titles.append_array(_finish_season())
 	session["resolved"] = true
 	save_game()
 	var decision_score := int(session.get("decision_score", 0))
@@ -1608,6 +2064,8 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"ok": true,
 		"mode": mode,
 		"format": format,
+		"competition": competition,
+		"ranked": is_ranked,
 		"opponent": opponent,
 		"opponent_mmr": opponent_mmr,
 		"opponent_profile": profile,
@@ -1638,9 +2096,14 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"stream_donation_cash": int(stream.get("donation_cash", 0)),
 		"stream_donation_chance": float(stream.get("donation_chance", 0.0)),
 		"stream_donations": stream.get("donations", []),
+		"sponsor_progress": sponsor_progress,
+		"circuit": circuit_result,
 		"decision_score": decision_score,
 		"tactical_grade": tactical_grade,
 		"decisions": session.get("decisions", []),
+		"match_stats": session.get("match_stats", {}).duplicate(true),
+		"momentum": int(session.get("momentum", 0)),
+		"perfect_reads": int(session.get("perfect_reads", 0)),
 		"old_rank": old_rank,
 		"new_rank": new_rank,
 		"old_rank_data": old_rank_data,
@@ -1650,17 +2113,20 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"placements_after": placements_after,
 		"division_progress": RankedDataRef.progress_for_mmr(mmr_after, format) if mode == "Rocket League" else {},
 		"rank_revealed": (
-			mode == "Rocket League"
+			is_ranked
+			and mode == "Rocket League"
 			and placements_before < placement_target(mode)
 			and placements_after >= placement_target(mode)
 		),
 		"promoted": (
-			old_rank != new_rank
+			is_ranked
+			and old_rank != new_rank
 			and mmr_delta > 0
 			and placements_before >= placement_target(mode)
 		),
 		"demoted": (
-			old_rank != new_rank
+			is_ranked
+			and old_rank != new_rank
 			and mmr_delta < 0
 			and placements_before >= placement_target(mode)
 		),
@@ -1739,9 +2205,16 @@ func _update_rank_title_progress(
 	record: Dictionary, rank_data: Dictionary, format: String, won: bool
 ) -> Array:
 	var unlocked: Array = []
-	if not won or int(record.get("placements", 0)) < placement_target("Rocket League"):
+	if int(record.get("placements", 0)) < placement_target("Rocket League"):
 		return unlocked
 	var family := str(rank_data.get("family", ""))
+	if family in ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Champion"]:
+		var standard_title := TitleDataRef.rank_title(int(data.get("season", 1)), family, format)
+		if _grant_title(standard_title):
+			unlocked.append(standard_title)
+		return unlocked
+	if not won:
+		return unlocked
 	if family not in ["Grand Champion", "Supersonic Legend"]:
 		return unlocked
 	record["gc_reward_wins"] = mini(
@@ -1769,6 +2242,7 @@ func _update_rank_title_progress(
 func _finish_season() -> Array:
 	var unlocked: Array = []
 	var finished_season := int(data.get("season", 1))
+	_settle_season_objectives()
 	for playlist in RankedDataRef.PLAYLISTS:
 		var record := playlist_record(playlist)
 		var season_played := int(record.get("season_wins", 0)) + int(record.get("season_losses", 0))
@@ -1785,6 +2259,15 @@ func _finish_season() -> Array:
 	data["season_match"] = 0
 	data["season_bonus"] = 0
 	data["seasons_finished"] = int(data.get("seasons_finished", 0)) + 1
+	data["season_stats"] = {
+		"matches": 0,
+		"wins": 0,
+		"perfect_reads": 0,
+		"streamed_matches": 0,
+		"staff_hires": 0,
+		"circuit_titles": 0,
+	}
+	data["claimed_season_objectives"] = []
 	_award_career_xp(75)
 	for playlist in RankedDataRef.PLAYLISTS:
 		var record := playlist_record(playlist)
@@ -1794,6 +2277,27 @@ func _finish_season() -> Array:
 		record["gc_reward_wins"] = 0
 		record["ssl_reward_wins"] = 0
 	return unlocked
+
+
+func _settle_season_objectives() -> Dictionary:
+	var claimed: Array = data.get("claimed_season_objectives", [])
+	var stats: Dictionary = data.get("season_stats", {})
+	var cash_total := 0
+	var xp_total := 0
+	for definition_value in DynastyDataRef.SEASON_OBJECTIVES:
+		var definition: Dictionary = definition_value
+		var objective_id := str(definition.get("id", ""))
+		var key := str(definition.get("key", ""))
+		if objective_id in claimed or int(stats.get(key, 0)) < int(definition.get("target", 1)):
+			continue
+		cash_total += int(definition.get("cash", 0))
+		xp_total += int(definition.get("xp", 0))
+		claimed.append(objective_id)
+	data["cash"] = int(data.get("cash", 0)) + cash_total
+	if xp_total > 0:
+		_award_career_xp(xp_total)
+	data["claimed_season_objectives"] = claimed
+	return {"cash": cash_total, "xp": xp_total}
 
 func sponsor_eligible() -> bool:
 	var followers := int(data.get("streaming", {}).get("followers", 0))
@@ -2061,6 +2565,7 @@ func _stream_payload(
 		plan_mult = 1.12
 	elif plan == "Pro":
 		plan_mult = 1.28
+	plan_mult *= 1.0 + float(staff_level("content_director")) * 0.10
 	var viewers := int(round(float(1 + followers / 25 + int(data.get("reputation", 0)) / 2) * plan_mult))
 	viewers += rng.randi_range(0, 2)
 	if won:
@@ -2160,6 +2665,7 @@ func estimated_stream_viewers() -> int:
 		plan_mult = 1.12
 	elif plan == "Pro":
 		plan_mult = 1.28
+	plan_mult *= 1.0 + float(staff_level("content_director")) * 0.10
 	return maxi(
 		1,
 		int(round(float(1 + followers / 25 + int(data.get("reputation", 0)) / 2) * plan_mult)) + 1
@@ -2368,8 +2874,27 @@ func _migrate_save(from_version: int) -> void:
 		data["cup_wins"] = 0
 	if not data.has("seasons_finished"):
 		data["seasons_finished"] = maxi(0, int(data.get("season", 1)) - 1)
-	if from_version < 10:
-		data["version"] = 10
+	if not data.has("staff") or typeof(data["staff"]) != TYPE_DICTIONARY:
+		data["staff"] = {}
+	if not data.has("staff_hires"):
+		data["staff_hires"] = data["staff"].size()
+	if not data.has("season_stats") or typeof(data["season_stats"]) != TYPE_DICTIONARY:
+		data["season_stats"] = {}
+	for stat_key in ["matches", "wins", "perfect_reads", "streamed_matches", "staff_hires", "circuit_titles"]:
+		if not data["season_stats"].has(stat_key):
+			data["season_stats"][stat_key] = 0
+	if not data.has("claimed_season_objectives") or typeof(data["claimed_season_objectives"]) != TYPE_ARRAY:
+		data["claimed_season_objectives"] = []
+	if not data.has("active_sponsor") or typeof(data["active_sponsor"]) != TYPE_DICTIONARY:
+		data["active_sponsor"] = {}
+	if not data.has("sponsor_history") or typeof(data["sponsor_history"]) != TYPE_ARRAY:
+		data["sponsor_history"] = []
+	if not data.has("pro_circuit") or typeof(data["pro_circuit"]) != TYPE_DICTIONARY:
+		data["pro_circuit"] = {}
+	if not data.has("circuit_titles"):
+		data["circuit_titles"] = 0
+	if from_version < 11:
+		data["version"] = 11
 
 
 func _new_ranked_record(starting_mmr: int = 100, mmr_schema: int = 2) -> Dictionary:
@@ -2403,6 +2928,21 @@ func _new_save() -> Dictionary:
 		"attention": 0,
 		"career_xp": 0,
 		"claimed_milestones": [],
+		"staff": {},
+		"staff_hires": 0,
+		"season_stats": {
+			"matches": 0,
+			"wins": 0,
+			"perfect_reads": 0,
+			"streamed_matches": 0,
+			"staff_hires": 0,
+			"circuit_titles": 0,
+		},
+		"claimed_season_objectives": [],
+		"active_sponsor": {},
+		"sponsor_history": [],
+		"pro_circuit": {},
+		"circuit_titles": 0,
 		"club_identity": "counter",
 		"team_chemistry": {"Rocket League": 35, "Fortnite": 35, "Warzone": 35},
 		"rivals": {},
