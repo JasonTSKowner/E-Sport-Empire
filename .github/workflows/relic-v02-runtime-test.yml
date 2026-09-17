@@ -108,3 +108,59 @@ jobs:
             exit "$code"
           fi
           echo "Runtime smoke test passed"
+
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ""
+          log-accepted-android-sdk-licenses: false
+
+      - name: Prepare Relic Android preset
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp export_presets.cfg relic-build/runtime-src/lootcore_rpg/export_presets.cfg
+          sed -i 's#build/E-Sport-Empire.apk#build/RelicAscension-v0.2.1-fixed.apk#' relic-build/runtime-src/lootcore_rpg/export_presets.cfg
+          sed -i 's#version/code=15#version/code=3#' relic-build/runtime-src/lootcore_rpg/export_presets.cfg
+          sed -i 's#version/name="0.6.0-alpha"#version/name="0.2.1-fixed"#' relic-build/runtime-src/lootcore_rpg/export_presets.cfg
+          sed -i 's#package/unique_name="com.tsk.esportempire"#package/unique_name="com.tsk.relicascension.fixed"#' relic-build/runtime-src/lootcore_rpg/export_presets.cfg
+          sed -i 's#package/name="E-Sport Empire"#package/name="Relic Ascension"#' relic-build/runtime-src/lootcore_rpg/export_presets.cfg
+          sed -i '/launcher_icons\//d' relic-build/runtime-src/lootcore_rpg/export_presets.cfg
+
+      - name: Export Relic Android APK
+        id: relic_export
+        uses: firebelley/godot-export@v8.0.0
+        with:
+          godot_executable_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
+          relative_project_path: relic-build/runtime-src/lootcore_rpg/
+          export_debug: true
+          use_preset_export_path: true
+          presets_to_export: Android
+          cache: true
+
+      - name: Sign Relic APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/relic-sign
+          keytool -genkeypair -noprompt             -keystore /tmp/relic-sign/relic.keystore             -storepass android             -keypass android             -alias relic             -keyalg RSA             -keysize 2048             -validity 10000             -dname "CN=Relic Ascension,O=TSK,C=DE"
+          APK="$(find relic-build/runtime-src/lootcore_rpg/build -type f -name '*.apk' | head -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$APKSIGNER" sign             --ks /tmp/relic-sign/relic.keystore             --ks-key-alias relic             --ks-pass pass:android             --key-pass pass:android             "$APK"
+          "$APKSIGNER" verify --verbose "$APK"
+
+      - name: Upload fixed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Relic-Ascension-v0.2.1-fixed-APK
+          path: relic-build/runtime-src/lootcore_rpg/build/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
