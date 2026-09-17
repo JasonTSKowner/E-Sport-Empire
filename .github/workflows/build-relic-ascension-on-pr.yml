@@ -24,6 +24,7 @@ jobs:
           mkdir -p relic-build/src
           base64 -d relic-build/relic_ascension_v0.1.0-alpha.zip.b64 > /tmp/relic_ascension.zip
           unzip -q /tmp/relic_ascension.zip -d relic-build/src
+          echo 'textures/vram_compression/import_etc2_astc=true' >> relic-build/src/lootcore_rpg/project.godot
 
           cat > relic-build/src/lootcore_rpg/export_presets.cfg <<'EOF'
           [preset.0]
