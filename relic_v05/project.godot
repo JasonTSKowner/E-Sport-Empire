@@ -1,5 +1,5 @@
 [application]
-config/name="Relic Ascension: Mythic Wildbound"
+config/name="Relic Ascension: Visual Overkill"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7")
 
