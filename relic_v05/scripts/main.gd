@@ -134,6 +134,15 @@ var loot_beam_timer := 0.0
 var boss_phase := 0
 var chroma_pulse := 0.0
 
+# v0.8 streamed ultra visuals
+var ultra_biome_texture: Texture2D
+var ultra_boss_texture: Texture2D
+var ultra_cinematic_texture: Texture2D
+var ultra_biome_loaded := -1
+var ultra_boss_loaded := -1
+var ultra_cinematic_loaded := -1
+var ultra_ui_cache: Dictionary = {}
+
 # UI / animation
 var active_tab := 2
 var panel_open := false
@@ -207,6 +216,7 @@ func _process(delta: float) -> void:
 		if trial_time <= 0.0:
 			_finish_trial()
 	_update_world_event(delta)
+	_refresh_ultra_streamed_assets()
 	_update_music_for_biome()
 	if toast_timer > 0.0:
 		toast_timer -= delta
