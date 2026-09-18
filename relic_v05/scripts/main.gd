@@ -1975,6 +1975,19 @@ func _draw_hero(pos: Vector2) -> void:
 	var skin: Dictionary=D.SKINS[selected_skin]
 	var skin_main:=Color(str(skin["color"]))
 	var skin_accent:=Color(str(skin["accent"]))
+	if ultra_hero_texture != null:
+		draw_ellipse_custom(pos+Vector2(0,86),72,20,Color(0,0,0,0.20))
+		if evolution_tier > 0:
+			var evo_col := Color(str(D.EVOLUTIONS[evolution_tier]["color"]))
+			for ring in range(3):
+				draw_arc(pos+Vector2(0,20),94+ring*12+sin(time_alive*(2.0+ring*0.3))*5.0,0,TAU,48,Color(evo_col.r,evo_col.g,evo_col.b,0.18-ring*0.03),4.0)
+		var hero_rect := Rect2(pos+Vector2(-118,-150),Vector2(236,236))
+		draw_texture_rect(ultra_hero_texture,hero_rect,false,Color(hurt.r,hurt.g,hurt.b,1.0))
+		if evolution_tier >= 3:
+			var wing_col := Color(str(D.EVOLUTIONS[evolution_tier]["color"]))
+			draw_arc(pos+Vector2(-58,18),68,-2.2,0.55,24,Color(wing_col.r,wing_col.g,wing_col.b,0.34),11.0)
+			draw_arc(pos+Vector2(58,18),68,2.6,5.35,24,Color(wing_col.r,wing_col.g,wing_col.b,0.34),11.0)
+		return
 	draw_ellipse_custom(pos+Vector2(0,78),58,17,Color(0,0,0,0.15))
 	# evolution aura + set glow
 	if evolution_tier > 0:
@@ -2031,6 +2044,17 @@ func _draw_pet(pos: Vector2) -> void:
 func _draw_enemy(pos: Vector2) -> void:
 	var base:=Color(str(enemy.get("color","#d36f7d")))
 	var c:=base.lerp(Color.WHITE,enemy_hit_flash*0.62)
+	if ultra_enemy_texture != null and (enemy_boss or enemy_elite):
+		draw_ellipse_custom(pos+Vector2(0,82),90,23,Color(0,0,0,0.22))
+		if enemy_elite:
+			draw_arc(pos,92+sin(time_alive*5.0)*5.0,0,TAU,42,Color(1,0.82,0.3,0.38),7.0)
+		if enemy_boss:
+			var boss_col := Color(str(enemy.get("color","#ff7868")))
+			for ring in range(3):
+				draw_arc(pos,112+ring*14+sin(time_alive*(2.4+ring*0.4))*6.0,0,TAU,52,Color(boss_col.r,boss_col.g,boss_col.b,0.30-ring*0.05),7.0)
+		var enemy_rect := Rect2(pos+Vector2(-132,-160),Vector2(264,264))
+		draw_texture_rect(ultra_enemy_texture,enemy_rect,false,Color(c.r,c.g,c.b,1.0))
+		return
 	if enemy_elite:
 		draw_arc(pos,83+sin(time_alive*5.0)*4.0,0,TAU,32,Color(1,0.82,0.3,0.35),6.0)
 	if enemy_boss:
