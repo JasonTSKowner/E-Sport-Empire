@@ -1292,6 +1292,7 @@ func _save() -> void:
 		"player_level":player_level,"player_xp":player_xp,"ascensions":ascensions,
 		"core_level":core_level,"luck_level":luck_level,"quality_level":quality_level,
 		"speed_level":speed_level,"pity_level":pity_level,"pity":pity,
+		"core_resonance":core_resonance,"core_draw_streak":core_draw_streak,
 		"auto_roll":auto_roll,"auto_equip":auto_equip,"auto_sell_threshold":auto_sell_threshold,
 		"equipped":equipped,"inventory":inventory,"loot_history":loot_history,"codex_seen":codex_seen,
 		"active_pet":active_pet,"pet_levels":pet_levels,"skill_levels":skill_levels,
@@ -1322,6 +1323,8 @@ func _load_save() -> void:
 	core_level=int(parsed.get("core_level",core_level)); luck_level=int(parsed.get("luck_level",luck_level))
 	quality_level=int(parsed.get("quality_level",quality_level)); speed_level=int(parsed.get("speed_level",speed_level))
 	pity_level=int(parsed.get("pity_level",pity_level)); pity=int(parsed.get("pity",pity))
+	core_resonance=clampf(float(parsed.get("core_resonance",core_resonance)),0.0,100.0)
+	core_draw_streak=int(parsed.get("core_draw_streak",core_draw_streak))
 	auto_roll=bool(parsed.get("auto_roll",auto_roll)); auto_equip=bool(parsed.get("auto_equip",auto_equip))
 	auto_sell_threshold=int(parsed.get("auto_sell_threshold",auto_sell_threshold))
 	active_pet=int(parsed.get("active_pet",active_pet)); daily_claim_day=int(parsed.get("daily_claim_day",daily_claim_day))
