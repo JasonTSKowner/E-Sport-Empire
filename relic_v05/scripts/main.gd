@@ -2614,7 +2614,7 @@ func _draw_gear_panel() -> void:
 		var enabled := not selected_item.is_empty()
 		if i==0 or i==4:
 			enabled = gear_selected_index >= 0 and gear_selected_index < inventory.size()
-		var col := action_cols[i] if enabled else Color("#4d515b")
+		var col: Color = action_cols[i] if enabled else Color("#4d515b")
 		draw_circle(action_centers[i],23,Color(0.04,0.045,0.06,0.98))
 		draw_arc(action_centers[i],22,0,TAU,30,Color(col.r,col.g,col.b,0.75 if enabled else 0.25),3)
 		_text(action_icons[i],action_centers[i]+Vector2(0,7),17,col,true)
@@ -2672,7 +2672,7 @@ func _draw_core_panel() -> void:
 	for i in node_centers.size():
 		var nd: Dictionary = D.CORE_NODES[i]
 		var col := Color(str(nd["color"]))
-		var pc := node_centers[i]
+		var pc: Vector2 = node_centers[i]
 		var lv := int(levels[i])
 		var cost := 6+lv*3
 		draw_circle(pc,45,Color(0.035,0.04,0.055,0.96))
@@ -2764,7 +2764,7 @@ func _draw_loot_popup() -> void:
 	var loot_icons := ["E","◇","×"]
 	var loot_cols := [Color("#78e49a"),Color("#9ab8ff"),Color("#ff9a8e")]
 	for i in 3:
-		var ac := loot_cols[i]
+		var ac: Color = loot_cols[i]
 		draw_circle(loot_actions[i],43,Color(0.035,0.04,0.055,0.97))
 		draw_circle(loot_actions[i],34,Color(ac.r,ac.g,ac.b,0.08))
 		draw_arc(loot_actions[i],42,time_alive*(0.22+i*0.06)+i,time_alive*(0.22+i*0.06)+i+TAU*0.78,38,Color(ac.r,ac.g,ac.b,0.78),4)
