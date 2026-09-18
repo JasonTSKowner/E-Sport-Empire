@@ -179,3 +179,18 @@ const WORLD_EVENTS := [
 	{"name":"Lucky Stars","color":"#ff9ee7","bonus":"Luck boost","duration":30},
 	{"name":"Boss Frenzy","color":"#ff806c","bonus":"Boss rewards","duration":40}
 ]
+
+
+const CORE_NODES := [
+	{"name":"Fortune","short":"LUCK","color":"#ffd76a","desc":"Raises high-rarity weight"},
+	{"name":"Refinement","short":"QUALITY","color":"#7de6ff","desc":"Improves item roll quality"},
+	{"name":"Flux","short":"SPEED","color":"#87f5b1","desc":"Accelerates automatic draws"},
+	{"name":"Fate","short":"PITY","color":"#d79cff","desc":"Shortens the pity cycle"}
+]
+
+const GEAR_ACTIONS := [
+	{"name":"EQUIP","icon":"E","color":"#78e49a"},
+	{"name":"ENHANCE","icon":"+","color":"#ffd477"},
+	{"name":"LOCK","icon":"L","color":"#9acbff"},
+	{"name":"FAVORITE","icon":"★","color":"#ff9fd4"}
+]
