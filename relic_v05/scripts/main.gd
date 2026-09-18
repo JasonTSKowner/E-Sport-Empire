@@ -1176,7 +1176,7 @@ func _setup_colossus_assets() -> void:
 			var noise = load(noise_path)
 			if noise is Texture2D:
 				magic_noise_maps.append(noise)
-	for i in 6:
+	for i in 3:
 		var field_path := "res://assets/visual/v07/energy_field_%d.png" % i
 		if ResourceLoader.exists(field_path):
 			var field = load(field_path)
