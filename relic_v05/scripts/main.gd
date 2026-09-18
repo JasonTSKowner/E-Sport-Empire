@@ -279,13 +279,14 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if not current_item.is_empty():
-		if Rect2(55, 914, 185, 72).has_point(p):
+		var loot_actions := [Vector2(210,946),Vector2(360,946),Vector2(510,946)]
+		if Rect2(loot_actions[0]-Vector2(48,48),Vector2(96,96)).has_point(p):
 			_equip_current()
 			return
-		if Rect2(268, 914, 185, 72).has_point(p):
+		if Rect2(loot_actions[1]-Vector2(48,48),Vector2(96,96)).has_point(p):
 			_keep_current()
 			return
-		if Rect2(481, 914, 185, 72).has_point(p):
+		if Rect2(loot_actions[2]-Vector2(48,48),Vector2(96,96)).has_point(p):
 			_sell_current()
 			return
 		return
@@ -2739,9 +2740,17 @@ func _draw_loot_popup() -> void:
 	var old_score:=0.0 if equipped[slot].is_empty() else _item_score(equipped[slot])
 	var delta:=_item_score(current_item)-old_score
 	_text("%+.0f score vs equipped" % delta,Vector2(360,884),18,Color("#79ee91") if delta>=0 else Color("#ff8e95"),true)
-	_small_button(Rect2(55,914,185,72),"EQUIP",Color("#3d8455"))
-	_small_button(Rect2(268,914,185,72),"KEEP",Color("#4a5679"))
-	_small_button(Rect2(481,914,185,72),"SELL",Color("#7a493e"))
+	var loot_actions := [Vector2(210,946),Vector2(360,946),Vector2(510,946)]
+	var loot_labels := ["EQUIP","KEEP","SELL"]
+	var loot_icons := ["E","◇","×"]
+	var loot_cols := [Color("#78e49a"),Color("#9ab8ff"),Color("#ff9a8e")]
+	for i in 3:
+		var ac := loot_cols[i]
+		draw_circle(loot_actions[i],43,Color(0.035,0.04,0.055,0.97))
+		draw_circle(loot_actions[i],34,Color(ac.r,ac.g,ac.b,0.08))
+		draw_arc(loot_actions[i],42,time_alive*(0.22+i*0.06)+i,time_alive*(0.22+i*0.06)+i+TAU*0.78,38,Color(ac.r,ac.g,ac.b,0.78),4)
+		_text(loot_icons[i],loot_actions[i]+Vector2(0,8),22,ac,true)
+		_text(loot_labels[i],loot_actions[i]+Vector2(0,62),11,Color("#d5d9e1"),true)
 
 func _draw_boss_intro() -> void:
 	var alpha:=clampf(boss_intro,0.0,1.0)
