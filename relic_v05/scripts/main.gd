@@ -943,7 +943,7 @@ func _salvage_inventory() -> void:
 	var gained_gold := 0
 	var gained_shards := 0
 	for item in inventory:
-		if bool(item.get("locked",false)) or int(item.get("rarity",0)) >= maxi(4,auto_sell_threshold):
+		if bool(item.get("locked",false)) or bool(item.get("favorite",false)) or int(item.get("rarity",0)) >= maxi(4,auto_sell_threshold):
 			keep.append(item)
 		else:
 			gained_gold += maxi(5,int(_item_score(item)/10.0))
@@ -2421,6 +2421,8 @@ func _draw_core_shrine() -> void:
 	_panel(Rect2(16,808,688,342),Color(0.025,0.035,0.048,0.84),Color(0.45,0.72,0.90,0.14),28,1)
 
 	var center := Vector2(360,924)
+	if core_sigil_texture != null:
+		draw_texture_rect(core_sigil_texture,Rect2(center-Vector2(170,170),Vector2(340,340)),false,Color(1,1,1,0.13+core_overcharge_flash*0.08))
 	var resonance_ratio := clampf(core_resonance/100.0,0.0,1.0)
 	var ready := resonance_ratio >= 1.0
 
@@ -2633,6 +2635,8 @@ func _draw_skills_panel() -> void:
 
 func _draw_core_panel() -> void:
 	var center := Vector2(360,900)
+	if core_sigil_texture != null:
+		draw_texture_rect(core_sigil_texture,Rect2(center-Vector2(125,125),Vector2(250,250)),false,Color(1,1,1,0.12+core_overcharge_flash*0.06))
 	var node_centers := [Vector2(178,830),Vector2(542,830),Vector2(178,982),Vector2(542,982)]
 	var levels := [luck_level,quality_level,speed_level,pity_level]
 
@@ -3220,6 +3224,14 @@ func _draw_avatar(pos: Vector2) -> void:
 	_leaf(pos+Vector2(4,-30),Color("#d4ee6d"))
 
 func _draw_item_icon(pos: Vector2,slot: int,color: Color) -> void:
+	if gear_icon_atlas != null:
+		var safe_slot := clampi(slot,0,5)
+		var col_idx := safe_slot % 3
+		var row_idx := int(safe_slot/3)
+		var source := Rect2(col_idx*512,row_idx*512,512,512)
+		draw_circle(pos,35,Color(color.r,color.g,color.b,0.06))
+		draw_texture_rect_region(gear_icon_atlas,Rect2(pos-Vector2(34,34),Vector2(68,68)),source,Color(color.r,color.g,color.b,0.94))
+		return
 	match slot:
 		0:
 			draw_line(pos+Vector2(-28,34),pos+Vector2(30,-35),color,16)
@@ -3232,7 +3244,8 @@ func _draw_item_icon(pos: Vector2,slot: int,color: Color) -> void:
 		3:
 			draw_colored_polygon(PackedVector2Array([pos+Vector2(-35,-22),pos+Vector2(25,-22),pos+Vector2(38,25),pos+Vector2(-15,38)]),color)
 		4:
-			draw_circle(pos,36,color); draw_circle(pos,21,Color("#302d37"))
+			draw_circle(pos,36,color)
+			draw_circle(pos,21,Color("#302d37"))
 		_:
 			_diamond(pos,42,color)
 
