@@ -204,7 +204,7 @@ for idx in range(4):
 
 # High-detail 2K magic/noise maps used by world events, boss phases and
 # high-evolution aura overlays. These are intentionally high-frequency visual data.
-for idx in range(4):
+for idx in range(12):
     rnd = random.Random(41000 + idx)
     raw = rnd.randbytes(2048 * 2048)
     noise = Image.frombytes("L", (2048, 2048), raw)
@@ -213,3 +213,67 @@ for idx in range(4):
     noise2 = Image.frombytes("L", (2048, 2048), raw2).filter(ImageFilter.GaussianBlur(radius=3.0 + idx*0.2))
     mixed = Image.blend(noise, noise2, 0.34)
     mixed.save(VISUAL / f"magic_noise_{idx}.png", optimize=False)
+
+
+# Celestial Overdrive cinematic impact textures: starbursts, lens halos,
+# shockwave caustics and boss-phase turbulence. Each one is actually sampled
+# by the runtime for skills, bosses, rarity reveals and world events.
+for idx in range(6):
+    rnd = random.Random(52000 + idx)
+    im = Image.new("RGBA", (2048, 2048), (0,0,0,0))
+    d = ImageDraw.Draw(im, "RGBA")
+    cx = cy = 1024
+    palettes = [
+        (112,242,255), (255,224,112), (219,130,255),
+        (255,123,102), (140,255,173), (255,160,221)
+    ]
+    base = palettes[idx]
+    for ray in range(180):
+        a = (2*math.pi*ray/180.0) + rnd.uniform(-0.014,0.014)
+        inner = rnd.randint(90,260)
+        outer = rnd.randint(620,980)
+        width = rnd.randint(1,8)
+        alpha = rnd.randint(18,105)
+        x1 = cx + math.cos(a)*inner
+        y1 = cy + math.sin(a)*inner
+        x2 = cx + math.cos(a)*outer
+        y2 = cy + math.sin(a)*outer
+        d.line((x1,y1,x2,y2), fill=base+(alpha,), width=width)
+    for ring in range(22):
+        rr = 120 + ring*36
+        alpha = max(10, 135-ring*5)
+        d.ellipse((cx-rr,cy-rr,cx+rr,cy+rr), outline=base+(alpha,), width=2+(ring%5))
+    for spark in range(900):
+        a=rnd.random()*2*math.pi
+        rr=(rnd.random()**0.55)*940
+        x=cx+math.cos(a)*rr
+        y=cy+math.sin(a)*rr
+        sr=rnd.randint(1,7)
+        d.ellipse((x-sr,y-sr,x+sr,y+sr), fill=base+(rnd.randint(30,180),))
+    im = im.filter(ImageFilter.GaussianBlur(radius=0.22))
+    im.save(VISUAL / f"celestial_burst_{idx}.png", optimize=False)
+
+# Additional cinematic SFX for v0.7.
+EXTRA_SFX = [
+    ("celestial_impact.wav", 1.35, 1500, 0.22),
+    ("boss_phase.wav", 1.8, 92, 0.34),
+    ("mythic_reveal.wav", 2.2, 1120, 0.26),
+    ("ultimate_overdrive.wav", 2.4, 760, 0.30),
+    ("world_event.wav", 1.5, 530, 0.25),
+]
+for idx, (filename, dur, freq, noise) in enumerate(EXTRA_SFX):
+    rnd = random.Random(61000 + idx)
+    frames = bytearray()
+    total = int(SR * dur)
+    for i in range(total):
+        t = i / SR
+        env = max(0.0, 1.0 - t/dur)
+        rise = 1.0 + 1.7*(t/dur)
+        sig = math.sin(2*math.pi*freq*rise*t) * env*0.55
+        sig += math.sin(2*math.pi*freq*0.5*t) * env*0.38
+        sig += math.sin(2*math.pi*55*t) * env*0.24
+        sig += rnd.uniform(-1,1)*noise*env
+        v = clamp16(sig*32767*0.42)
+        frames += struct.pack("<hh", v, v)
+    with wave.open(str(AUDIO / filename), "wb") as w:
+        w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(frames)
