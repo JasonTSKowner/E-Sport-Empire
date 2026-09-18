@@ -633,7 +633,7 @@ func _salvage_inventory() -> void:
 # -------------------------------------------------------------------
 
 func _upgrade_core() -> void:
-	var cost := _core_cost()
+	var cost: int = _core_cost()
 	if gold < cost:
 		_show_toast("Need %d Gold" % cost)
 		return
@@ -652,7 +652,7 @@ func _core_cost() -> int:
 func _upgrade_core_stat(index: int) -> void:
 	var names := ["Luck","Quality","Speed","Pity"]
 	var levels := [luck_level,quality_level,speed_level,pity_level]
-	var cost := 6 + int(levels[index])*3
+	var cost: int = 6 + int(levels[index])*3
 	if shards < cost:
 		_show_toast("Need %d shards" % cost)
 		return
@@ -669,7 +669,7 @@ func _upgrade_skill(index: int) -> void:
 	if stage < int(D.SKILLS[index]["unlock"]):
 		_show_toast("Unlocks at Stage %d" % int(D.SKILLS[index]["unlock"]))
 		return
-	var cost := 180*(skill_levels[index]+1)
+	var cost: int = 180*(skill_levels[index]+1)
 	if gold < cost:
 		_show_toast("Need %d Gold" % cost)
 		return
@@ -682,7 +682,7 @@ func _upgrade_pet() -> void:
 	if stage < int(D.PETS[active_pet]["unlock"]):
 		_show_toast("Pet not unlocked")
 		return
-	var cost := 4 + pet_levels[active_pet]*2
+	var cost: int = 4 + pet_levels[active_pet]*2
 	if shards < cost:
 		_show_toast("Need %d shards" % cost)
 		return
@@ -1200,7 +1200,7 @@ func _draw_skills_panel() -> void:
 		_panel(Rect2(72,y,576,68),Color("#242329"),Color(str(skill["color"])) if unlocked else Color("#55555c"),16,2)
 		_text(str(skill["name"]),Vector2(94,y+28),20,Color.WHITE if unlocked else Color("#888891"))
 		_text("Lv.%d  CD %.1fs" % [skill_levels[i],float(skill["cd"])],Vector2(94,y+53),14,Color("#bbb5c0"))
-		var cost:=180*(skill_levels[i]+1)
+		var cost: int =180*(skill_levels[i]+1)
 		_text("%sG" % _short_num(cost),Vector2(610,y+42),15,Color("#ffe08d"),true)
 	_text("Skills cast automatically. Tap them in battle for timing.",Vector2(360,1080),15,Color("#9e96a4"),true)
 
