@@ -2477,7 +2477,7 @@ func _draw_rarity_cutscene() -> void:
 	var col := rarity_cutscene_color
 	draw_rect(Rect2(0,0,W,H),Color(0.02,0.01,0.04,0.52*a))
 	if celestial_burst_maps.size()>0:
-		var idx:=abs(rarity_cutscene_name.hash())%celestial_burst_maps.size()
+		var idx: int = absi(rarity_cutscene_name.hash()) % celestial_burst_maps.size()
 		draw_texture_rect(celestial_burst_maps[idx],Rect2(40,280,640,640),false,Color(col.r,col.g,col.b,0.26*a))
 	for bx in [145.0,230.0,360.0,490.0,575.0]:
 		draw_colored_polygon(PackedVector2Array([Vector2(bx-18,240),Vector2(bx+18,240),Vector2(bx+58,930),Vector2(bx-58,930)]),Color(col.r,col.g,col.b,0.035*a))
