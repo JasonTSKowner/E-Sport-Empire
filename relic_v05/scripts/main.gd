@@ -138,9 +138,13 @@ var chroma_pulse := 0.0
 var ultra_biome_texture: Texture2D
 var ultra_boss_texture: Texture2D
 var ultra_cinematic_texture: Texture2D
+var ultra_hero_texture: Texture2D
+var ultra_enemy_texture: Texture2D
 var ultra_biome_loaded := -1
 var ultra_boss_loaded := -1
 var ultra_cinematic_loaded := -1
+var ultra_hero_loaded := -1
+var ultra_enemy_loaded := -1
 var ultra_ui_cache: Dictionary = {}
 
 # UI / animation
@@ -1230,6 +1234,24 @@ func _refresh_ultra_streamed_assets() -> void:
 				if boss_res is Texture2D:
 					ultra_boss_texture = boss_res
 		ultra_boss_loaded = boss_idx
+	var hero_idx := clampi(selected_skin,0,7)
+	if hero_idx != ultra_hero_loaded:
+		ultra_hero_texture = null
+		var hero_path := "res://assets/visual/v08/hero_skin_%d.png" % hero_idx
+		if ResourceLoader.exists(hero_path):
+			var hero_res = ResourceLoader.load(hero_path,"Texture2D",ResourceLoader.CACHE_MODE_IGNORE)
+			if hero_res is Texture2D:
+				ultra_hero_texture = hero_res
+		ultra_hero_loaded = hero_idx
+	var enemy_idx := biome_idx
+	if enemy_idx != ultra_enemy_loaded:
+		ultra_enemy_texture = null
+		var enemy_path := "res://assets/visual/v08/boss_sprite_%d.png" % enemy_idx
+		if ResourceLoader.exists(enemy_path):
+			var enemy_res = ResourceLoader.load(enemy_path,"Texture2D",ResourceLoader.CACHE_MODE_IGNORE)
+			if enemy_res is Texture2D:
+				ultra_enemy_texture = enemy_res
+		ultra_enemy_loaded = enemy_idx
 	var cinematic_idx := _ultra_cinematic_index()
 	if cinematic_idx != ultra_cinematic_loaded:
 		ultra_cinematic_texture = null
