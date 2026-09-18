@@ -1950,6 +1950,7 @@ func _draw() -> void:
 	_draw_core_shrine()
 	_draw_bottom_nav()
 	_draw_fx()
+	_draw_vfx_v2()
 	_draw_cinematic_vfx()
 	draw_set_transform(Vector2.ZERO)
 	if feature_panel != "": _draw_feature_panel()
@@ -2414,6 +2415,49 @@ func _draw_fx() -> void:
 		draw_arc(Vector2(ring["pos"]),float(ring["r"]),0,TAU,48,c,7.0)
 
 
+
+func _draw_vfx_v2() -> void:
+	for p in vfx_particles_v2:
+		var life := clampf(float(p["life"])/maxf(0.01,float(p.get("max_life",0.9))),0.0,1.0)
+		var pos := Vector2(p["pos"])
+		var vel := Vector2(p["vel"])
+		var col := Color(p["color"])
+		var size := float(p["size"])
+		var mode := str(p.get("mode","spark"))
+		var alpha := life*life
+		match mode:
+			"streak":
+				var dir := vel.normalized()
+				var len := 18.0 + vel.length()*0.065
+				draw_line(pos-dir*len,pos+dir*4.0,Color(col.r,col.g,col.b,0.18*alpha),size*3.2)
+				draw_line(pos-dir*len*0.72,pos+dir*2.0,Color(col.r,col.g,col.b,0.78*alpha),maxf(1.2,size*0.72))
+			"orb":
+				draw_circle(pos,size*2.8,Color(col.r,col.g,col.b,0.08*alpha))
+				draw_circle(pos,size*1.55,Color(col.r,col.g,col.b,0.24*alpha))
+				draw_circle(pos,size*0.68,Color(1,1,1,0.78*alpha))
+			_:
+				draw_line(pos+Vector2(-size*2.2,0),pos+Vector2(size*2.2,0),Color(col.r,col.g,col.b,0.48*alpha),1.6)
+				draw_line(pos+Vector2(0,-size*2.2),pos+Vector2(0,size*2.2),Color(col.r,col.g,col.b,0.48*alpha),1.6)
+				draw_circle(pos,size,Color(col.r,col.g,col.b,0.72*alpha))
+	for s in vfx_slashes:
+		var life := clampf(float(s["life"])/maxf(0.01,float(s.get("max_life",0.52))),0.0,1.0)
+		var pos := Vector2(s["pos"])
+		var col := Color(s["color"])
+		var angle := float(s["angle"])
+		var span := float(s["span"])
+		var radius := float(s["radius"])
+		var width := float(s["width"])
+		draw_arc(pos,radius,angle,angle+span,28,Color(col.r,col.g,col.b,0.12*life),width*3.1)
+		draw_arc(pos,radius,angle,angle+span,28,Color(col.r,col.g,col.b,0.68*life),width)
+		draw_arc(pos,radius-5.0,angle+0.05,angle+span-0.04,28,Color(1,1,1,0.42*life),maxf(1.0,width*0.34))
+	for b in vfx_bursts:
+		var life := clampf(float(b["life"])/maxf(0.01,float(b.get("max_life",0.7))),0.0,1.0)
+		var pos := Vector2(b["pos"])
+		var col := Color(b["color"])
+		var radius := float(b["radius"])
+		draw_circle(pos,maxf(0.0,18.0*(1.0-life)),Color(col.r,col.g,col.b,0.12*life))
+		draw_arc(pos,radius,0,TAU,56,Color(col.r,col.g,col.b,0.08*life),12.0)
+		draw_arc(pos,radius,0,TAU,56,Color(col.r,col.g,col.b,0.52*life),3.2)
 
 func _draw_cinematic_vfx() -> void:
 	if cinematic_timer > 0.0 and ultra_cinematic_texture != null:
