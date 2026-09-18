@@ -2457,21 +2457,103 @@ func _draw_panel() -> void:
 		4: _draw_quests_panel()
 
 func _draw_gear_panel() -> void:
+	_text("LOADOUT",Vector2(72,766),13,Color("#9fa5b4"))
+	_text("Inventory %d/%d  ·  Page %d/%d" % [inventory.size(),MAX_INV,gear_page+1,_gear_page_count()],Vector2(648,766),13,Color("#b9bdc8"),true)
+
+	# Equipped ring: six tactile circular slots instead of text rows.
 	for i in 6:
-		var col:=i%2
-		var row:=int(i/2)
-		var rect:=Rect2(55+col*315,775+row*76,290,62)
-		_panel(rect,Color("#242329"),Color(1,1,1,0.08),15,1)
-		var item: Dictionary=equipped[i]
-		_text(D.SLOTS[i],Vector2(rect.position.x+14,rect.position.y+24),14,Color("#a9a1ad"))
+		var center := Vector2(90+i*108,800)
+		var item: Dictionary = equipped[i]
+		var selected := gear_selected_index < 0 and gear_selected_slot == i
+		var border := Color("#525765")
+		if not item.is_empty():
+			border = _rarity_color(int(item.get("rarity",0)))
+		draw_circle(center,35,Color(0.035,0.045,0.06,0.96))
+		draw_arc(center,34,0,TAU,36,Color(border.r,border.g,border.b,0.35),7.0)
+		draw_arc(center,29,time_alive*0.35+i,time_alive*0.35+i+TAU*0.72,30,Color(border.r,border.g,border.b,0.78),2.5)
+		if selected:
+			draw_arc(center,40,-PI/2,-PI/2+TAU*0.82,40,Color("#fff0b0"),4.0)
 		if item.is_empty():
-			_text("Empty",Vector2(rect.position.x+14,rect.position.y+48),17,Color("#6f6973"))
+			_text("+",center+Vector2(0,8),24,Color("#626a79"),true)
 		else:
-			_text(str(item.get("name","")),Vector2(rect.position.x+14,rect.position.y+48),14,_rarity_color(int(item.get("rarity",0))))
-	_text("Inventory %d/%d  •  Auto-sell < %s" % [inventory.size(),MAX_INV,D.RARITIES[auto_sell_threshold]],Vector2(360,1018),15,Color("#bcb4c2"),true)
-	_small_button(Rect2(60,1038,180,58),"AUTO EQUIP",Color("#386b50"))
-	_small_button(Rect2(270,1038,180,58),"SALVAGE",Color("#76503d"))
-	_small_button(Rect2(480,1038,180,58),"FILTER",Color("#4c4a72"))
+			_draw_item_icon(center,i,border)
+			if bool(item.get("favorite",false)):
+				_star(center+Vector2(25,-24),7,Color("#ffb4dc"))
+			if bool(item.get("locked",false)):
+				draw_circle(center+Vector2(-25,-24),6,Color("#a4d4ff"))
+		_text(D.SLOTS[i].left(4).to_upper(),center+Vector2(0,49),10,Color("#aeb4c1"),true)
+
+	# Inventory card strip.
+	for i in 6:
+		var idx := gear_page*6+i
+		var rect := Rect2(48+i*104,850,92,108)
+		var selected := idx == gear_selected_index
+		if idx >= inventory.size():
+			_panel(rect,Color(0.025,0.03,0.04,0.58),Color(1,1,1,0.035),14,1)
+			draw_arc(rect.get_center()-Vector2(0,8),20,0,TAU,24,Color(1,1,1,0.05),2)
+			continue
+		var item: Dictionary = inventory[idx]
+		var rarity := int(item.get("rarity",0))
+		var col := _rarity_color(rarity)
+		_panel(rect,Color(0.045,0.05,0.065,0.96),Color(col.r,col.g,col.b,0.42 if not selected else 0.95),14,2 if selected else 1)
+		if selected:
+			draw_rect(Rect2(rect.position+Vector2(5,5),rect.size-Vector2(10,10)),Color(col.r,col.g,col.b,0.06))
+		var icon_pos := rect.position+Vector2(46,38)
+		draw_circle(icon_pos,27,Color(col.r,col.g,col.b,0.09))
+		_draw_item_icon(icon_pos,int(item.get("slot",0)),col)
+		_text(str(D.RARITIES[rarity]).left(9),Vector2(rect.get_center().x,rect.position.y+76),10,col,true)
+		_text("+%d · %s" % [int(item.get("level",0)),_short_num(int(item.get("power",0)))],Vector2(rect.get_center().x,rect.position.y+95),10,Color("#e8ebf1"),true)
+		if bool(item.get("favorite",false)):
+			_star(rect.position+Vector2(78,14),6,Color("#ff9fd4"))
+		if bool(item.get("locked",false)):
+			draw_circle(rect.position+Vector2(14,14),5,Color("#9acbff"))
+
+	# Page controls live as rune arrows instead of wide buttons.
+	for side in [-1,1]:
+		var pc := Vector2(71 if side<0 else 637,991)
+		draw_circle(pc,22,Color("#1d222d"))
+		draw_arc(pc,21,0,TAU,28,Color("#6f7990"),2)
+		_text("‹" if side<0 else "›",pc+Vector2(0,7),24,Color.WHITE,true)
+
+	# Selected item detail / comparison.
+	var selected_item := _gear_selected_item()
+	_panel(Rect2(110,970,300,135),Color(0.025,0.03,0.042,0.94),Color(1,1,1,0.07),18,1)
+	if selected_item.is_empty():
+		_text("SELECT GEAR",Vector2(260,1025),18,Color("#747b89"),true)
+		_text("Tap a slot or inventory card",Vector2(260,1052),12,Color("#686f7d"),true)
+	else:
+		var rarity := int(selected_item.get("rarity",0))
+		var col := _rarity_color(rarity)
+		var slot := clampi(int(selected_item.get("slot",gear_selected_slot)),0,5)
+		_text(str(selected_item.get("name","Gear")).left(28),Vector2(126,995),14,col)
+		_text("%s  +%d" % [D.SLOTS[slot],int(selected_item.get("level",0))],Vector2(126,1018),12,Color("#aeb5c3"))
+		_text("Power %s  ·  Quality %.1f%%" % [_short_num(int(selected_item.get("power",0))),float(selected_item.get("quality",100.0))],Vector2(126,1041),12,Color.WHITE)
+		var equipped_score := 0.0 if equipped[slot].is_empty() else _item_score(equipped[slot])
+		var delta := _item_score(selected_item)-equipped_score
+		if gear_selected_index >= 0:
+			_text("%+.0f vs equipped" % delta,Vector2(126,1064),12,Color("#7ff0a0") if delta>=0 else Color("#ff9299"))
+		var set_name := str(selected_item.get("set",""))
+		if set_name!="":
+			_text("%s Set" % set_name,Vector2(126,1087),11,Color("#d5b8ff"))
+
+	# Context actions are circular glyphs; unavailable actions dim naturally.
+	var action_centers := [Vector2(445,1030),Vector2(495,1030),Vector2(545,1030),Vector2(595,1030),Vector2(645,1030)]
+	var action_labels := ["EQUIP","UP","LOCK","FAV","SCRAP"]
+	var action_icons := ["E","+","L","★","×"]
+	var action_cols := [Color("#78e49a"),Color("#ffd477"),Color("#9acbff"),Color("#ff9fd4"),Color("#ff8f8f")]
+	for i in action_centers.size():
+		var enabled := not selected_item.is_empty()
+		if i==0 or i==4:
+			enabled = gear_selected_index >= 0 and gear_selected_index < inventory.size()
+		var col := action_cols[i] if enabled else Color("#4d515b")
+		draw_circle(action_centers[i],23,Color(0.04,0.045,0.06,0.98))
+		draw_arc(action_centers[i],22,0,TAU,30,Color(col.r,col.g,col.b,0.75 if enabled else 0.25),3)
+		_text(action_icons[i],action_centers[i]+Vector2(0,7),17,col,true)
+		_text(action_labels[i],action_centers[i]+Vector2(0,43),8,Color("#aeb3bf") if enabled else Color("#60646d"),true)
+
+	if gear_upgrade_flash>0.0:
+		var flash_col := _rarity_color(int(selected_item.get("rarity",0))) if not selected_item.is_empty() else Color("#fff0a0")
+		draw_arc(Vector2(360,930),80+gear_upgrade_flash*45,0,TAU,60,Color(flash_col.r,flash_col.g,flash_col.b,0.30*gear_upgrade_flash),8)
 
 func _draw_skills_panel() -> void:
 	for i in 3:
