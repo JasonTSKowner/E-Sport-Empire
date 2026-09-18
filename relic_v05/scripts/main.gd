@@ -1838,11 +1838,11 @@ func _draw_world() -> void:
 	var far := Color(str(biome["far"]))
 	var near := Color(str(biome["near"]))
 	var ground := Color(str(biome["ground"]))
-	if ultra_biome_texture != null:
-		draw_texture_rect(ultra_biome_texture,Rect2(0,118,720,735),false,Color(1,1,1,0.82))
 	for y in range(0,480,24):
 		var t:=float(y)/480.0
 		draw_rect(Rect2(0,y,W,26),sky.lerp(far,t*0.45))
+	if ultra_biome_texture != null:
+		draw_texture_rect(ultra_biome_texture,Rect2(0,118,720,735),false,Color(1,1,1,0.78))
 	var sun_pos:=Vector2(585,220)
 	draw_circle(sun_pos,72,Color(1,0.92,0.58,0.24))
 	draw_circle(sun_pos,48,Color(1,0.94,0.68,0.65))
@@ -1859,9 +1859,10 @@ func _draw_world() -> void:
 	draw_colored_polygon(PackedVector2Array([Vector2(0,590),Vector2(100,470),Vector2(205,575),Vector2(350,435),Vector2(500,575),Vector2(640,455),Vector2(720,530),Vector2(720,700),Vector2(0,700)]),Color(near_layer.r,near_layer.g,near_layer.b,0.42))
 
 	# path + grass
-	draw_rect(Rect2(0,555,W,270),near)
-	draw_colored_polygon(PackedVector2Array([Vector2(0,690),Vector2(720,620),Vector2(720,825),Vector2(0,825)]),ground)
-	draw_colored_polygon(PackedVector2Array([Vector2(0,732),Vector2(720,660),Vector2(720,825),Vector2(0,825)]),ground.lightened(0.08))
+	draw_rect(Rect2(0,555,W,270),Color(near.r,near.g,near.b,0.42))
+	draw_colored_polygon(PackedVector2Array([Vector2(0,690),Vector2(720,620),Vector2(720,825),Vector2(0,825)]),Color(ground.r,ground.g,ground.b,0.52))
+	var ground_light := ground.lightened(0.08)
+	draw_colored_polygon(PackedVector2Array([Vector2(0,732),Vector2(720,660),Vector2(720,825),Vector2(0,825)]),Color(ground_light.r,ground_light.g,ground_light.b,0.46))
 
 	# premium overlays generated into the Colossus content pack
 	if _biome_index() < biome_overlays.size():
@@ -1897,7 +1898,10 @@ func _draw_weather() -> void:
 			_: _leaf(pos,accent)
 
 func _draw_top_hud() -> void:
-	_panel(Rect2(14,14,692,174),Color(0.035,0.055,0.055,0.88),Color(0.8,1,0.9,0.13),28,2)
+	var hud_surface := _get_ultra_ui_surface(0)
+	if hud_surface != null:
+		draw_texture_rect(hud_surface,Rect2(10,10,700,182),false,Color(1,1,1,0.26))
+	_panel(Rect2(14,14,692,174),Color(0.025,0.04,0.05,0.76),Color(0.8,1,0.9,0.18),28,2)
 	_draw_avatar(Vector2(65,67))
 	_text(str(D.EVOLUTIONS[evolution_tier]["name"]).to_upper(),Vector2(112,52),22,Color(str(D.EVOLUTIONS[evolution_tier]["color"])))
 	_text(D.ADVENTURE_RANKS[_adventure_rank_index()],Vector2(112,69),12,Color("#ffe6a6"))
