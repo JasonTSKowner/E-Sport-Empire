@@ -107,3 +107,75 @@ const ADVENTURE_RANKS := [
 const FORGE_TITLES := [
 	"Rough Forge","Verdant Forge","Runic Forge","Astral Forge","Divine Forge","Origin Forge"
 ]
+
+
+const TOWER_THEMES := [
+	{"name":"Verdant Spire","color":"#79dc79","enemy":"Bramble Sentinel"},
+	{"name":"Moon Obelisk","color":"#8e9cff","enemy":"Lunar Watcher"},
+	{"name":"Crystal Pinnacle","color":"#7ceaff","enemy":"Prism Guardian"},
+	{"name":"Ember Bastion","color":"#ff8e6f","enemy":"Cinder Colossus"},
+	{"name":"Astral Zenith","color":"#e08cff","enemy":"Starbound Tyrant"}
+]
+
+const TRIALS := [
+	{"name":"Trial of Power","color":"#ff8a72","stat":"Damage","reward":"Forge Stones"},
+	{"name":"Trial of Life","color":"#75e89d","stat":"Vitality","reward":"Shards"},
+	{"name":"Trial of Fortune","color":"#ffd86e","stat":"Luck","reward":"Gems"},
+	{"name":"Trial of Haste","color":"#74dfff","stat":"Speed","reward":"Energy"}
+]
+
+const TALENTS := [
+	{"name":"Wild Strength","branch":"Power","cost":2,"max":10,"desc":"+3% Power / rank"},
+	{"name":"Critical Bloom","branch":"Power","cost":3,"max":8,"desc":"+1% Crit / rank"},
+	{"name":"Feral Tempo","branch":"Power","cost":3,"max":8,"desc":"+2% Haste / rank"},
+	{"name":"Vital Roots","branch":"Guard","cost":2,"max":10,"desc":"+4% HP / rank"},
+	{"name":"Barkskin","branch":"Guard","cost":3,"max":8,"desc":"+2% Armor / rank"},
+	{"name":"Second Wind","branch":"Guard","cost":4,"max":5,"desc":"+0.4% Regen / rank"},
+	{"name":"Lucky Seed","branch":"Fortune","cost":2,"max":10,"desc":"+2 Luck / rank"},
+	{"name":"Treasure Nose","branch":"Fortune","cost":3,"max":8,"desc":"+5% Gold / rank"},
+	{"name":"Core Whisper","branch":"Fortune","cost":4,"max":5,"desc":"Pity triggers sooner"},
+	{"name":"Pet Bond","branch":"Spirit","cost":3,"max":8,"desc":"+4% Pet bonus / rank"},
+	{"name":"Skill Echo","branch":"Spirit","cost":4,"max":6,"desc":"+4% Skill power / rank"},
+	{"name":"Ascendant Soul","branch":"Spirit","cost":6,"max":5,"desc":"+5% all stats / rank"}
+]
+
+const ARTIFACTS := [
+	{"name":"Seed of Dawn","color":"#ffe184","unlock":8,"bonus":"Power"},
+	{"name":"Moon Mirror","color":"#9db5ff","unlock":18,"bonus":"Crit"},
+	{"name":"Prism Heart","color":"#8ff5ff","unlock":30,"bonus":"HP"},
+	{"name":"Cinder Crown","color":"#ff8c71","unlock":45,"bonus":"Damage"},
+	{"name":"Dream Bell","color":"#ed9cff","unlock":65,"bonus":"Luck"},
+	{"name":"Void Compass","color":"#ab7fff","unlock":85,"bonus":"Haste"},
+	{"name":"Origin Seed","color":"#fff0aa","unlock":110,"bonus":"All"},
+	{"name":"Singularity Bloom","color":"#ff94de","unlock":150,"bonus":"All"}
+]
+
+const SKINS := [
+	{"name":"Wildbound","color":"#63b95a","accent":"#d6ef6b","unlock":1,"gems":0},
+	{"name":"Moonleaf","color":"#6380c4","accent":"#a8dbff","unlock":12,"gems":8},
+	{"name":"Sunpetal","color":"#d99e4d","accent":"#fff08a","unlock":24,"gems":12},
+	{"name":"Frostbloom","color":"#71bbca","accent":"#d4f8ff","unlock":38,"gems":18},
+	{"name":"Emberthorn","color":"#b35b4c","accent":"#ffba7e","unlock":55,"gems":24},
+	{"name":"Astral Dream","color":"#7d68bd","accent":"#edb0ff","unlock":75,"gems":32},
+	{"name":"Voidrose","color":"#68418f","accent":"#e28cff","unlock":100,"gems":45},
+	{"name":"Origin Gold","color":"#d7a94c","accent":"#fff2ac","unlock":135,"gems":60}
+]
+
+const TITLES := [
+	{"name":"Meadow Wanderer","need":1},
+	{"name":"Core Seeker","need":10},
+	{"name":"Boss Breaker","need":20},
+	{"name":"Rift Walker","need":35},
+	{"name":"Mythic Forger","need":55},
+	{"name":"Astral Warden","need":80},
+	{"name":"Origin Chaser","need":110},
+	{"name":"Singularity Bound","need":150}
+]
+
+const WORLD_EVENTS := [
+	{"name":"Golden Bloom","color":"#ffdb6d","bonus":"Gold x2","duration":40},
+	{"name":"Energy Rain","color":"#83ecff","bonus":"Energy drops","duration":35},
+	{"name":"Rift Surge","color":"#c18cff","bonus":"Elite chance","duration":45},
+	{"name":"Lucky Stars","color":"#ff9ee7","bonus":"Luck boost","duration":30},
+	{"name":"Boss Frenzy","color":"#ff806c","bonus":"Boss rewards","duration":40}
+]
