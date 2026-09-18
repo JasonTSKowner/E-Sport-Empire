@@ -213,3 +213,104 @@ for idx in range(4):
     noise2 = Image.frombytes("L", (2048, 2048), raw2).filter(ImageFilter.GaussianBlur(radius=3.0 + idx*0.2))
     mixed = Image.blend(noise, noise2, 0.34)
     mixed.save(VISUAL / f"magic_noise_{idx}.png", optimize=False)
+
+
+# v0.7 VISUAL OVERKILL PACK
+# 2K high-frequency effect fields that are actually sampled/rendered in-game.
+VFX = VISUAL / "v07"
+VFX.mkdir(parents=True, exist_ok=True)
+
+# Six chromatic energy fields: boss phases, world events, evolutions, loot cinematics.
+for idx in range(6):
+    rnd = random.Random(51000 + idx)
+    w = h = 2048
+    # RGB high-frequency field with directional streaks + turbulence.
+    raw = bytearray(w*h*3)
+    for i in range(w*h):
+        n = rnd.randrange(256)
+        m = rnd.randrange(256)
+        k = rnd.randrange(256)
+        raw[i*3+0] = (n + idx*21) & 255
+        raw[i*3+1] = (m + idx*37) & 255
+        raw[i*3+2] = (k + idx*53) & 255
+    im = Image.frombytes("RGB",(w,h),bytes(raw))
+    d = ImageDraw.Draw(im,"RGBA")
+    cx = cy = 1024
+    for ray in range(180):
+        a = 2*math.pi*ray/180.0 + idx*0.11
+        inner = 120 + rnd.randint(0,220)
+        outer = 800 + rnd.randint(-120,180)
+        col = (120+((idx*29)%120), 150+((idx*17)%95), 255, rnd.randint(24,70))
+        d.line((cx+math.cos(a)*inner,cy+math.sin(a)*inner,
+                cx+math.cos(a)*outer,cy+math.sin(a)*outer),
+               fill=col,width=rnd.randint(1,6))
+    im.save(VFX / f"energy_field_{idx}.png", optimize=False)
+
+# Two premium 4x4 animated VFX atlases. Each cell is a different impact/ring frame.
+for atlas_idx in range(2):
+    rnd = random.Random(56000 + atlas_idx)
+    im = Image.new("RGBA",(2048,2048),(0,0,0,0))
+    d = ImageDraw.Draw(im,"RGBA")
+    for frame in range(16):
+        fx = (frame%4)*512
+        fy = (frame//4)*512
+        cx = fx+256
+        cy = fy+256
+        t = frame/15.0
+        base = [(105,235,255),(255,120,224)][atlas_idx]
+        # Animated shockwave rings.
+        for ring in range(10):
+            r = 34 + ring*18 + int(t*110)
+            alpha = max(10,190-ring*15-int(t*75))
+            d.ellipse((cx-r,cy-r,cx+r,cy+r),outline=base+(alpha,),width=2+(ring%4))
+        # Radial shards.
+        for shard in range(48):
+            a = 2*math.pi*shard/48.0 + t*0.85 + rnd.random()*0.05
+            r1 = 45 + rnd.randint(0,55) + int(t*60)
+            r2 = r1 + rnd.randint(20,110)
+            col = (base[0],base[1],base[2],rnd.randint(45,180))
+            d.line((cx+math.cos(a)*r1,cy+math.sin(a)*r1,
+                    cx+math.cos(a)*r2,cy+math.sin(a)*r2),fill=col,width=rnd.randint(2,7))
+        # Spark cloud.
+        for _ in range(120):
+            a = rnd.random()*2*math.pi
+            rr = rnd.random()*(170+90*t)
+            x = cx+math.cos(a)*rr
+            y = cy+math.sin(a)*rr
+            sr = rnd.randint(1,6)
+            d.ellipse((x-sr,y-sr,x+sr,y+sr),fill=base+(rnd.randint(35,180),))
+    im.save(VFX / f"impact_atlas_{atlas_idx}.png", optimize=False)
+
+# Loot beam / rarity pillar maps with dense procedural detail.
+for idx in range(2):
+    rnd = random.Random(59000 + idx)
+    im = Image.new("RGBA",(2048,2048),(0,0,0,0))
+    d = ImageDraw.Draw(im,"RGBA")
+    center = 1024
+    base = [(255,226,110),(194,126,255)][idx]
+    for x in range(2048):
+        dx = abs(x-center)/1024.0
+        a = int(max(0, 150*(1-dx**0.7)))
+        d.line((x,0,x,2048),fill=base+(a,))
+    for _ in range(1200):
+        x = int(rnd.gauss(center,360))
+        y = rnd.randrange(2048)
+        if 0 <= x < 2048:
+            rr = rnd.randint(1,8)
+            d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=(255,255,255,rnd.randint(35,180)))
+    for y in range(120,2048,120):
+        d.line((250,y,1798,y+rnd.randint(-30,30)),fill=base+(rnd.randint(15,45),),width=rnd.randint(1,5))
+    im.save(VFX / f"loot_beam_{idx}.png", optimize=False)
+
+# A dense 2K foreground sparkle/particle layer for high-evolution biomes.
+rnd = random.Random(62000)
+im = Image.new("RGBA",(2048,2048),(0,0,0,0))
+d = ImageDraw.Draw(im,"RGBA")
+for _ in range(5200):
+    x=rnd.randrange(2048); y=rnd.randrange(2048)
+    rr=rnd.randint(1,5)
+    hue=rnd.randrange(4)
+    cols=[(130,240,255),(255,210,110),(220,130,255),(130,255,170)]
+    col=cols[hue]
+    d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=col+(rnd.randint(25,165),))
+im.save(VFX / "spark_field.png", optimize=False)
