@@ -2402,31 +2402,82 @@ func _draw_skill_row() -> void:
 	if rage<100.0: _text("%d" % int(rage),upos+Vector2(0,6),14,Color.WHITE,true)
 
 func _draw_core_shrine() -> void:
-	_panel(Rect2(16,808,688,342),Color("#211d21"),Color("#6f5a78"),28,2)
-	# stone shrine
-	draw_colored_polygon(PackedVector2Array([Vector2(246,1020),Vector2(275,860),Vector2(445,860),Vector2(474,1020)]),Color("#51485a"))
-	draw_rect(Rect2(267,1005,186,45),Color("#403948"))
-	for x in [266,454]:
-		draw_rect(Rect2(x,868,18,146),Color("#6e6478"))
-	# rings / core
-	var p:=Vector2(360,918)
-	var pulse:=1.0+sin(time_alive*4.0)*0.035+core_pulse*0.08
-	draw_circle(p,99*pulse,Color(0.34,0.74,1.0,0.08+loot_flash*0.16))
-	draw_arc(p,78*pulse,time_alive*0.7,time_alive*0.7+TAU*0.76,44,Color("#8de8ff"),6.0)
-	draw_arc(p,64*pulse,-time_alive*1.0,-time_alive*1.0+TAU*0.64,40,Color("#d394ff"),5.0)
-	draw_circle(p,49*pulse,Color("#5c4a80"))
-	draw_circle(p,35*pulse,Color("#72e8ff").lerp(Color.WHITE,loot_flash*0.6))
-	_diamond(p,19,Color.WHITE)
-	_text("Lv.%d" % core_level,p+Vector2(0,7),18,Color("#23333a"),true)
+	var surface := _get_ultra_ui_surface(1)
+	if surface != null:
+		draw_texture_rect(surface,Rect2(14,805,692,348),false,Color(1,1,1,0.20))
+	_panel(Rect2(16,808,688,342),Color(0.025,0.035,0.048,0.84),Color(0.45,0.72,0.90,0.14),28,1)
 
-	_panel(Rect2(38,932,162,62),Color("#6f5030"),Color("#f0cb79"),18,2)
-	_text("UPGRADE",Vector2(119,958),16,Color.WHITE,true)
-	_text("%s G" % _short_num(_core_cost()),Vector2(119,982),13,Color("#ffe7a6"),true)
-	_panel(Rect2(520,932,162,62),Color("#245a4d") if auto_roll else Color("#3b3739"),Color("#7df0c7") if auto_roll else Color("#7d7578"),18,2)
-	_text("AUTO %s" % ("ON" if auto_roll else "OFF"),Vector2(601,968),17,Color.WHITE,true)
-	_text("Luck %d  Quality %d  Speed %d  Pity %d/%d" % [luck_level,quality_level,speed_level,pity,maxi(12,30-pity_level)],Vector2(360,1080),16,Color("#d8cadf"),true)
-	var max_r:=mini(49,6+int(core_level/2)+ascensions*2)
-	_text("Unlocked: %s" % D.RARITIES[max_r],Vector2(360,1110),16,_rarity_color(max_r),true)
+	var center := Vector2(360,924)
+	var resonance_ratio := clampf(core_resonance/100.0,0.0,1.0)
+	var ready := resonance_ratio >= 1.0
+
+	# Floating shrine architecture.
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(270,1045),Vector2(292,855),Vector2(428,855),Vector2(450,1045),
+		Vector2(414,1070),Vector2(306,1070)
+	]),Color(0.10,0.12,0.17,0.78))
+	for x in [286.0,434.0]:
+		draw_line(Vector2(x,874),Vector2(x,1035),Color(0.40,0.50,0.66,0.28),9)
+		draw_circle(Vector2(x,866),8,Color("#8edfff"))
+
+	# Core aura and rotating orbital mechanics.
+	var pulse := 1.0+sin(time_alive*4.2)*0.035+core_pulse*0.08+core_overcharge_flash*0.10
+	for i in 5:
+		var rr := (54.0+i*16.0)*pulse
+		var col := Color("#ffe080") if ready else Color("#82e9ff")
+		draw_arc(center,rr,time_alive*(0.34+i*0.13)+i,time_alive*(0.34+i*0.13)+i+TAU*(0.56+0.05*i),54,Color(col.r,col.g,col.b,0.13+0.025*i),3.0+i*0.7)
+	for i in 8:
+		var a := time_alive*(0.45+0.03*i)+TAU*float(i)/8.0
+		var orbit_r := 89.0+sin(time_alive*1.7+i)*5.0
+		var op := center+Vector2(cos(a),sin(a))*orbit_r
+		draw_circle(op,3.0+(i%3),Color("#fff2a2") if ready else Color("#a8f1ff"))
+
+	draw_circle(center,61,Color(0.03,0.07,0.11,0.98))
+	draw_circle(center,48,Color(0.18,0.47,0.68,0.22))
+	_diamond(center,27,Color("#fff0a5") if ready else Color("#baf5ff"))
+	_diamond(center,14,Color.WHITE)
+	_text("OVERCHARGE" if ready else "DRAW",center+Vector2(0,-5),11,Color("#312719") if ready else Color("#19313a"),true)
+	_text("1 ENERGY",center+Vector2(0,17),9,Color("#52606a"),true)
+
+	# Resonance progress ring.
+	draw_arc(center,106,-PI/2,-PI/2+TAU,72,Color(1,1,1,0.055),8)
+	draw_arc(center,106,-PI/2,-PI/2+TAU*resonance_ratio,72,Color("#ffd86c") if ready else Color("#6feaff"),8)
+	_text("%d%%" % int(core_resonance),center+Vector2(0,130),12,Color("#ffe390") if ready else Color("#b9e9f4"),true)
+
+	# Upgrade orb - no rectangle.
+	var upgrade_pos := Vector2(118,966)
+	var upgrade_ready := gold >= _core_cost()
+	var upgrade_col := Color("#ffd079") if upgrade_ready else Color("#6a6255")
+	draw_circle(upgrade_pos,46,Color(0.045,0.045,0.055,0.96))
+	draw_arc(upgrade_pos,44,time_alive*0.35,time_alive*0.35+TAU*0.76,36,Color(upgrade_col.r,upgrade_col.g,upgrade_col.b,0.72),4)
+	_diamond(upgrade_pos,16,upgrade_col)
+	_text("FORGE",upgrade_pos+Vector2(0,68),11,upgrade_col,true)
+	_text("%sG" % _short_num(_core_cost()),upgrade_pos+Vector2(0,85),10,Color("#c8bdad"),true)
+
+	# Auto orb.
+	var auto_pos := Vector2(602,966)
+	var auto_col := Color("#77f0c6") if auto_roll else Color("#747982")
+	draw_circle(auto_pos,46,Color(0.04,0.05,0.06,0.96))
+	draw_arc(auto_pos,44,-time_alive*0.45,-time_alive*0.45+TAU*0.74,36,Color(auto_col.r,auto_col.g,auto_col.b,0.72),4)
+	draw_circle(auto_pos,16,Color(auto_col.r,auto_col.g,auto_col.b,0.18))
+	_text("A",auto_pos+Vector2(0,6),18,auto_col,true)
+	_text("AUTO %s" % ("ON" if auto_roll else "OFF"),auto_pos+Vector2(0,68),11,auto_col,true)
+
+	# Core stats read as satellites rather than one text dump.
+	var labels := ["L%d" % luck_level,"Q%d" % quality_level,"S%d" % speed_level,"P%d" % pity_level]
+	var stat_cols := [Color("#ffd76a"),Color("#7de6ff"),Color("#87f5b1"),Color("#d79cff")]
+	var stat_pos := [Vector2(228,858),Vector2(492,858),Vector2(235,1081),Vector2(485,1081)]
+	for i in 4:
+		draw_circle(stat_pos[i],18,Color(stat_cols[i].r,stat_cols[i].g,stat_cols[i].b,0.10))
+		draw_arc(stat_pos[i],17,0,TAU,22,Color(stat_cols[i].r,stat_cols[i].g,stat_cols[i].b,0.55),2)
+		_text(labels[i],stat_pos[i]+Vector2(0,5),9,stat_cols[i],true)
+
+	var max_r := mini(49,6+int(core_level/2)+ascensions*2)
+	_text("CORE Lv.%d · %s ceiling" % [core_level,D.RARITIES[max_r]],Vector2(360,1122),12,_rarity_color(max_r),true)
+
+	if core_overcharge_flash>0.0:
+		for i in 3:
+			draw_arc(center,122+i*22+(1.0-core_overcharge_flash)*45,0,TAU,64,Color(1.0,0.86,0.35,0.18*core_overcharge_flash),5+i*2)
 
 func _draw_bottom_nav() -> void:
 	draw_rect(Rect2(0,1158,W,122),Color("#171719"))
