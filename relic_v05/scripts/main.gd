@@ -101,6 +101,27 @@ var rarity_cutscene_color := Color.WHITE
 var screen_flash := 0.0
 var achievement_claimed := [false,false,false,false,false,false]
 
+# Colossus v0.6 systems
+var tower_floor := 1
+var tower_best := 0
+var trial_index := 0
+var trial_score := 0
+var trial_time := 0.0
+var talent_points := 3
+var talent_levels := [0,0,0,0,0,0,0,0,0,0,0,0]
+var artifact_levels := [0,0,0,0,0,0,0,0]
+var active_artifact := 0
+var selected_skin := 0
+var owned_skins := [true,false,false,false,false,false,false,false]
+var selected_title := 0
+var world_event_index := -1
+var world_event_time := 0.0
+var world_event_cooldown := 24.0
+var music_player: AudioStreamPlayer
+var sfx_player: AudioStreamPlayer
+var music_track := -1
+var biome_overlays: Array[Texture2D] = []
+
 # UI / animation
 var active_tab := 2
 var panel_open := false
@@ -129,6 +150,7 @@ var screen_rings: Array[Dictionary] = []
 func _ready() -> void:
 	rng.randomize()
 	font = ThemeDB.fallback_font
+	_setup_colossus_assets()
 	_load_save()
 	_apply_offline_rewards()
 	_daily_claim()
@@ -163,6 +185,12 @@ func _process(delta: float) -> void:
 		boss_rush_time -= delta
 		if boss_rush_time <= 0.0:
 			_finish_boss_rush()
+	elif battle_mode == "trial":
+		trial_time -= delta
+		if trial_time <= 0.0:
+			_finish_trial()
+	_update_world_event(delta)
+	_update_music_for_biome()
 	if toast_timer > 0.0:
 		toast_timer -= delta
 		if toast_timer <= 0.0:
@@ -229,6 +257,20 @@ func _input(event: InputEvent) -> void:
 			panel_open = false
 			active_tab = 2
 			queue_redraw()
+		return
+
+	# Colossus feature bar
+	if Rect2(158,202,96,42).has_point(p):
+		_open_feature("tower")
+		return
+	if Rect2(260,202,96,42).has_point(p):
+		_open_feature("trials")
+		return
+	if Rect2(362,202,96,42).has_point(p):
+		_open_feature("talents")
+		return
+	if Rect2(464,202,96,42).has_point(p):
+		_open_feature("style")
 		return
 
 	# Mythic feature shortcuts
@@ -404,6 +446,12 @@ func _enemy_attack() -> void:
 		camera_shake = 3.5
 		damage_numbers.append({"pos":Vector2(220,468),"text":"-%d" % int(dmg),"life":0.75,"color":Color("#ff9f9f"),"size":22})
 	if hero_hp <= 0.0:
+		if battle_mode == "tower":
+			_finish_tower()
+			return
+		if battle_mode == "trial":
+			_finish_trial()
+			return
 		hero_hp = hero_hp_max
 		shield = 0.0
 		combo = 0
@@ -465,6 +513,22 @@ func _on_enemy_defeated() -> void:
 		gold += 120 + boss_rush_score * 35
 		_spawn_enemy()
 		return
+	if battle_mode == "tower":
+		total_kills += 1
+		tower_floor += 1
+		tower_best = maxi(tower_best,tower_floor)
+		gold += 80 + tower_floor*18
+		if tower_floor % 5 == 0:
+			shards += 2 + int(tower_floor/10)
+			forge_stones += 1
+		_spawn_enemy()
+		_save()
+		return
+	if battle_mode == "trial":
+		total_kills += 1
+		trial_score += 1
+		_spawn_enemy()
+		return
 
 	total_kills += 1
 	player_xp += 8 + stage * 2
@@ -483,7 +547,8 @@ func _on_enemy_defeated() -> void:
 		player_xp -= _xp_needed()
 		player_level += 1
 		gems += 1
-		_show_toast("Level %d!" % player_level)
+		talent_points += 1
+		_show_toast("Level %d! +1 Talent" % player_level)
 
 	wave += 1
 	if wave >= (1 if enemy_boss else 6):
@@ -502,6 +567,26 @@ func _on_stage_advance() -> void:
 		_seed_weather()
 
 func _spawn_enemy() -> void:
+	if battle_mode == "tower":
+		var theme: Dictionary = D.TOWER_THEMES[int((tower_floor-1)/10)%D.TOWER_THEMES.size()]
+		enemy_boss = tower_floor % 10 == 0
+		enemy_elite = not enemy_boss and tower_floor % 5 == 0
+		enemy = {"name":theme["enemy"],"color":theme["color"],"shape":"boss" if enemy_boss else "golem","hp":1.0+tower_floor*0.075,"atk":1.0+tower_floor*0.028,"speed":0.92+minf(0.35,tower_floor*0.005)}
+		enemy_hp_max = (95.0 + pow(float(maxi(stage,10)),1.30)*18.0) * float(enemy["hp"]) * (1.0+ascensions*0.10)
+		enemy_hp = enemy_hp_max
+		enemy_attack_cd = maxf(0.52,1.50/float(enemy["speed"]))
+		enemy_timer = 0.0
+		return
+	if battle_mode == "trial":
+		var tr: Dictionary = D.TRIALS[trial_index]
+		enemy_boss = trial_score % 7 == 6
+		enemy_elite = not enemy_boss and trial_score % 3 == 2
+		enemy = {"name":"%s Echo" % tr["name"],"color":tr["color"],"shape":"wisp" if not enemy_boss else "boss","hp":1.15+trial_score*0.08,"atk":1.05+trial_score*0.025,"speed":1.05+minf(0.30,trial_score*0.012)}
+		enemy_hp_max = (90.0 + pow(float(maxi(stage,12)),1.28)*18.0) * float(enemy["hp"])
+		enemy_hp = enemy_hp_max
+		enemy_attack_cd = maxf(0.55,1.45/float(enemy["speed"]))
+		enemy_timer = 0.0
+		return
 	if battle_mode == "dungeon":
 		var dd: Dictionary = D.DUNGEONS[dungeon_index]
 		enemy_boss = dungeon_room == 4
@@ -561,6 +646,8 @@ func _gold_bonus() -> float:
 	var bonus := 1.0
 	if active_pet == 0 and stage >= int(D.PETS[0]["unlock"]):
 		bonus += 0.12 + float(pet_levels[0])*0.008
+	bonus += float(talent_levels[7])*0.05
+	if world_event_index == 0: bonus *= 2.0
 	return bonus
 
 # -------------------------------------------------------------------
@@ -853,13 +940,26 @@ func _recalc_stats() -> void:
 		if count >= 4: set_bonus += 0.12
 		if count >= 6: set_bonus += 0.20
 	var evolution_bonus := 1.0 + float(evolution_tier) * 0.075
-	hero_power = (48.0 + player_level*3.0 + power_sum*0.19) * (1.0+set_bonus+float(ascensions)*0.12) * evolution_bonus
-	hero_hp_max = (160.0 + player_level*11.0 + power_sum*0.12) * (1.0+hp_bonus/100.0+float(ascensions)*0.08) * (1.0 + evolution_tier*0.055)
-	crit_chance = clampf(0.12+crit_bonus,0.05,0.65)
-	haste = clampf(haste_bonus,0.0,1.1)
+	var talent_all := 1.0 + float(talent_levels[11]) * 0.05
+	var talent_power := 1.0 + float(talent_levels[0]) * 0.03
+	var talent_hp := 1.0 + float(talent_levels[3]) * 0.04
+	var artifact_power := 1.0
+	var artifact_hp := 1.0
+	if active_artifact < artifact_levels.size() and stage >= int(D.ARTIFACTS[active_artifact]["unlock"]):
+		var al := float(artifact_levels[active_artifact])
+		match active_artifact:
+			0,3: artifact_power += al*0.025
+			2: artifact_hp += al*0.035
+			6,7:
+				artifact_power += al*0.018
+				artifact_hp += al*0.018
+	hero_power = (48.0 + player_level*3.0 + power_sum*0.19) * (1.0+set_bonus+float(ascensions)*0.12) * evolution_bonus * talent_all * talent_power * artifact_power
+	hero_hp_max = (160.0 + player_level*11.0 + power_sum*0.12) * (1.0+hp_bonus/100.0+float(ascensions)*0.08) * (1.0 + evolution_tier*0.055) * talent_all * talent_hp * artifact_hp
+	crit_chance = clampf(0.12+crit_bonus+float(talent_levels[1])*0.01,0.05,0.72)
+	haste = clampf(haste_bonus+float(talent_levels[2])*0.02,0.0,1.35)
 	dodge = clampf(0.03+dodge_bonus,0.0,0.35)
 	leech = clampf(leech_bonus,0.0,0.22)
-	armor = clampf(power_sum/200000.0,0.0,0.42)
+	armor = clampf(power_sum/200000.0+float(talent_levels[4])*0.02,0.0,0.58)
 	if active_pet == 1 and stage >= int(D.PETS[1]["unlock"]): haste += 0.04+pet_levels[1]*0.004
 	if active_pet == 2 and stage >= int(D.PETS[2]["unlock"]): crit_chance += 0.025+pet_levels[2]*0.002
 	if active_pet == 3 and stage >= int(D.PETS[3]["unlock"]): hero_power *= 1.06+pet_levels[3]*0.005
@@ -939,6 +1039,9 @@ func _save() -> void:
 		"dungeon_keys":dungeon_keys,"dungeon_index":dungeon_index,"boss_rush_best":boss_rush_best,
 		"garden_level":garden_level,"garden_xp":garden_xp,"garden_plots":garden_plots,"garden_crop_types":garden_crop_types,
 		"achievement_claimed":achievement_claimed,
+		"tower_floor":tower_floor,"tower_best":tower_best,"trial_index":trial_index,
+		"talent_points":talent_points,"talent_levels":talent_levels,"artifact_levels":artifact_levels,"active_artifact":active_artifact,
+		"selected_skin":selected_skin,"owned_skins":owned_skins,"selected_title":selected_title,
 		"last_save_unix":last_save_unix
 	}
 	var f := FileAccess.open(SAVE_PATH,FileAccess.WRITE)
@@ -976,6 +1079,190 @@ func _load_save() -> void:
 	var gp=parsed.get("garden_plots",garden_plots); if gp is Array and gp.size()==3: garden_plots=gp
 	var gc=parsed.get("garden_crop_types",garden_crop_types); if gc is Array and gc.size()==3: garden_crop_types=gc
 	var ac=parsed.get("achievement_claimed",achievement_claimed); if ac is Array and ac.size()==6: achievement_claimed=ac
+	tower_floor=maxi(1,int(parsed.get("tower_floor",tower_floor))); tower_best=int(parsed.get("tower_best",tower_best)); trial_index=clampi(int(parsed.get("trial_index",trial_index)),0,D.TRIALS.size()-1)
+	talent_points=int(parsed.get("talent_points",talent_points)); active_artifact=clampi(int(parsed.get("active_artifact",active_artifact)),0,D.ARTIFACTS.size()-1)
+	selected_skin=clampi(int(parsed.get("selected_skin",selected_skin)),0,D.SKINS.size()-1); selected_title=clampi(int(parsed.get("selected_title",selected_title)),0,D.TITLES.size()-1)
+	var tl=parsed.get("talent_levels",talent_levels); if tl is Array and tl.size()==12: talent_levels=tl
+	var ar=parsed.get("artifact_levels",artifact_levels); if ar is Array and ar.size()==8: artifact_levels=ar
+	var os=parsed.get("owned_skins",owned_skins); if os is Array and os.size()==8: owned_skins=os
+
+# -------------------------------------------------------------------
+# COLOSSUS V0.6 SYSTEMS
+# -------------------------------------------------------------------
+
+func _setup_colossus_assets() -> void:
+	music_player = AudioStreamPlayer.new()
+	music_player.volume_db = -14.0
+	add_child(music_player)
+	music_player.finished.connect(_restart_music)
+	sfx_player = AudioStreamPlayer.new()
+	sfx_player.volume_db = -7.0
+	add_child(sfx_player)
+	for i in 8:
+		var p := "res://assets/visual/biome_overlay_%d.png" % i
+		if ResourceLoader.exists(p):
+			var tex = load(p)
+			if tex is Texture2D:
+				biome_overlays.append(tex)
+	if ResourceLoader.exists("res://assets/visual/rune_atlas.png"):
+		var rune = load("res://assets/visual/rune_atlas.png")
+		if rune is Texture2D:
+			biome_overlays.append(rune)
+
+func _music_paths() -> Array[String]:
+	return [
+		"res://assets/audio/emerald_wander.wav",
+		"res://assets/audio/moonlit_rift.wav",
+		"res://assets/audio/crystal_depths.wav",
+		"res://assets/audio/ashen_boss.wav",
+		"res://assets/audio/astral_origin.wav"
+	]
+
+func _update_music_for_biome() -> void:
+	if music_player == null: return
+	var wanted := _biome_index() % _music_paths().size()
+	if enemy_boss or battle_mode in ["boss_rush","tower"]:
+		wanted = 3
+	if evolution_tier >= 5:
+		wanted = 4
+	if wanted == music_track and music_player.playing: return
+	music_track = wanted
+	var path := _music_paths()[wanted]
+	if ResourceLoader.exists(path):
+		music_player.stream = load(path)
+		music_player.play()
+
+func _restart_music() -> void:
+	if music_player != null and music_player.stream != null:
+		music_player.play()
+
+func _play_sfx(name: String) -> void:
+	if sfx_player == null: return
+	var path := "res://assets/audio/%s.wav" % name
+	if ResourceLoader.exists(path):
+		sfx_player.stream = load(path)
+		sfx_player.play()
+
+func _update_world_event(delta: float) -> void:
+	if world_event_index >= 0:
+		world_event_time -= delta
+		if world_event_time <= 0.0:
+			world_event_index = -1
+			world_event_cooldown = 28.0
+			_show_toast("World Event ended")
+	else:
+		world_event_cooldown -= delta
+		if world_event_cooldown <= 0.0:
+			world_event_index = rng.randi_range(0,D.WORLD_EVENTS.size()-1)
+			world_event_time = float(D.WORLD_EVENTS[world_event_index]["duration"])
+			_show_toast("WORLD EVENT: %s" % D.WORLD_EVENTS[world_event_index]["name"])
+			screen_flash = 0.45
+
+func _start_tower() -> void:
+	if stage < 15:
+		_show_toast("Tower unlocks at Stage 15")
+		return
+	battle_mode = "tower"
+	tower_floor = maxi(1,tower_best)
+	feature_panel = ""
+	hero_hp = hero_hp_max
+	_spawn_enemy()
+	_show_toast("Tower Floor %d" % tower_floor)
+
+func _finish_tower() -> void:
+	tower_best = maxi(tower_best,tower_floor)
+	var reward := tower_floor*90
+	gold += reward
+	shards += int(tower_floor/5)
+	battle_mode = "normal"
+	hero_hp = hero_hp_max
+	_show_toast("Tower ended · Best %d" % tower_best)
+	_spawn_enemy()
+	_save()
+
+func _start_trial() -> void:
+	if stage < 10:
+		_show_toast("Trials unlock at Stage 10")
+		return
+	battle_mode = "trial"
+	trial_score = 0
+	trial_time = 35.0
+	feature_panel = ""
+	hero_hp = hero_hp_max
+	_spawn_enemy()
+	_show_toast(str(D.TRIALS[trial_index]["name"]))
+
+func _finish_trial() -> void:
+	if battle_mode != "trial": return
+	match trial_index:
+		0: forge_stones += trial_score
+		1: shards += int(trial_score*1.4)
+		2: gems += int(trial_score/2)
+		3: essence += trial_score*2
+	gold += trial_score*160
+	battle_mode = "normal"
+	trial_time = 0.0
+	hero_hp = hero_hp_max
+	_show_toast("Trial score %d" % trial_score)
+	_spawn_enemy()
+	_save()
+
+func _upgrade_talent(index: int) -> void:
+	if index < 0 or index >= talent_levels.size(): return
+	var t: Dictionary = D.TALENTS[index]
+	var level := int(talent_levels[index])
+	if level >= int(t["max"]):
+		_show_toast("Talent maxed")
+		return
+	var cost := int(t["cost"]) + int(level/3)
+	if talent_points < cost:
+		_show_toast("Need %d Talent Points" % cost)
+		return
+	talent_points -= cost
+	talent_levels[index] = level+1
+	_recalc_stats()
+	_show_toast("%s Lv.%d" % [t["name"],level+1])
+	_save()
+
+func _upgrade_artifact() -> void:
+	if stage < int(D.ARTIFACTS[active_artifact]["unlock"]):
+		_show_toast("Artifact unlocks at Stage %d" % int(D.ARTIFACTS[active_artifact]["unlock"]))
+		return
+	var level := int(artifact_levels[active_artifact])
+	var cost := 4 + level*2
+	if shards < cost:
+		_show_toast("Need %d Shards" % cost)
+		return
+	shards -= cost
+	artifact_levels[active_artifact] = level+1
+	_recalc_stats()
+	_play_sfx("awaken")
+	_show_toast("%s Lv.%d" % [D.ARTIFACTS[active_artifact]["name"],level+1])
+	_save()
+
+func _skin_action(index: int) -> void:
+	var sk: Dictionary = D.SKINS[index]
+	if not bool(owned_skins[index]):
+		if stage < int(sk["unlock"]):
+			_show_toast("Unlocks at Stage %d" % int(sk["unlock"]))
+			return
+		var cost := int(sk["gems"])
+		if gems < cost:
+			_show_toast("Need %d Gems" % cost)
+			return
+		gems -= cost
+		owned_skins[index] = true
+		_play_sfx("evolve")
+	selected_skin = index
+	screen_flash = 0.35
+	_show_toast(str(sk["name"]))
+	_save()
+
+func _unlocked_title_count() -> int:
+	var count := 1
+	for t in D.TITLES:
+		if stage >= int(t["need"]): count += 1
+	return clampi(count,1,D.TITLES.size())
 
 # -------------------------------------------------------------------
 # MYTHIC V0.5 SYSTEMS
@@ -1032,6 +1319,49 @@ func _handle_feature_input(p: Vector2) -> void:
 		"evolve":
 			if Rect2(185,900,350,76).has_point(p):
 				_try_evolution()
+				return
+		"tower":
+			if Rect2(160,890,400,78).has_point(p):
+				_start_tower()
+				return
+		"trials":
+			if Rect2(84,430,62,54).has_point(p):
+				trial_index = (trial_index + D.TRIALS.size() - 1) % D.TRIALS.size()
+				return
+			if Rect2(574,430,62,54).has_point(p):
+				trial_index = (trial_index + 1) % D.TRIALS.size()
+				return
+			if Rect2(160,890,400,78).has_point(p):
+				_start_trial()
+				return
+		"talents":
+			for i in 12:
+				var col := i % 3
+				var row := int(i / 3)
+				if Rect2(64+col*199,390+row*118,184,98).has_point(p):
+					_upgrade_talent(i)
+					return
+			for i in 8:
+				if Rect2(70+i*72,885,62,62).has_point(p):
+					active_artifact = i
+					_show_toast(str(D.ARTIFACTS[i]["name"]))
+					return
+			if Rect2(230,970,260,62).has_point(p):
+				_upgrade_artifact()
+				return
+		"style":
+			for i in 8:
+				var col := i % 4
+				var row := int(i / 4)
+				if Rect2(66+col*148,382+row*190,132,164).has_point(p):
+					_skin_action(i)
+					return
+			if Rect2(170,810,380,72).has_point(p):
+				selected_title = (selected_title + 1) % _unlocked_title_count()
+				_save()
+				return
+			if Rect2(170,900,380,64).has_point(p):
+				_claim_achievements()
 				return
 
 func _forge_item() -> Dictionary:
@@ -1318,6 +1648,7 @@ func _draw() -> void:
 	draw_set_transform(shake_offset)
 	_draw_world()
 	_draw_top_hud()
+	_draw_colossus_bar()
 	_draw_feature_shortcuts()
 	_draw_battlefield()
 	_draw_skill_row()
@@ -1368,6 +1699,9 @@ func _draw_world() -> void:
 	draw_colored_polygon(PackedVector2Array([Vector2(0,690),Vector2(720,620),Vector2(720,825),Vector2(0,825)]),ground)
 	draw_colored_polygon(PackedVector2Array([Vector2(0,732),Vector2(720,660),Vector2(720,825),Vector2(0,825)]),ground.lightened(0.08))
 
+	# premium overlay generated into the Colossus content pack
+	if _biome_index() < biome_overlays.size():
+		draw_texture_rect(biome_overlays[_biome_index()],Rect2(0,190,720,620),false,Color(1,1,1,0.085))
 	# environmental props
 	for x in [42,115,650,705]:
 		_draw_tree(Vector2(x,565+sin(float(x))*9.0),0.76 if x<200 else 0.92,near.darkened(0.22))
@@ -1428,6 +1762,9 @@ func _draw_battlefield() -> void:
 
 func _draw_hero(pos: Vector2) -> void:
 	var hurt:=Color.WHITE.lerp(Color("#ff8f88"),hit_flash*0.45)
+	var skin: Dictionary=D.SKINS[selected_skin]
+	var skin_main:=Color(str(skin["color"]))
+	var skin_accent:=Color(str(skin["accent"]))
 	draw_ellipse_custom(pos+Vector2(0,78),58,17,Color(0,0,0,0.15))
 	# evolution aura + set glow
 	if evolution_tier > 0:
@@ -1443,8 +1780,8 @@ func _draw_hero(pos: Vector2) -> void:
 	if set_counts.size()>0:
 		draw_arc(pos+Vector2(0,25),82+sin(time_alive*3.0)*3.0,0,TAU,40,Color(0.55,1,0.65,0.18),5.0)
 	# cape/body
-	draw_colored_polygon(PackedVector2Array([pos+Vector2(-42,25),pos+Vector2(-58,98),pos+Vector2(58,98),pos+Vector2(42,25)]),Color("#347c58")*hurt)
-	draw_colored_polygon(PackedVector2Array([pos+Vector2(-34,36),pos+Vector2(0,70),pos+Vector2(34,36),pos+Vector2(26,102),pos+Vector2(-26,102)]),Color("#4f9a66")*hurt)
+	draw_colored_polygon(PackedVector2Array([pos+Vector2(-42,25),pos+Vector2(-58,98),pos+Vector2(58,98),pos+Vector2(42,25)]),skin_main.darkened(0.16)*hurt)
+	draw_colored_polygon(PackedVector2Array([pos+Vector2(-34,36),pos+Vector2(0,70),pos+Vector2(34,36),pos+Vector2(26,102),pos+Vector2(-26,102)]),skin_main*hurt)
 	# face
 	draw_circle(pos,53,Color("#f2ddb0")*hurt)
 	draw_circle(pos+Vector2(-20,-5),7,Color("#2e2c2a"))
@@ -1453,9 +1790,9 @@ func _draw_hero(pos: Vector2) -> void:
 	draw_circle(pos+Vector2(23,-8),2.5,Color.WHITE)
 	draw_arc(pos+Vector2(0,8),18,0.25,2.9,18,Color("#8c604b"),3.5)
 	# leaf crown
-	draw_circle(pos+Vector2(0,-46),51,Color("#63b95a"))
-	draw_colored_polygon(PackedVector2Array([pos+Vector2(-48,-48),pos+Vector2(-24,-83),pos+Vector2(-5,-58),pos+Vector2(19,-92),pos+Vector2(34,-58),pos+Vector2(51,-48)]),Color("#4b9b4a"))
-	_leaf(pos+Vector2(7,-92),Color("#d6ef6b"))
+	draw_circle(pos+Vector2(0,-46),51,skin_main)
+	draw_colored_polygon(PackedVector2Array([pos+Vector2(-48,-48),pos+Vector2(-24,-83),pos+Vector2(-5,-58),pos+Vector2(19,-92),pos+Vector2(34,-58),pos+Vector2(51,-48)]),skin_main.darkened(0.14))
+	_leaf(pos+Vector2(7,-92),skin_accent)
 	# boots/hands
 	draw_circle(pos+Vector2(-38,86),16,Color("#eac99a"))
 	draw_circle(pos+Vector2(38,86),16,Color("#eac99a"))
@@ -1722,6 +2059,24 @@ func _draw_fx() -> void:
 		draw_arc(Vector2(ring["pos"]),float(ring["r"]),0,TAU,48,c,7.0)
 
 
+func _draw_colossus_bar() -> void:
+	var buttons := [
+		{"rect":Rect2(158,202,96,42),"label":"TOWER","col":Color("#76a3d7")},
+		{"rect":Rect2(260,202,96,42),"label":"TRIALS","col":Color("#d38a7a")},
+		{"rect":Rect2(362,202,96,42),"label":"TALENTS","col":Color("#a783d2")},
+		{"rect":Rect2(464,202,96,42),"label":"STYLE","col":Color("#e2a0c7")}
+	]
+	for b in buttons:
+		var rr: Rect2=b["rect"]
+		_panel(rr,Color(0.04,0.05,0.06,0.90),Color(b["col"]),12,2)
+		_text(str(b["label"]),rr.get_center()+Vector2(0,5),11,Color.WHITE,true)
+	if talent_points>0:
+		draw_circle(Vector2(450,205),6,Color("#fff075"))
+	if world_event_index>=0:
+		var ev: Dictionary=D.WORLD_EVENTS[world_event_index]
+		_panel(Rect2(198,252,324,38),Color(0.05,0.04,0.07,0.88),Color(str(ev["color"])),14,2)
+		_text("%s · %ds" % [ev["name"],int(world_event_time)],Vector2(360,277),13,Color.WHITE,true)
+
 func _draw_feature_shortcuts() -> void:
 	var items := [
 		{"rect":Rect2(18,305,132,46),"label":"FORGE","col":Color("#bc8d62")},
@@ -1753,6 +2108,83 @@ func _draw_feature_panel() -> void:
 		"dungeon": _draw_dungeon_panel()
 		"garden": _draw_garden_panel()
 		"evolve": _draw_evolution_panel()
+		"tower": _draw_tower_panel()
+		"trials": _draw_trials_panel()
+		"talents": _draw_talents_panel()
+		"style": _draw_style_panel()
+
+
+func _draw_tower_panel() -> void:
+	_text("ENDLESS WORLD TOWER",Vector2(360,278),30,Color("#a8caff"),true)
+	var theme: Dictionary=D.TOWER_THEMES[int((maxi(1,tower_best)-1)/10)%D.TOWER_THEMES.size()]
+	var col:=Color(str(theme["color"]))
+	draw_arc(Vector2(360,500),118,time_alive*0.35,time_alive*0.35+TAU*0.8,52,col,7)
+	for i in 6:
+		var yy:=610-i*48
+		draw_rect(Rect2(245+i*5,yy,230-i*10,28),Color(col.r,col.g,col.b,0.20+0.06*i))
+	_text("BEST FLOOR %d" % tower_best,Vector2(360,680),26,col,true)
+	_text("Current start: Floor %d" % maxi(1,tower_best),Vector2(360,718),17,Color.WHITE,true)
+	_text("Every 5 floors grants Shards · every 10 floors is a boss.",Vector2(360,770),14,Color("#b4afba"),true)
+	_small_button(Rect2(160,890,400,78),"ENTER ENDLESS TOWER",Color("#496c96"))
+	_text("Unlock Stage 15",Vector2(360,1018),14,Color("#92909a"),true)
+
+func _draw_trials_panel() -> void:
+	_text("DAILY TRIALS",Vector2(360,278),30,Color("#ffd0aa"),true)
+	var tr: Dictionary=D.TRIALS[trial_index]
+	var col:=Color(str(tr["color"]))
+	_small_button(Rect2(84,430,62,54),"◀",Color("#4b4650"))
+	_small_button(Rect2(574,430,62,54),"▶",Color("#4b4650"))
+	draw_circle(Vector2(360,520),105,Color(col.r,col.g,col.b,0.12))
+	_star(Vector2(360,520),58,col)
+	_text(str(tr["name"]),Vector2(360,664),26,col,true)
+	_text("%s focus · Reward: %s" % [tr["stat"],tr["reward"]],Vector2(360,704),16,Color("#d9d3dd"),true)
+	_text("35 seconds · defeat as many echoes as possible.",Vector2(360,756),14,Color("#aba5b0"),true)
+	_small_button(Rect2(160,890,400,78),"START TRIAL",Color("#7a5c68"))
+
+func _draw_talents_panel() -> void:
+	_text("COLOSSUS TALENT GRID",Vector2(360,268),28,Color("#d4b0ff"),true)
+	_text("Talent Points %d" % talent_points,Vector2(360,302),16,Color("#fff0a0"),true)
+	for i in 12:
+		var col:=i%3
+		var row:=int(i/3)
+		var rr:=Rect2(64+col*199,390+row*118,184,98)
+		var t: Dictionary=D.TALENTS[i]
+		var branch_col:={"Power":Color("#d97669"),"Guard":Color("#73bb8b"),"Fortune":Color("#d5b660"),"Spirit":Color("#9577ca")}[str(t["branch"])]
+		_panel(rr,Color("#242329"),branch_col,15,2)
+		_text(str(t["name"]),rr.position+Vector2(92,25),13,Color.WHITE,true)
+		_text("%d/%d" % [talent_levels[i],t["max"]],rr.position+Vector2(92,48),13,Color("#ddd6e3"),true)
+		_text(str(t["desc"]),rr.position+Vector2(92,73),10,Color("#a8a1ad"),true)
+	# artifact strip
+	_text("ARTIFACTS",Vector2(360,862),16,Color("#e4d3ff"),true)
+	for i in 8:
+		var pp:=Vector2(101+i*72,916)
+		var art: Dictionary=D.ARTIFACTS[i]
+		var unlocked:=stage>=int(art["unlock"])
+		draw_circle(pp,27,Color(str(art["color"])) if unlocked else Color("#45434b"))
+		_diamond(pp,11,Color("#25232a"))
+		if i==active_artifact: draw_arc(pp,34,0,TAU,28,Color.WHITE,3)
+		_text(str(artifact_levels[i]),pp+Vector2(0,48),11,Color.WHITE,true)
+	_small_button(Rect2(230,970,260,62),"UPGRADE ARTIFACT",Color("#69517e"))
+
+func _draw_style_panel() -> void:
+	_text("SKINS & TITLES",Vector2(360,270),29,Color("#ffb6dd"),true)
+	for i in 8:
+		var col:=i%4
+		var row:=int(i/4)
+		var rr:=Rect2(66+col*148,382+row*190,132,164)
+		var sk: Dictionary=D.SKINS[i]
+		var owned:=bool(owned_skins[i])
+		_panel(rr,Color("#232229"),Color(str(sk["accent"])) if owned else Color("#55515a"),18,2)
+		draw_circle(rr.position+Vector2(66,61),39,Color(str(sk["color"])) if owned else Color("#4b4850"))
+		_leaf(rr.position+Vector2(72,28),Color(str(sk["accent"])) if owned else Color("#67636a"))
+		_text(str(sk["name"]),rr.position+Vector2(66,117),12,Color.WHITE,true)
+		if i==selected_skin: _text("EQUIPPED",rr.position+Vector2(66,143),10,Color("#9dffae"),true)
+		elif owned: _text("TAP EQUIP",rr.position+Vector2(66,143),10,Color("#c9c2ce"),true)
+		else: _text("S%d · %d♦" % [sk["unlock"],sk["gems"]],rr.position+Vector2(66,143),10,Color("#d4b4c8"),true)
+	var title:=D.TITLES[min(selected_title,_unlocked_title_count()-1)]
+	_small_button(Rect2(170,810,380,72),"TITLE · %s" % title["name"],Color("#5d4d70"))
+	_small_button(Rect2(170,900,380,64),"CLAIM ACHIEVEMENTS (%d)" % _achievement_ready_count(),Color("#4f6f5a"))
+	_text("Skins change your battle palette. Titles unlock through Stage progress.",Vector2(360,1010),13,Color("#aaa3ae"),true)
 
 func _draw_forge_panel() -> void:
 	_text("MYTHIC FORGE",Vector2(360,278),30,Color("#ffd9a3"),true)
