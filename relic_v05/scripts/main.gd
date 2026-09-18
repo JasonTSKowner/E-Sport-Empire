@@ -121,6 +121,7 @@ var music_player: AudioStreamPlayer
 var sfx_player: AudioStreamPlayer
 var music_track := -1
 var biome_overlays: Array[Texture2D] = []
+var premium_atlases: Array[Texture2D] = []
 
 # UI / animation
 var active_tab := 2
@@ -1108,6 +1109,12 @@ func _setup_colossus_assets() -> void:
 		var rune = load("res://assets/visual/rune_atlas.png")
 		if rune is Texture2D:
 			biome_overlays.append(rune)
+	for i in 4:
+		var aura_path := "res://assets/visual/boss_aura_%d.png" % i
+		if ResourceLoader.exists(aura_path):
+			var aura = load(aura_path)
+			if aura is Texture2D:
+				premium_atlases.append(aura)
 
 func _music_paths() -> Array[String]:
 	return [
@@ -1745,6 +1752,10 @@ func _draw_top_hud() -> void:
 	_text("GIFT",Vector2(649,209),15,Color.WHITE,true)
 
 func _draw_battlefield() -> void:
+	if premium_atlases.size() > 0 and (enemy_boss or evolution_tier >= 3):
+		var aura_idx := (evolution_tier + (1 if enemy_boss else 0)) % premium_atlases.size()
+		var aura_alpha := 0.10 if enemy_boss else 0.055
+		draw_texture_rect(premium_atlases[aura_idx],Rect2(310,300,400,400),false,Color(1,1,1,aura_alpha))
 	var hero_pos:=Vector2(220,550+sin(time_alive*4.8)*5.0)
 	var enemy_pos:=Vector2(510,535+sin(time_alive*4.1+1.1)*4.0)
 	_draw_pet(Vector2(120,590+sin(time_alive*5.2)*4.0))
