@@ -935,6 +935,126 @@ func _salvage_inventory() -> void:
 	_show_toast("Salvaged +%dG +%d shards" % [gained_gold,gained_shards])
 	_save()
 
+func _gear_selected_item() -> Dictionary:
+	if gear_selected_index >= 0 and gear_selected_index < inventory.size():
+		return inventory[gear_selected_index]
+	if gear_selected_slot >= 0 and gear_selected_slot < equipped.size():
+		return equipped[gear_selected_slot]
+	return {}
+
+func _gear_page_count() -> int:
+	return maxi(1,int(ceil(float(inventory.size())/6.0)))
+
+func _gear_select_inventory(index: int) -> void:
+	if index < 0 or index >= inventory.size():
+		return
+	gear_selected_index = index
+	gear_selected_slot = clampi(int(inventory[index].get("slot",0)),0,5)
+	_play_sfx("ui_confirm")
+
+func _gear_select_equipped(slot: int) -> void:
+	gear_selected_index = -1
+	gear_selected_slot = clampi(slot,0,5)
+	_play_sfx("ui_confirm")
+
+func _gear_equip_selected() -> void:
+	if gear_selected_index < 0 or gear_selected_index >= inventory.size():
+		_show_toast("Select an inventory item")
+		return
+	var item: Dictionary = inventory[gear_selected_index].duplicate(true)
+	var slot := clampi(int(item.get("slot",0)),0,5)
+	var old: Dictionary = equipped[slot].duplicate(true)
+	equipped[slot] = item
+	if old.is_empty():
+		inventory.remove_at(gear_selected_index)
+	else:
+		inventory[gear_selected_index] = old
+	gear_selected_index = -1
+	gear_selected_slot = slot
+	gear_upgrade_flash = 0.65
+	_spawn_vfx_event("gear",Vector2(360,930),_rarity_color(int(item.get("rarity",0))),1.0)
+	_recalc_stats()
+	_show_toast("%s equipped" % D.SLOTS[slot])
+	_save()
+
+func _gear_enhance_selected() -> void:
+	var item := _gear_selected_item()
+	if item.is_empty():
+		_show_toast("Select gear first")
+		return
+	var level := int(item.get("level",0))
+	var rarity := int(item.get("rarity",0))
+	var gold_cost := 120 + (level+1)*95 + (rarity+1)*45
+	var stone_cost := 1 + int(level/4) + int(rarity/12)
+	if gold < gold_cost:
+		_show_toast("Need %d Gold" % gold_cost)
+		return
+	if forge_stones < stone_cost:
+		_show_toast("Need %d Forge Stones" % stone_cost)
+		return
+	gold -= gold_cost
+	forge_stones -= stone_cost
+	item["level"] = level+1
+	item["power"] = int(float(item.get("power",0))*1.055 + 12.0 + rarity*2.0)
+	if gear_selected_index >= 0:
+		inventory[gear_selected_index] = item
+	else:
+		equipped[gear_selected_slot] = item
+	gear_upgrade_flash = 1.0
+	screen_flash = maxf(screen_flash,0.28)
+	var col := _rarity_color(rarity)
+	_spawn_vfx_event("gear",Vector2(360,930),col,1.2)
+	_play_sfx("forge_hit")
+	_recalc_stats()
+	_show_toast("%s +%d" % [str(item.get("name","Gear")),level+1])
+	_save()
+
+func _gear_toggle_lock() -> void:
+	var item := _gear_selected_item()
+	if item.is_empty():
+		return
+	var state := not bool(item.get("locked",false))
+	item["locked"] = state
+	if gear_selected_index >= 0:
+		inventory[gear_selected_index] = item
+	else:
+		equipped[gear_selected_slot] = item
+	_show_toast("Locked" if state else "Unlocked")
+	_save()
+
+func _gear_toggle_favorite() -> void:
+	var item := _gear_selected_item()
+	if item.is_empty():
+		return
+	var state := not bool(item.get("favorite",false))
+	item["favorite"] = state
+	if gear_selected_index >= 0:
+		inventory[gear_selected_index] = item
+	else:
+		equipped[gear_selected_slot] = item
+	_show_toast("Favorited" if state else "Favorite removed")
+	_save()
+
+func _gear_salvage_selected() -> void:
+	if gear_selected_index < 0 or gear_selected_index >= inventory.size():
+		_show_toast("Select inventory gear")
+		return
+	var item: Dictionary = inventory[gear_selected_index]
+	if bool(item.get("locked",false)) or bool(item.get("favorite",false)):
+		_show_toast("Unlock/unfavorite first")
+		return
+	var gain_gold := maxi(8,int(_item_score(item)/8.0))
+	var gain_shards := 0
+	if int(item.get("rarity",0)) >= 5:
+		gain_shards = 1 + int(item.get("rarity",0)/10)
+	gold += gain_gold
+	shards += gain_shards
+	inventory.remove_at(gear_selected_index)
+	gear_selected_index = -1
+	gear_page = clampi(gear_page,0,_gear_page_count()-1)
+	_show_toast("Salvaged +%dG +%dS" % [gain_gold,gain_shards])
+	_save()
+
 # -------------------------------------------------------------------
 # UPGRADES / META
 # -------------------------------------------------------------------
