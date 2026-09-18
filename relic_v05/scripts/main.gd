@@ -383,32 +383,49 @@ func _handle_panel_input(p: Vector2) -> bool:
 
 	match active_tab:
 		0:
-			if Rect2(60,1038,180,58).has_point(p):
-				_auto_equip_inventory()
+			for i in 6:
+				var eq_center := Vector2(90+i*108,800)
+				if Rect2(eq_center-Vector2(36,36),Vector2(72,72)).has_point(p):
+					_gear_select_equipped(i)
+					return true
+			for i in 6:
+				var card := Rect2(48+i*104,850,92,108)
+				if card.has_point(p):
+					var inv_index := gear_page*6+i
+					if inv_index < inventory.size():
+						_gear_select_inventory(inv_index)
+					return true
+			if Rect2(48,968,46,46).has_point(p):
+				gear_page = maxi(0,gear_page-1)
 				return true
-			if Rect2(270,1038,180,58).has_point(p):
-				_salvage_inventory()
+			if Rect2(614,968,46,46).has_point(p):
+				gear_page = mini(_gear_page_count()-1,gear_page+1)
 				return true
-			if Rect2(480,1038,180,58).has_point(p):
-				auto_sell_threshold = (auto_sell_threshold + 1) % 8
-				_show_toast("Auto-sell below %s" % D.RARITIES[auto_sell_threshold])
-				_save()
-				return true
+			var action_centers := [Vector2(445,1030),Vector2(495,1030),Vector2(545,1030),Vector2(595,1030),Vector2(645,1030)]
+			for i in action_centers.size():
+				if Rect2(action_centers[i]-Vector2(24,24),Vector2(48,48)).has_point(p):
+					match i:
+						0: _gear_equip_selected()
+						1: _gear_enhance_selected()
+						2: _gear_toggle_lock()
+						3: _gear_toggle_favorite()
+						4: _gear_salvage_selected()
+					return true
 		1:
 			for i in 3:
 				if Rect2(72,800+i*88,576,68).has_point(p):
 					_upgrade_skill(i)
 					return true
 		2:
-			var rects := [
-				Rect2(65,812,270,70), Rect2(385,812,270,70),
-				Rect2(65,902,270,70), Rect2(385,902,270,70)
-			]
-			for i in 4:
-				if rects[i].has_point(p):
+			var node_centers := [Vector2(178,830),Vector2(542,830),Vector2(178,982),Vector2(542,982)]
+			for i in node_centers.size():
+				if Rect2(node_centers[i]-Vector2(54,54),Vector2(108,108)).has_point(p):
 					_upgrade_core_stat(i)
 					return true
-			if Rect2(185,1002,350,72).has_point(p):
+			if Rect2(285,820,150,160).has_point(p):
+				_upgrade_core()
+				return true
+			if Rect2(298,1020,124,92).has_point(p):
 				_try_ascend()
 				return true
 		3:
