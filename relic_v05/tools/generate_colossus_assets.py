@@ -225,15 +225,10 @@ for idx in range(6):
     rnd = random.Random(51000 + idx)
     w = h = 2048
     # RGB high-frequency field with directional streaks + turbulence.
-    raw = bytearray(w*h*3)
-    for i in range(w*h):
-        n = rnd.randrange(256)
-        m = rnd.randrange(256)
-        k = rnd.randrange(256)
-        raw[i*3+0] = (n + idx*21) & 255
-        raw[i*3+1] = (m + idx*37) & 255
-        raw[i*3+2] = (k + idx*53) & 255
-    im = Image.frombytes("RGB",(w,h),bytes(raw))
+    # Generate the full RGB field in one deterministic block instead of
+    # iterating through 4.2 million pixels in Python.
+    raw = rnd.randbytes(w*h*3)
+    im = Image.frombytes("RGB",(w,h),raw)
     d = ImageDraw.Draw(im,"RGBA")
     cx = cy = 1024
     for ray in range(180):
