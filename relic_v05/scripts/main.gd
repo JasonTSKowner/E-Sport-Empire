@@ -155,6 +155,8 @@ var gear_compare_mode := true
 var core_resonance := 0.0
 var core_overcharge_flash := 0.0
 var gear_upgrade_flash := 0.0
+var gear_icon_atlas: Texture2D
+var core_sigil_texture: Texture2D
 var core_draw_streak := 0
 var vfx_particles_v2: Array[Dictionary] = []
 var vfx_slashes: Array[Dictionary] = []
@@ -1402,6 +1404,16 @@ func _setup_colossus_assets() -> void:
 		var spark = load(spark_path)
 		if spark is Texture2D:
 			spark_field = spark
+	var gear_art_path := "res://assets/visual/v09/gear_atlas.png"
+	if ResourceLoader.exists(gear_art_path):
+		var gear_art = load(gear_art_path)
+		if gear_art is Texture2D:
+			gear_icon_atlas = gear_art
+	var sigil_path := "res://assets/visual/v09/core_sigil.png"
+	if ResourceLoader.exists(sigil_path):
+		var sigil_art = load(sigil_path)
+		if sigil_art is Texture2D:
+			core_sigil_texture = sigil_art
 
 func _refresh_ultra_streamed_assets() -> void:
 	var biome_idx := _biome_index()
