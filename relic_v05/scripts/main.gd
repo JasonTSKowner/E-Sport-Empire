@@ -451,6 +451,9 @@ func _deal_damage(dmg: float, crit: bool, color: Color, kind: String) -> void:
 	if crit:
 		impact_timer = maxf(impact_timer,0.34)
 		chroma_pulse = maxf(chroma_pulse,0.38)
+		_spawn_vfx_event("crit",Vector2(505,525),Color("#ffe86f"),1.15)
+	elif kind == "basic":
+		_spawn_vfx_event("basic",Vector2(505,525),color,0.72)
 	enemy_hit_flash = 1.0
 	camera_shake = 7.0 if crit else 2.5
 	var yoff := rng.randf_range(-25,18)
@@ -529,6 +532,7 @@ func _cast_skill(index: int, manual: bool) -> void:
 	impact_timer = maxf(impact_timer,0.48)
 	chroma_pulse = 0.65
 	_play_sfx("skill_leaf" if index == 0 else ("skill_star" if index == 1 else "ui_confirm"))
+	_spawn_vfx_event("skill",Vector2(235,535) if index == 2 else Vector2(505,525),Color(skill["color"]),1.0+index*0.12)
 	if index == 2:
 		shield = maxf(shield, hero_hp_max * (0.18 + lvl*0.018))
 		_spawn_burst(Vector2(235,535),Color(skill["color"]),18)
@@ -549,6 +553,8 @@ func _cast_ultimate() -> void:
 	screen_flash = 1.0
 	camera_shake = 15.0
 	_play_sfx("legendary_drop")
+	_spawn_vfx_event("ultimate",Vector2(505,525),Color("#fff091"),1.55)
+	_spawn_vfx_event("ultimate",Vector2(235,535),Color("#8df6ff"),1.10)
 	screen_rings.append({"pos":Vector2(360,520),"r":20.0,"life":0.8,"color":Color("#fff091")})
 	var dmg := hero_power * 7.5 * (1.0 + float(ascensions)*0.05)
 	_deal_damage(dmg,true,Color("#fff091"),"ultimate")
@@ -644,7 +650,9 @@ func _update_boss_phase() -> void:
 		impact_timer = 0.72
 		enemy_attack_cd = maxf(0.45,enemy_attack_cd*0.84)
 		_play_sfx("boss_intro")
-		_spawn_burst(Vector2(510,525),Color(str(enemy.get("color","#ff796c"))),28+boss_phase*12)
+		var phase_col := Color(str(enemy.get("color","#ff796c")))
+		_spawn_vfx_event("boss_phase",Vector2(510,525),phase_col,1.2+boss_phase*0.25)
+		_spawn_burst(Vector2(510,525),phase_col,28+boss_phase*12)
 
 func _spawn_enemy() -> void:
 	if battle_mode == "tower":
