@@ -154,6 +154,7 @@ var gear_page := 0
 var gear_compare_mode := true
 var core_resonance := 0.0
 var core_overcharge_flash := 0.0
+var gear_upgrade_flash := 0.0
 var core_draw_streak := 0
 var vfx_particles_v2: Array[Dictionary] = []
 var vfx_slashes: Array[Dictionary] = []
@@ -221,6 +222,7 @@ func _process(delta: float) -> void:
 	loot_beam_timer = maxf(0.0, loot_beam_timer - delta)
 	chroma_pulse = maxf(0.0, chroma_pulse - delta * 1.7)
 	core_overcharge_flash = maxf(0.0, core_overcharge_flash - delta * 1.9)
+	gear_upgrade_flash = maxf(0.0, gear_upgrade_flash - delta * 2.4)
 	_update_vfx_v2(delta)
 	_update_boss_phase()
 	if battle_mode == "dungeon":
@@ -765,6 +767,8 @@ func _roll_loot() -> void:
 		"power":power,
 		"level":0,
 		"locked":false,
+		"favorite":false,
+		"quality":snappedf(roll_quality*100.0,0.1),
 		"set":"",
 		"affixes":[]
 	}
