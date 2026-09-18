@@ -2149,7 +2149,11 @@ func _draw_talents_panel() -> void:
 		var row:=int(i/3)
 		var rr:=Rect2(64+col*199,390+row*118,184,98)
 		var t: Dictionary=D.TALENTS[i]
-		var branch_col:={"Power":Color("#d97669"),"Guard":Color("#73bb8b"),"Fortune":Color("#d5b660"),"Spirit":Color("#9577ca")}[str(t["branch"])]
+		var branch_col: Color = Color("#d97669")
+		match str(t["branch"]):
+			"Guard": branch_col = Color("#73bb8b")
+			"Fortune": branch_col = Color("#d5b660")
+			"Spirit": branch_col = Color("#9577ca")
 		_panel(rr,Color("#242329"),branch_col,15,2)
 		_text(str(t["name"]),rr.position+Vector2(92,25),13,Color.WHITE,true)
 		_text("%d/%d" % [talent_levels[i],t["max"]],rr.position+Vector2(92,48),13,Color("#ddd6e3"),true)
@@ -2181,7 +2185,7 @@ func _draw_style_panel() -> void:
 		if i==selected_skin: _text("EQUIPPED",rr.position+Vector2(66,143),10,Color("#9dffae"),true)
 		elif owned: _text("TAP EQUIP",rr.position+Vector2(66,143),10,Color("#c9c2ce"),true)
 		else: _text("S%d · %d♦" % [sk["unlock"],sk["gems"]],rr.position+Vector2(66,143),10,Color("#d4b4c8"),true)
-	var title:=D.TITLES[min(selected_title,_unlocked_title_count()-1)]
+	var title: Dictionary = D.TITLES[min(selected_title,_unlocked_title_count()-1)]
 	_small_button(Rect2(170,810,380,72),"TITLE · %s" % title["name"],Color("#5d4d70"))
 	_small_button(Rect2(170,900,380,64),"CLAIM ACHIEVEMENTS (%d)" % _achievement_ready_count(),Color("#4f6f5a"))
 	_text("Skins change your battle palette. Titles unlock through Stage progress.",Vector2(360,1010),13,Color("#aaa3ae"),true)
