@@ -1210,6 +1210,65 @@ func _setup_colossus_assets() -> void:
 		if spark is Texture2D:
 			spark_field = spark
 
+func _refresh_ultra_streamed_assets() -> void:
+	var biome_idx := _biome_index()
+	if biome_idx != ultra_biome_loaded:
+		ultra_biome_texture = null
+		var biome_path := "res://assets/visual/v08/ultra_biome_%d.png" % biome_idx
+		if ResourceLoader.exists(biome_path):
+			var biome_res = ResourceLoader.load(biome_path,"Texture2D",ResourceLoader.CACHE_MODE_IGNORE)
+			if biome_res is Texture2D:
+				ultra_biome_texture = biome_res
+		ultra_biome_loaded = biome_idx
+	var boss_idx := biome_idx if enemy_boss else -1
+	if boss_idx != ultra_boss_loaded:
+		ultra_boss_texture = null
+		if boss_idx >= 0:
+			var boss_path := "res://assets/visual/v08/boss_stage_%d.png" % boss_idx
+			if ResourceLoader.exists(boss_path):
+				var boss_res = ResourceLoader.load(boss_path,"Texture2D",ResourceLoader.CACHE_MODE_IGNORE)
+				if boss_res is Texture2D:
+					ultra_boss_texture = boss_res
+		ultra_boss_loaded = boss_idx
+	var cinematic_idx := _ultra_cinematic_index()
+	if cinematic_idx != ultra_cinematic_loaded:
+		ultra_cinematic_texture = null
+		if cinematic_idx >= 0:
+			var cinematic_path := "res://assets/visual/v08/cinematic_%d.png" % cinematic_idx
+			if ResourceLoader.exists(cinematic_path):
+				var cinematic_res = ResourceLoader.load(cinematic_path,"Texture2D",ResourceLoader.CACHE_MODE_IGNORE)
+				if cinematic_res is Texture2D:
+					ultra_cinematic_texture = cinematic_res
+		ultra_cinematic_loaded = cinematic_idx
+
+func _ultra_cinematic_index() -> int:
+	if cinematic_timer <= 0.0:
+		return -1
+	match cinematic_kind:
+		"skill_0": return 0
+		"skill_1": return 1
+		"skill_2": return 2
+		"ultimate": return 3
+		"boss_phase": return 6
+		_: return 4
+
+func _get_ultra_ui_surface(index: int) -> Texture2D:
+	if ultra_ui_cache.has(index):
+		return ultra_ui_cache[index]
+	var path := "res://assets/visual/v08/ui_surface_%d.png" % clampi(index,0,3)
+	if not ResourceLoader.exists(path):
+		return null
+	var res = ResourceLoader.load(path,"Texture2D",ResourceLoader.CACHE_MODE_IGNORE)
+	if res is Texture2D:
+		ultra_ui_cache[index] = res
+		if ultra_ui_cache.size() > 2:
+			for key in ultra_ui_cache.keys():
+				if int(key) != index:
+					ultra_ui_cache.erase(key)
+					break
+		return res
+	return null
+
 func _music_paths() -> Array[String]:
 	return [
 		"res://assets/audio/emerald_wander.wav",
