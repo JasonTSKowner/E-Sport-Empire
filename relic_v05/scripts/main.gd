@@ -1838,6 +1838,8 @@ func _draw_world() -> void:
 	var far := Color(str(biome["far"]))
 	var near := Color(str(biome["near"]))
 	var ground := Color(str(biome["ground"]))
+	if ultra_biome_texture != null:
+		draw_texture_rect(ultra_biome_texture,Rect2(0,118,720,735),false,Color(1,1,1,0.82))
 	for y in range(0,480,24):
 		var t:=float(y)/480.0
 		draw_rect(Rect2(0,y,W,26),sky.lerp(far,t*0.45))
@@ -1852,8 +1854,9 @@ func _draw_world() -> void:
 		_draw_cloud(Vector2(cx,cy),0.7+0.13*(i%2),Color(1,1,1,0.45))
 
 	# far / near parallax silhouettes
-	draw_colored_polygon(PackedVector2Array([Vector2(0,510),Vector2(80,380),Vector2(180,500),Vector2(290,335),Vector2(420,500),Vector2(555,350),Vector2(720,470),Vector2(720,650),Vector2(0,650)]),far)
-	draw_colored_polygon(PackedVector2Array([Vector2(0,590),Vector2(100,470),Vector2(205,575),Vector2(350,435),Vector2(500,575),Vector2(640,455),Vector2(720,530),Vector2(720,700),Vector2(0,700)]),near.darkened(0.04))
+	draw_colored_polygon(PackedVector2Array([Vector2(0,510),Vector2(80,380),Vector2(180,500),Vector2(290,335),Vector2(420,500),Vector2(555,350),Vector2(720,470),Vector2(720,650),Vector2(0,650)]),Color(far.r,far.g,far.b,0.34))
+	var near_layer := near.darkened(0.04)
+	draw_colored_polygon(PackedVector2Array([Vector2(0,590),Vector2(100,470),Vector2(205,575),Vector2(350,435),Vector2(500,575),Vector2(640,455),Vector2(720,530),Vector2(720,700),Vector2(0,700)]),Color(near_layer.r,near_layer.g,near_layer.b,0.42))
 
 	# path + grass
 	draw_rect(Rect2(0,555,W,270),near)
@@ -1913,6 +1916,9 @@ func _draw_top_hud() -> void:
 	_text("GIFT",Vector2(649,209),15,Color.WHITE,true)
 
 func _draw_battlefield() -> void:
+	if enemy_boss and ultra_boss_texture != null:
+		var boss_alpha := 0.28 + 0.07*boss_phase + 0.04*sin(time_alive*2.7)
+		draw_texture_rect(ultra_boss_texture,Rect2(278,282,435,435),false,Color(1,1,1,boss_alpha))
 	if visual_overkill_fields.size() > 0 and (enemy_boss or chroma_pulse > 0.02):
 		var field_idx := (_biome_index()+boss_phase+evolution_tier) % visual_overkill_fields.size()
 		var aa := 0.035 + chroma_pulse*0.055 + boss_phase*0.025
