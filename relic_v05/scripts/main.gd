@@ -2658,7 +2658,10 @@ func _draw_core_panel() -> void:
 		draw_circle(pc,45,Color(0.035,0.04,0.055,0.96))
 		draw_circle(pc,34,Color(col.r,col.g,col.b,0.08))
 		draw_arc(pc,44,time_alive*(0.25+i*0.07)+i,time_alive*(0.25+i*0.07)+i+TAU*0.78,36,Color(col.r,col.g,col.b,0.72),3.2)
-		_star(pc,12,col.lightened(0.18)) if i==0 else _diamond(pc,12,col.lightened(0.18))
+		if i==0:
+			_star(pc,12,col.lightened(0.18))
+		else:
+			_diamond(pc,12,col.lightened(0.18))
 		_text(str(nd["short"]),pc+Vector2(0,63),10,col,true)
 		_text("Lv.%d · %dS" % [lv,cost],pc+Vector2(0,79),9,Color("#aeb5c2"),true)
 
