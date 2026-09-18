@@ -2192,7 +2192,10 @@ func _draw_quests_panel() -> void:
 	_text("Bosses %d  •  Kills %d  •  Codex %d/50" % [boss_kills,total_kills,codex_seen.size()],Vector2(360,1120),14,Color("#a79fac"),true)
 
 func _draw_loot_popup() -> void:
-	draw_rect(Rect2(0,0,W,H),Color(0,0,0,0.58))
+	draw_rect(Rect2(0,0,W,H),Color(0,0,0,0.62))
+	var loot_surface := _get_ultra_ui_surface(2)
+	if loot_surface != null:
+		draw_texture_rect(loot_surface,Rect2(24,325,672,710),false,Color(1,1,1,0.42))
 	var r:=int(current_item.get("rarity",0))
 	var col:=_rarity_color(r)
 	if r >= 6 and loot_beams.size() > 0:
@@ -2250,6 +2253,10 @@ func _draw_fx() -> void:
 
 
 func _draw_cinematic_vfx() -> void:
+	if cinematic_timer > 0.0 and ultra_cinematic_texture != null:
+		var ultra_alpha := 0.12 + 0.12*clampf(cinematic_timer/1.25,0.0,1.0)
+		draw_texture_rect(ultra_cinematic_texture,Rect2(-40,145,800,800),false,Color(1,1,1,ultra_alpha))
+		draw_texture_rect(ultra_cinematic_texture,Rect2(80,265,560,560),false,Color(1,1,1,ultra_alpha*0.24))
 	if impact_timer > 0.0 and impact_atlases.size() > 0:
 		var atlas_idx := 1 if cinematic_kind in ["ultimate","boss_phase"] else 0
 		var atlas := impact_atlases[atlas_idx]
@@ -2409,6 +2416,9 @@ func _draw_style_panel() -> void:
 	_text("Skins change your battle palette. Titles unlock through Stage progress.",Vector2(360,1010),13,Color("#aaa3ae"),true)
 
 func _draw_forge_panel() -> void:
+	var forge_surface := _get_ultra_ui_surface(3)
+	if forge_surface != null:
+		draw_texture_rect(forge_surface,Rect2(48,300,624,730),false,Color(1,1,1,0.32))
 	_text("MYTHIC FORGE",Vector2(360,278),30,Color("#ffd9a3"),true)
 	_text(D.FORGE_TITLES[mini(D.FORGE_TITLES.size()-1,int(forge_level/5))],Vector2(360,310),15,Color("#c7b4a1"),true)
 	_currency(Vector2(275,347),"F",forge_stones,Color("#ffb976"))
