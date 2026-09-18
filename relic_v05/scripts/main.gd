@@ -751,7 +751,23 @@ func _roll_loot() -> void:
 		return
 	essence -= 1
 	pity += 1
+	var overcharged := core_resonance >= 100.0
 	var rarity := _roll_rarity()
+	var max_rarity_now := mini(49,6 + int(core_level/2) + ascensions*2)
+	if overcharged:
+		var overcharge_floor := mini(max_rarity_now,maxi(6,int(float(max_rarity_now)*0.72)))
+		rarity = maxi(rarity,overcharge_floor)
+		core_resonance = 0.0
+		core_overcharge_flash = 1.0
+		core_draw_streak += 1
+		screen_flash = maxf(screen_flash,0.88)
+		chroma_pulse = maxf(chroma_pulse,1.0)
+		camera_shake = maxf(camera_shake,9.0)
+		_spawn_vfx_event("core",Vector2(360,918),_rarity_color(rarity),1.35)
+		_play_sfx("awaken")
+	else:
+		core_resonance = minf(100.0,core_resonance + 7.0 + float(rarity)*1.15 + float(luck_level)*0.18)
+		_spawn_vfx_event("core",Vector2(360,918),_rarity_color(rarity),0.72)
 	var slot := rng.randi_range(0,D.SLOTS.size()-1)
 	var roll_quality := 0.86 + rng.randf()*0.32 + float(quality_level)*0.012
 	var rarity_mult := pow(1.29,float(rarity))
@@ -934,6 +950,11 @@ func _upgrade_core() -> void:
 	if core_level % 5 == 0: quality_level += 1
 	if core_level % 7 == 0: speed_level += 1
 	core_pulse = 1.0
+	core_resonance = minf(100.0,core_resonance+10.0)
+	core_overcharge_flash = 0.65
+	screen_flash = maxf(screen_flash,0.42)
+	_spawn_vfx_event("core",Vector2(360,918),Color("#7de6ff"),1.0)
+	_play_sfx("forge_hit")
 	_show_toast("Relic Core Lv.%d" % core_level)
 	_save()
 
@@ -953,6 +974,10 @@ func _upgrade_core_stat(index: int) -> void:
 		1: quality_level += 1
 		2: speed_level += 1
 		3: pity_level += 1
+	core_overcharge_flash = maxf(core_overcharge_flash,0.45)
+	core_resonance = minf(100.0,core_resonance+4.0)
+	var node_col := Color(str(D.CORE_NODES[index]["color"]))
+	_spawn_vfx_event("core",Vector2(360,918),node_col,0.82)
 	_show_toast("%s upgraded" % names[index])
 	_save()
 
