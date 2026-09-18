@@ -606,3 +606,105 @@ for idx,(body,glow) in enumerate(boss_colors):
     im.save(ULTRA / f"boss_sprite_{idx}.png", optimize=False)
 
 print("Generated v0.8 character and boss plates")
+
+
+# v0.9 GEAR + CORE ART REWORK
+V09 = VISUAL / "v09"
+V09.mkdir(parents=True, exist_ok=True)
+
+# Six-slot high-resolution gear icon atlas (3x2 cells, 512px each).
+gear = Image.new("RGBA",(1536,1024),(0,0,0,0))
+gd = ImageDraw.Draw(gear,"RGBA")
+slot_palettes = [
+    ((125,226,255),(238,251,255)),
+    ((127,239,175),(229,255,238)),
+    ((255,208,105),(255,244,201)),
+    ((255,145,119),(255,225,210)),
+    ((215,146,255),(247,225,255)),
+    ((255,108,203),(255,223,244)),
+]
+for idx,(base,hi) in enumerate(slot_palettes):
+    ox=(idx%3)*512
+    oy=(idx//3)*512
+    cx=ox+256
+    cy=oy+256
+    rnd=random.Random(99000+idx)
+    # aura/rune frame
+    for rr in range(210,105,-18):
+        gd.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline=base+(max(8,90-int(rr/3)),),width=4)
+    for ray in range(24):
+        a=2*math.pi*ray/24
+        r1=172
+        r2=218+rnd.randint(-12,20)
+        gd.line((cx+math.cos(a)*r1,cy+math.sin(a)*r1,cx+math.cos(a)*r2,cy+math.sin(a)*r2),
+                fill=base+(70,),width=4)
+    if idx==0: # weapon
+        gd.line((cx-88,cy+110,cx+85,cy-105),fill=(105,74,48,255),width=34)
+        gd.line((cx-48,cy+48,cx+116,cy-122),fill=base+(255,),width=48)
+        gd.line((cx-39,cy+41,cx+108,cy-112),fill=hi+(235,),width=15)
+        gd.polygon([(cx+107,cy-150),(cx+154,cy-103),(cx+111,cy-62),(cx+70,cy-105)],fill=base+(255,),outline=hi+(245,))
+        gd.line((cx-100,cy+54,cx-25,cy+124),fill=(209,155,85,255),width=24)
+    elif idx==1: # armor
+        gd.polygon([(cx-125,cy-120),(cx-50,cy-165),(cx,cy-118),(cx+50,cy-165),(cx+125,cy-120),(cx+95,cy+145),(cx,cy+180),(cx-95,cy+145)],
+                   fill=base+(225,),outline=hi+(255,))
+        gd.polygon([(cx-60,cy-80),(cx,cy-30),(cx+60,cy-80),(cx+42,cy+96),(cx,cy+126),(cx-42,cy+96)],fill=(39,48,58,220),outline=hi+(180,))
+        gd.line((cx,cy-120,cx,cy+130),fill=hi+(160,),width=12)
+    elif idx==2: # helm
+        gd.arc((cx-145,cy-145,cx+145,cy+145),190,350,fill=base+(255,),width=58)
+        gd.arc((cx-126,cy-126,cx+126,cy+126),185,355,fill=hi+(230,),width=20)
+        gd.polygon([(cx-132,cy-30),(cx-175,cy+70),(cx-112,cy+95)],fill=base+(235,))
+        gd.polygon([(cx+132,cy-30),(cx+175,cy+70),(cx+112,cy+95)],fill=base+(235,))
+        gd.line((cx,cy-135,cx,cy+60),fill=hi+(210,),width=18)
+    elif idx==3: # boots
+        gd.polygon([(cx-135,cy-130),(cx-35,cy-130),(cx-20,cy+40),(cx-115,cy+145),(cx-190,cy+115),(cx-105,cy+35)],
+                   fill=base+(235,),outline=hi+(230,))
+        gd.polygon([(cx+35,cy-130),(cx+135,cy-130),(cx+105,cy+35),(cx+190,cy+115),(cx+115,cy+145),(cx+20,cy+40)],
+                   fill=base+(235,),outline=hi+(230,))
+    elif idx==4: # charm
+        gd.line((cx,cy-180,cx,cy-95),fill=hi+(240,),width=18)
+        gd.ellipse((cx-105,cy-105,cx+105,cy+105),fill=base+(190,),outline=hi+(255,),width=18)
+        for p in [(0,-64),(58,10),(0,68),(-58,10)]:
+            gd.ellipse((cx+p[0]-18,cy+p[1]-18,cx+p[0]+18,cy+p[1]+18),fill=hi+(240,))
+        gd.polygon([(cx,cy-70),(cx+62,cy),(cx,cy+70),(cx-62,cy)],outline=(255,255,255,220))
+    else: # relic
+        gd.polygon([(cx,cy-175),(cx+135,cy-70),(cx+85,cy+120),(cx,cy+180),(cx-85,cy+120),(cx-135,cy-70)],
+                   fill=base+(205,),outline=hi+(255,))
+        for rr in (92,62,34):
+            gd.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline=hi+(210,),width=12)
+        gd.polygon([(cx,cy-48),(cx+45,cy),(cx,cy+48),(cx-45,cy)],fill=(255,255,255,235))
+    # spark detailing
+    for _ in range(80):
+        x=rnd.randint(ox+65,ox+447); y=rnd.randint(oy+65,oy+447); rr=rnd.randint(1,5)
+        gd.ellipse((x-rr,y-rr,x+rr,y+rr),fill=hi+(rnd.randint(35,130),))
+gear.save(V09/"gear_atlas.png",optimize=False)
+
+# High-resolution animated-looking core sigil plate.
+sigil=Image.new("RGBA",(1536,1536),(0,0,0,0))
+sd=ImageDraw.Draw(sigil,"RGBA")
+cx=cy=768
+core_cols=[(108,235,255),(166,135,255),(255,215,103),(118,255,195)]
+for ring in range(18):
+    rr=150+ring*27
+    col=core_cols[ring%len(core_cols)]
+    alpha=max(15,145-ring*6)
+    sd.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline=col+(alpha,),width=4+(ring%4))
+for ray in range(72):
+    a=2*math.pi*ray/72
+    r1=180+(ray%5)*13
+    r2=575+(ray%7)*15
+    col=core_cols[ray%len(core_cols)]
+    sd.line((cx+math.cos(a)*r1,cy+math.sin(a)*r1,cx+math.cos(a)*r2,cy+math.sin(a)*r2),
+            fill=col+(48,),width=3+(ray%3))
+for i in range(12):
+    a=2*math.pi*i/12-math.pi/2
+    x=cx+math.cos(a)*430
+    y=cy+math.sin(a)*430
+    s=42+(i%3)*9
+    col=core_cols[i%len(core_cols)]
+    sd.polygon([(x,y-s),(x+s,y),(x,y+s),(x-s,y)],outline=col+(190,),fill=col+(22,))
+for rr,col in [(126,(110,236,255)),(88,(180,149,255)),(46,(255,235,155))]:
+    sd.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),fill=col+(30,),outline=col+(220,),width=10)
+sd.polygon([(cx,cy-68),(cx+62,cy),(cx,cy+68),(cx-62,cy)],fill=(245,252,255,245))
+sigil.save(V09/"core_sigil.png",optimize=False)
+
+print("Generated v0.9 gear/core art pack")
