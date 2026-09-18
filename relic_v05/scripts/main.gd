@@ -147,6 +147,18 @@ var ultra_hero_loaded := -1
 var ultra_enemy_loaded := -1
 var ultra_ui_cache: Dictionary = {}
 
+# v0.9 gear/core quality rework
+var gear_selected_index := -1
+var gear_selected_slot := 0
+var gear_page := 0
+var gear_compare_mode := true
+var core_resonance := 0.0
+var core_overcharge_flash := 0.0
+var core_draw_streak := 0
+var vfx_particles_v2: Array[Dictionary] = []
+var vfx_slashes: Array[Dictionary] = []
+var vfx_bursts: Array[Dictionary] = []
+
 # UI / animation
 var active_tab := 2
 var panel_open := false
@@ -208,6 +220,8 @@ func _process(delta: float) -> void:
 	impact_timer = maxf(0.0, impact_timer - delta)
 	loot_beam_timer = maxf(0.0, loot_beam_timer - delta)
 	chroma_pulse = maxf(0.0, chroma_pulse - delta * 1.7)
+	core_overcharge_flash = maxf(0.0, core_overcharge_flash - delta * 1.9)
+	_update_vfx_v2(delta)
 	_update_boss_phase()
 	if battle_mode == "dungeon":
 		dungeon_time += delta
