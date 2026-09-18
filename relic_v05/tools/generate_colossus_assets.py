@@ -204,7 +204,7 @@ for idx in range(4):
 
 # High-detail 2K magic/noise maps used by world events, boss phases and
 # high-evolution aura overlays. These are intentionally high-frequency visual data.
-for idx in range(8):
+for idx in range(4):
     rnd = random.Random(41000 + idx)
     raw = rnd.randbytes(2048 * 2048)
     noise = Image.frombytes("L", (2048, 2048), raw)
