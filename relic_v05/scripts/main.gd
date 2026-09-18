@@ -123,6 +123,16 @@ var music_track := -1
 var biome_overlays: Array[Texture2D] = []
 var premium_atlases: Array[Texture2D] = []
 var magic_noise_maps: Array[Texture2D] = []
+var visual_overkill_fields: Array[Texture2D] = []
+var impact_atlases: Array[Texture2D] = []
+var loot_beams: Array[Texture2D] = []
+var spark_field: Texture2D
+var cinematic_timer := 0.0
+var cinematic_kind := ""
+var impact_timer := 0.0
+var loot_beam_timer := 0.0
+var boss_phase := 0
+var chroma_pulse := 0.0
 
 # UI / animation
 var active_tab := 2
@@ -181,6 +191,11 @@ func _process(delta: float) -> void:
 	skill_flash = maxf(0.0, skill_flash - delta * 4.0)
 	rarity_cutscene = maxf(0.0, rarity_cutscene - delta)
 	screen_flash = maxf(0.0, screen_flash - delta * 2.6)
+	cinematic_timer = maxf(0.0, cinematic_timer - delta)
+	impact_timer = maxf(0.0, impact_timer - delta)
+	loot_beam_timer = maxf(0.0, loot_beam_timer - delta)
+	chroma_pulse = maxf(0.0, chroma_pulse - delta * 1.7)
+	_update_boss_phase()
 	if battle_mode == "dungeon":
 		dungeon_time += delta
 	elif battle_mode == "boss_rush":
@@ -405,6 +420,9 @@ func _hero_attack() -> void:
 
 func _deal_damage(dmg: float, crit: bool, color: Color, kind: String) -> void:
 	enemy_hp -= dmg
+	if crit:
+		impact_timer = maxf(impact_timer,0.34)
+		chroma_pulse = maxf(chroma_pulse,0.38)
 	enemy_hit_flash = 1.0
 	camera_shake = 7.0 if crit else 2.5
 	var yoff := rng.randf_range(-25,18)
@@ -478,6 +496,11 @@ func _cast_skill(index: int, manual: bool) -> void:
 	skill_timers[index] = maxf(1.0, float(skill["cd"]) * (1.0 - minf(0.35,haste*0.2)))
 	var lvl := float(skill_levels[index])
 	skill_flash = 1.0
+	cinematic_timer = 0.62
+	cinematic_kind = "skill_%d" % index
+	impact_timer = maxf(impact_timer,0.48)
+	chroma_pulse = 0.65
+	_play_sfx("skill_leaf" if index == 0 else ("skill_star" if index == 1 else "ui_confirm"))
 	if index == 2:
 		shield = maxf(shield, hero_hp_max * (0.18 + lvl*0.018))
 		_spawn_burst(Vector2(235,535),Color(skill["color"]),18)
@@ -491,6 +514,13 @@ func _cast_skill(index: int, manual: bool) -> void:
 func _cast_ultimate() -> void:
 	rage = 0.0
 	skill_flash = 1.0
+	cinematic_timer = 1.25
+	cinematic_kind = "ultimate"
+	impact_timer = 1.0
+	chroma_pulse = 1.0
+	screen_flash = 1.0
+	camera_shake = 15.0
+	_play_sfx("legendary_drop")
 	screen_rings.append({"pos":Vector2(360,520),"r":20.0,"life":0.8,"color":Color("#fff091")})
 	var dmg := hero_power * 7.5 * (1.0 + float(ascensions)*0.05)
 	_deal_damage(dmg,true,Color("#fff091"),"ultimate")
@@ -567,6 +597,26 @@ func _on_stage_advance() -> void:
 	if stage % 5 == 1:
 		_show_toast("%s" % D.BIOMES[biome]["name"])
 		_seed_weather()
+
+func _update_boss_phase() -> void:
+	if not enemy_boss or enemy_hp_max <= 0.0:
+		boss_phase = 0
+		return
+	var ratio := enemy_hp / enemy_hp_max
+	var new_phase := 0
+	if ratio < 0.66: new_phase = 1
+	if ratio < 0.33: new_phase = 2
+	if new_phase > boss_phase:
+		boss_phase = new_phase
+		cinematic_timer = 0.85
+		cinematic_kind = "boss_phase"
+		screen_flash = 0.72
+		chroma_pulse = 1.0
+		camera_shake = 12.0
+		impact_timer = 0.72
+		enemy_attack_cd = maxf(0.45,enemy_attack_cd*0.84)
+		_play_sfx("boss_intro")
+		_spawn_burst(Vector2(510,525),Color(str(enemy.get("color","#ff796c"))),28+boss_phase*12)
 
 func _spawn_enemy() -> void:
 	if battle_mode == "tower":
@@ -692,6 +742,10 @@ func _roll_loot() -> void:
 	current_item = item
 	if rarity >= 5 and rng.randf() < minf(0.60,0.18 + rarity*0.015):
 		forge_stones += 1 + int(rarity/15)
+	if rarity >= 6:
+		loot_beam_timer = 1.25 + minf(1.5,float(rarity)*0.035)
+		chroma_pulse = maxf(chroma_pulse,0.75)
+		_play_sfx("legendary_drop" if rarity >= 10 else "loot_burst")
 	if rarity >= 10:
 		rarity_cutscene = 1.75
 		rarity_cutscene_name = D.RARITIES[rarity]
@@ -1122,6 +1176,29 @@ func _setup_colossus_assets() -> void:
 			var noise = load(noise_path)
 			if noise is Texture2D:
 				magic_noise_maps.append(noise)
+	for i in 6:
+		var field_path := "res://assets/visual/v07/energy_field_%d.png" % i
+		if ResourceLoader.exists(field_path):
+			var field = load(field_path)
+			if field is Texture2D:
+				visual_overkill_fields.append(field)
+	for i in 2:
+		var impact_path := "res://assets/visual/v07/impact_atlas_%d.png" % i
+		if ResourceLoader.exists(impact_path):
+			var impact = load(impact_path)
+			if impact is Texture2D:
+				impact_atlases.append(impact)
+	for i in 2:
+		var beam_path := "res://assets/visual/v07/loot_beam_%d.png" % i
+		if ResourceLoader.exists(beam_path):
+			var beam = load(beam_path)
+			if beam is Texture2D:
+				loot_beams.append(beam)
+	var spark_path := "res://assets/visual/v07/spark_field.png"
+	if ResourceLoader.exists(spark_path):
+		var spark = load(spark_path)
+		if spark is Texture2D:
+			spark_field = spark
 
 func _music_paths() -> Array[String]:
 	return [
@@ -1669,6 +1746,7 @@ func _draw() -> void:
 	_draw_core_shrine()
 	_draw_bottom_nav()
 	_draw_fx()
+	_draw_cinematic_vfx()
 	draw_set_transform(Vector2.ZERO)
 	if feature_panel != "": _draw_feature_panel()
 	if panel_open: _draw_panel()
@@ -1716,6 +1794,9 @@ func _draw_world() -> void:
 	# premium overlays generated into the Colossus content pack
 	if _biome_index() < biome_overlays.size():
 		draw_texture_rect(biome_overlays[_biome_index()],Rect2(0,190,720,620),false,Color(1,1,1,0.085))
+	if spark_field != null and (evolution_tier >= 2 or world_event_index >= 0):
+		var spark_alpha := 0.038 + 0.012*minf(5.0,float(evolution_tier))
+		draw_texture_rect(spark_field,Rect2(0,170,720,650),false,Color(1,1,1,spark_alpha))
 	if magic_noise_maps.size() > 0 and (world_event_index >= 0 or enemy_boss or evolution_tier >= 4):
 		var noise_idx := (_biome_index() + maxi(0,world_event_index) + evolution_tier) % magic_noise_maps.size()
 		var noise_alpha := 0.045 if world_event_index >= 0 else 0.028
@@ -1763,6 +1844,12 @@ func _draw_top_hud() -> void:
 	_text("GIFT",Vector2(649,209),15,Color.WHITE,true)
 
 func _draw_battlefield() -> void:
+	if visual_overkill_fields.size() > 0 and (enemy_boss or chroma_pulse > 0.02):
+		var field_idx := (_biome_index()+boss_phase+evolution_tier) % visual_overkill_fields.size()
+		var aa := 0.035 + chroma_pulse*0.055 + boss_phase*0.025
+		draw_texture_rect(visual_overkill_fields[field_idx],Rect2(280,270,460,460),false,Color(1,1,1,aa))
+		if enemy_boss and boss_phase >= 1:
+			draw_texture_rect(visual_overkill_fields[(field_idx+2)%visual_overkill_fields.size()],Rect2(330,320,360,360),false,Color(1,0.76,0.86,0.035+boss_phase*0.025))
 	if premium_atlases.size() > 0 and (enemy_boss or evolution_tier >= 3):
 		var aura_idx := (evolution_tier + (1 if enemy_boss else 0)) % premium_atlases.size()
 		var aura_alpha := 0.10 if enemy_boss else 0.055
@@ -2033,6 +2120,11 @@ func _draw_loot_popup() -> void:
 	draw_rect(Rect2(0,0,W,H),Color(0,0,0,0.58))
 	var r:=int(current_item.get("rarity",0))
 	var col:=_rarity_color(r)
+	if r >= 6 and loot_beams.size() > 0:
+		var beam_idx := 1 if r >= 20 else 0
+		var pulse := 0.38 + 0.10*sin(time_alive*7.0)
+		draw_texture_rect(loot_beams[beam_idx],Rect2(150,-40,420,1080),false,Color(col.r,col.g,col.b,pulse))
+		draw_texture_rect(loot_beams[beam_idx],Rect2(250,120,220,760),false,Color(1,1,1,0.18))
 	_panel(Rect2(42,350,636,660),Color("#19181d"),col,30,4)
 	_text("RELIC CORE DROP",Vector2(360,397),17,Color("#b9b2bf"),true)
 	for rad in [122.0,96.0,72.0]:
@@ -2080,6 +2172,35 @@ func _draw_fx() -> void:
 		var c:=Color(ring["color"]); c.a=clampf(float(ring["life"]),0.0,1.0)
 		draw_arc(Vector2(ring["pos"]),float(ring["r"]),0,TAU,48,c,7.0)
 
+
+
+func _draw_cinematic_vfx() -> void:
+	if impact_timer > 0.0 and impact_atlases.size() > 0:
+		var atlas_idx := 1 if cinematic_kind in ["ultimate","boss_phase"] else 0
+		var atlas := impact_atlases[atlas_idx]
+		var norm := 1.0-clampf(impact_timer/(1.0 if atlas_idx==1 else 0.48),0.0,1.0)
+		var frame := clampi(int(norm*15.0),0,15)
+		var sx := float((frame%4)*512)
+		var sy := float((frame/4)*512)
+		var target := Vector2(505,525) if cinematic_kind != "skill_2" else Vector2(235,535)
+		var size := 330.0 if atlas_idx==1 else 240.0
+		draw_texture_rect_region(atlas,Rect2(target-Vector2(size,size)*0.5,Vector2(size,size)),Rect2(sx,sy,512,512),Color(1,1,1,0.82))
+		# faux bloom: larger soft copies
+		draw_texture_rect_region(atlas,Rect2(target-Vector2(size*1.35,size*1.35)*0.5,Vector2(size*1.35,size*1.35)),Rect2(sx,sy,512,512),Color(1,1,1,0.10))
+	if cinematic_timer > 0.0:
+		var t := clampf(cinematic_timer/1.25,0.0,1.0)
+		if visual_overkill_fields.size() > 0:
+			var idx := int(time_alive*3.0)%visual_overkill_fields.size()
+			var alpha := 0.045 + 0.055*t
+			draw_texture_rect(visual_overkill_fields[idx],Rect2(0,180,720,640),false,Color(1,1,1,alpha))
+		if cinematic_kind == "ultimate":
+			draw_rect(Rect2(0,180,720,640),Color(1.0,0.91,0.45,0.035+0.055*t))
+			for i in 7:
+				var rad := 70.0+i*52.0+(1.0-t)*100.0
+				draw_arc(Vector2(505,525),rad,time_alive*(0.6+i*0.04),time_alive*(0.6+i*0.04)+TAU*0.72,72,Color(1,0.91,0.45,0.14*t),4.0)
+		elif cinematic_kind == "boss_phase":
+			draw_rect(Rect2(0,180,720,640),Color(0.85,0.08,0.17,0.045+0.045*t))
+			_text("PHASE %d" % (boss_phase+1),Vector2(360,330),28,Color(1,0.83,0.84,0.85*t),true)
 
 func _draw_colossus_bar() -> void:
 	var buttons := [
@@ -2311,6 +2432,12 @@ func _draw_evolution_panel() -> void:
 func _draw_rarity_cutscene() -> void:
 	var a := clampf(rarity_cutscene/1.75,0.0,1.0)
 	var col := rarity_cutscene_color
+	if visual_overkill_fields.size() > 0:
+		var field_idx := int(abs(hash(rarity_cutscene_name))) % visual_overkill_fields.size()
+		draw_texture_rect(visual_overkill_fields[field_idx],Rect2(-100,120,920,920),false,Color(col.r,col.g,col.b,0.11*a))
+	if loot_beams.size() > 0:
+		var beam_idx := 1 if rarity_cutscene_name in ["Divine","Celestial","Void","Apex","Origin","Beyond","Singularity"] else 0
+		draw_texture_rect(loot_beams[beam_idx],Rect2(120,0,480,1080),false,Color(col.r,col.g,col.b,0.28*a))
 	draw_rect(Rect2(0,0,W,H),Color(0.02,0.01,0.04,0.38*a))
 	for i in 5:
 		var rad := 80.0+i*48.0+(1.0-a)*90.0
