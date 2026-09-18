@@ -487,3 +487,122 @@ for idx in range(4):
     im.save(ULTRA / f"ui_surface_{idx}.png", optimize=False)
 
 print("Generated v0.8 Ultra Asset Rebuild pack")
+
+
+# v0.8 high-resolution character and boss plates.
+# These replace the cheap-looking primitive silhouettes in the visible battle layer.
+hero_colors = [
+    ((72,164,84),(216,239,107)),
+    ((73,104,176),(168,219,255)),
+    ((201,137,65),(255,238,126)),
+    ((91,168,190),(218,250,255)),
+    ((170,79,63),(255,177,116)),
+    ((111,83,178),(230,167,255)),
+    ((91,52,137),(221,126,255)),
+    ((196,143,58),(255,241,166)),
+]
+for idx,(main_col,accent_col) in enumerate(hero_colors):
+    rnd=random.Random(90000+idx)
+    s=1536
+    im=Image.new("RGBA",(s,s),(0,0,0,0))
+    d=ImageDraw.Draw(im,"RGBA")
+    cx=768
+    # aura halo
+    for rr in range(520,110,-28):
+        alpha=max(3,int(34*(1-rr/560)))
+        d.ellipse((cx-rr,720-rr,cx+rr,720+rr),outline=accent_col+(alpha,),width=8)
+    # cape
+    d.polygon([(470,690),(420,1270),(1110,1270),(1060,690),(925,590),(610,590)],fill=main_col+(235,))
+    d.polygon([(525,720),(590,1250),(950,1250),(1010,720),(900,630),(630,630)],fill=tuple(min(255,x+25) for x in main_col)+(230,))
+    # body armor
+    d.rounded_rectangle((575,720,960,1190),radius=110,fill=(58,68,64,245),outline=accent_col+(220,),width=18)
+    d.polygon([(650,780),(768,900),(885,780),(860,1080),(676,1080)],fill=main_col+(245,))
+    # face
+    d.ellipse((520,360,1016,856),fill=(243,219,174,255),outline=(74,61,48,230),width=18)
+    # eyes with gloss
+    for ex in (655,880):
+        d.ellipse((ex-45,545,ex+45,635),fill=(28,31,30,255))
+        d.ellipse((ex-18,558,ex+5,582),fill=(255,255,255,240))
+    d.arc((660,620,880,760),start=18,end=162,fill=(130,82,66,240),width=18)
+    # leaf crown / cap
+    d.ellipse((485,260,1045,610),fill=main_col+(255,),outline=(35,74,41,240),width=20)
+    for leaf in range(7):
+        a=-2.65+leaf*0.88
+        lx=768+math.cos(a)*250
+        ly=360+math.sin(a)*125
+        tip=(lx+math.cos(a)*150,ly+math.sin(a)*150)
+        d.polygon([(lx-45,ly+20),(tip[0],tip[1]),(lx+50,ly-20)],fill=accent_col+(235,))
+    # shoulder ornaments
+    for sx in (525,1010):
+        d.ellipse((sx-80,760,sx+80,920),fill=accent_col+(210,),outline=(255,255,255,80),width=10)
+    # weapon with multi-layer glow
+    for width,alpha in [(52,30),(34,60),(20,220)]:
+        d.line((1000,1030,1230,520),fill=accent_col+(alpha,),width=width)
+    d.polygon([(1225,465),(1315,530),(1225,595),(1145,530)],fill=accent_col+(245,),outline=(255,255,255,210))
+    # sparks and texture
+    for _ in range(950):
+        x=rnd.randint(300,1320); y=rnd.randint(170,1370)
+        rr=rnd.randint(1,8)
+        d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=accent_col+(rnd.randint(12,110),))
+    im.save(ULTRA / f"hero_skin_{idx}.png", optimize=False)
+
+boss_colors=[
+    ((58,108,71),(127,236,146)),
+    ((54,78,115),(112,206,255)),
+    ((79,60,126),(205,135,255)),
+    ((130,62,51),(255,126,88)),
+    ((79,135,151),(188,246,255)),
+    ((48,111,105),(116,255,213)),
+    ((57,48,105),(183,123,255)),
+    ((143,94,47),(255,215,116)),
+]
+for idx,(body,glow) in enumerate(boss_colors):
+    rnd=random.Random(94000+idx)
+    s=1536
+    im=Image.new("RGBA",(s,s),(0,0,0,0))
+    d=ImageDraw.Draw(im,"RGBA")
+    cx=768
+    # aura
+    for rr in range(590,170,-30):
+        d.ellipse((cx-rr,770-rr,cx+rr,770+rr),outline=glow+(max(3,50-int(rr/14)),),width=7)
+    # huge body
+    d.ellipse((420,420,1115,1240),fill=body+(250,),outline=(22,28,29,245),width=28)
+    d.polygon([(500,760),(265,1280),(560,1170),(620,810)],fill=body+(245,))
+    d.polygon([(1035,760),(1270,1280),(975,1170),(915,810)],fill=body+(245,))
+    # antlers/horns
+    for side in (-1,1):
+        base_x=768+side*230
+        d.line((base_x,520,base_x+side*210,235),fill=(74,64,51,255),width=54)
+        for j in range(4):
+            yy=320+j*68
+            xx=base_x+side*(95+j*28)
+            d.line((xx,yy,xx+side*115,yy-115),fill=(74,64,51,255),width=32)
+    # face plate
+    d.polygon([(560,520),(768,385),(975,520),(920,825),(768,950),(615,825)],fill=tuple(min(255,x+30) for x in body)+(255,),outline=glow+(170,))
+    # eyes
+    for ex in (665,870):
+        for rr in range(45,8,-8):
+            d.ellipse((ex-rr,610-rr,ex+rr,610+rr),fill=glow+(max(35,200-rr*3),))
+        d.ellipse((ex-13,597,ex+13,623),fill=(255,255,255,255))
+    # mouth/runes
+    d.arc((650,660,885,850),15,165,fill=(26,25,25,230),width=28)
+    for rj in range(12):
+        a=2*math.pi*rj/12
+        x=cx+math.cos(a)*270; y=760+math.sin(a)*300
+        ss=24+rnd.randint(0,28)
+        d.polygon([(x,y-ss),(x+ss,y),(x,y+ss),(x-ss,y)],outline=glow+(150,),fill=glow+(25,))
+    # moss/crystal clusters
+    for _ in range(95):
+        x=rnd.randint(430,1100); y=rnd.randint(420,1190)
+        rr=rnd.randint(8,34)
+        if rnd.random()<0.55:
+            d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=(48,118+idx*5,63,150))
+        else:
+            d.polygon([(x,y-rr*2),(x-rr,y+rr),(x+rr,y+rr)],fill=glow+(160,))
+    for _ in range(900):
+        x=rnd.randint(280,1260); y=rnd.randint(230,1340)
+        rr=rnd.randint(1,7)
+        d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=glow+(rnd.randint(10,95),))
+    im.save(ULTRA / f"boss_sprite_{idx}.png", optimize=False)
+
+print("Generated v0.8 character and boss plates")
