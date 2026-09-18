@@ -2568,19 +2568,63 @@ func _draw_skills_panel() -> void:
 	_text("Skills cast automatically. Tap them in battle for timing.",Vector2(360,1080),15,Color("#9e96a4"),true)
 
 func _draw_core_panel() -> void:
-	var names:=["LUCK","QUALITY","SPEED","PITY"]
-	var levels:=[luck_level,quality_level,speed_level,pity_level]
-	for i in 4:
-		var col:=i%2; var row:=int(i/2)
-		var rect:=Rect2(65+col*320,812+row*90,270,70)
-		_panel(rect,Color("#25232c"),Color("#775d8a"),16,2)
-		_text(names[i],Vector2(rect.position.x+18,rect.position.y+28),16,Color("#d8c9e4"))
-		_text("Lv.%d" % levels[i],Vector2(rect.position.x+18,rect.position.y+53),18,Color.WHITE)
-		_text("%d S" % (6+levels[i]*3),Vector2(rect.end.x-34,rect.position.y+43),14,Color("#c7a9ff"),true)
-	var req_stage:=50+ascensions*25
-	var req_seed:=5+ascensions*2
-	_small_button(Rect2(185,1002,350,72),"ASCEND  S%d / %d  •  Stage %d" % [ascension_seeds,req_seed,req_stage],Color("#70507d"))
-	_text("Ascension %d permanently boosts stats and rarity access." % ascensions,Vector2(360,1098),14,Color("#aaa0b0"),true)
+	var center := Vector2(360,900)
+	var node_centers := [Vector2(178,830),Vector2(542,830),Vector2(178,982),Vector2(542,982)]
+	var levels := [luck_level,quality_level,speed_level,pity_level]
+
+	# Constellation links.
+	for i in node_centers.size():
+		var node_col := Color(str(D.CORE_NODES[i]["color"]))
+		draw_line(center,node_centers[i],Color(node_col.r,node_col.g,node_col.b,0.13),9.0)
+		draw_line(center,node_centers[i],Color(node_col.r,node_col.g,node_col.b,0.42),2.0)
+
+	# Central Nexus.
+	var pulse := 1.0+sin(time_alive*3.4)*0.035+core_overcharge_flash*0.08
+	for ring in range(4):
+		var rr := (62.0+ring*13.0)*pulse
+		var alpha := 0.19-ring*0.025+core_overcharge_flash*0.10
+		draw_arc(center,rr,time_alive*(0.35+ring*0.11)+ring,time_alive*(0.35+ring*0.11)+ring+TAU*0.74,54,Color(0.50,0.88,1.0,alpha),3.5+ring)
+	draw_circle(center,54,Color("#131b27"))
+	draw_circle(center,43,Color(0.24,0.46,0.72,0.34))
+	_diamond(center,24,Color("#b9f4ff").lerp(Color.WHITE,core_overcharge_flash))
+	_text("NEXUS",center+Vector2(0,-10),10,Color("#c9f5ff"),true)
+	_text("Lv.%d" % core_level,center+Vector2(0,16),17,Color.WHITE,true)
+	_text("%sG" % _short_num(_core_cost()),center+Vector2(0,38),10,Color("#ffd991"),true)
+
+	# Resonance ring is now the primary progress language.
+	var resonance_ratio := clampf(core_resonance/100.0,0.0,1.0)
+	draw_arc(center,91,-PI/2,-PI/2+TAU,64,Color(1,1,1,0.06),8)
+	draw_arc(center,91,-PI/2,-PI/2+TAU*resonance_ratio,64,Color("#ffd56f") if resonance_ratio>=1.0 else Color("#87eaff"),8)
+	_text("OVERCHARGE" if resonance_ratio>=1.0 else "RESONANCE %d%%" % int(core_resonance),center+Vector2(0,116),12,Color("#ffe386") if resonance_ratio>=1.0 else Color("#b5dfe9"),true)
+
+	# Four radial stat nodes.
+	for i in node_centers.size():
+		var nd: Dictionary = D.CORE_NODES[i]
+		var col := Color(str(nd["color"]))
+		var pc := node_centers[i]
+		var lv := int(levels[i])
+		var cost := 6+lv*3
+		draw_circle(pc,45,Color(0.035,0.04,0.055,0.96))
+		draw_circle(pc,34,Color(col.r,col.g,col.b,0.08))
+		draw_arc(pc,44,time_alive*(0.25+i*0.07)+i,time_alive*(0.25+i*0.07)+i+TAU*0.78,36,Color(col.r,col.g,col.b,0.72),3.2)
+		_star(pc,12,col.lightened(0.18)) if i==0 else _diamond(pc,12,col.lightened(0.18))
+		_text(str(nd["short"]),pc+Vector2(0,63),10,col,true)
+		_text("Lv.%d · %dS" % [lv,cost],pc+Vector2(0,79),9,Color("#aeb5c2"),true)
+
+	# Ascension gate instead of a giant rectangle button.
+	var gate := Vector2(360,1065)
+	var req_stage := 50+ascensions*25
+	var req_seed := 5+ascensions*2
+	var gate_ready := stage>=req_stage and ascension_seeds>=req_seed
+	var gate_col := Color("#d7a8ff") if gate_ready else Color("#6e6376")
+	for r in [48.0,38.0,28.0]:
+		draw_arc(gate,r,time_alive*(0.28+r*0.001),time_alive*(0.28+r*0.001)+TAU*0.68,32,Color(gate_col.r,gate_col.g,gate_col.b,0.60 if gate_ready else 0.22),3)
+	_diamond(gate,18,gate_col)
+	_text("ASCEND %d" % (ascensions+1),gate+Vector2(0,5),10,Color("#1f1825") if gate_ready else Color("#a79caf"),true)
+	_text("%d/%d Seeds · Stage %d/%d" % [ascension_seeds,req_seed,stage,req_stage],Vector2(360,1120),11,Color("#bbb2c0"),true)
+
+	var max_r := mini(49,6+int(core_level/2)+ascensions*2)
+	_text("Unlocked rarity ceiling · %s" % D.RARITIES[max_r],Vector2(360,760),12,_rarity_color(max_r),true)
 
 func _draw_pets_panel() -> void:
 	for i in 5:
