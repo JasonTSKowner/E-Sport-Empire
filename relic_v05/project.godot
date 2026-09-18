@@ -1,5 +1,5 @@
 [application]
-config/name="Relic Ascension: Ultra Rebuild"
+config/name="Relic Ascension: Nexus Reforged"
 run/main_scene="res://Main.tscn"
 config/features=PackedStringArray("4.7")
 
