@@ -221,7 +221,7 @@ VFX = VISUAL / "v07"
 VFX.mkdir(parents=True, exist_ok=True)
 
 # Six chromatic energy fields: boss phases, world events, evolutions, loot cinematics.
-for idx in range(6):
+for idx in range(3):
     rnd = random.Random(51000 + idx)
     w = h = 2048
     # RGB high-frequency field with directional streaks + turbulence.
