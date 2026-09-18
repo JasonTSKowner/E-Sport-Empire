@@ -123,6 +123,19 @@ var music_track := -1
 var biome_overlays: Array[Texture2D] = []
 var premium_atlases: Array[Texture2D] = []
 var magic_noise_maps: Array[Texture2D] = []
+var celestial_burst_maps: Array[Texture2D] = []
+
+# Celestial Overdrive VFX runtime
+var shockwaves: Array[Dictionary] = []
+var light_beams: Array[Dictionary] = []
+var slash_arcs: Array[Dictionary] = []
+var screen_sparks: Array[Dictionary] = []
+var afterimages: Array[Dictionary] = []
+var vignette_pulse := 0.0
+var chroma_pulse := 0.0
+var boss_phase_mask := 0
+var overdrive_energy := 0.0
+var overdrive_timer := 0.0
 
 # UI / animation
 var active_tab := 2
@@ -181,6 +194,11 @@ func _process(delta: float) -> void:
 	skill_flash = maxf(0.0, skill_flash - delta * 4.0)
 	rarity_cutscene = maxf(0.0, rarity_cutscene - delta)
 	screen_flash = maxf(0.0, screen_flash - delta * 2.6)
+	vignette_pulse = maxf(0.0, vignette_pulse - delta * 2.4)
+	chroma_pulse = maxf(0.0, chroma_pulse - delta * 3.0)
+	overdrive_energy = maxf(0.0, overdrive_energy - delta * 2.0)
+	overdrive_timer = maxf(0.0, overdrive_timer - delta)
+	_update_boss_phases()
 	if battle_mode == "dungeon":
 		dungeon_time += delta
 	elif battle_mode == "boss_rush":
@@ -406,7 +424,8 @@ func _hero_attack() -> void:
 func _deal_damage(dmg: float, crit: bool, color: Color, kind: String) -> void:
 	enemy_hp -= dmg
 	enemy_hit_flash = 1.0
-	camera_shake = 7.0 if crit else 2.5
+	camera_shake = 9.0 if crit else (5.0 if kind != "basic" else 2.5)
+	_spawn_celestial_impact(Vector2(505,525),color,kind,crit)
 	var yoff := rng.randf_range(-25,18)
 	projectiles.append({
 		"from":Vector2(254,552),
@@ -478,6 +497,11 @@ func _cast_skill(index: int, manual: bool) -> void:
 	skill_timers[index] = maxf(1.0, float(skill["cd"]) * (1.0 - minf(0.35,haste*0.2)))
 	var lvl := float(skill_levels[index])
 	skill_flash = 1.0
+	chroma_pulse = 0.35
+	overdrive_energy = minf(1.0,overdrive_energy+0.22)
+	if index == 0: _play_sfx("skill_leaf")
+	elif index == 1: _play_sfx("skill_star")
+	else: _play_sfx("celestial_impact")
 	if index == 2:
 		shield = maxf(shield, hero_hp_max * (0.18 + lvl*0.018))
 		_spawn_burst(Vector2(235,535),Color(skill["color"]),18)
@@ -491,11 +515,22 @@ func _cast_skill(index: int, manual: bool) -> void:
 func _cast_ultimate() -> void:
 	rage = 0.0
 	skill_flash = 1.0
-	screen_rings.append({"pos":Vector2(360,520),"r":20.0,"life":0.8,"color":Color("#fff091")})
+	screen_flash = 1.0
+	vignette_pulse = 1.0
+	chroma_pulse = 1.0
+	overdrive_energy = 1.0
+	overdrive_timer = 1.5
+	camera_shake = 18.0
+	screen_rings.append({"pos":Vector2(360,520),"r":20.0,"life":1.2,"color":Color("#fff091")})
+	screen_rings.append({"pos":Vector2(505,525),"r":10.0,"life":1.0,"color":Color("#ffffff")})
+	light_beams.append({"x":505.0,"life":1.05,"width":95.0,"color":Color("#fff091")})
+	for i in 18:
+		screen_sparks.append({"pos":Vector2(505,525),"vel":Vector2.from_angle(rng.randf()*TAU)*rng.randf_range(180,520),"life":rng.randf_range(0.6,1.15),"color":Color("#fff2a8"),"size":rng.randf_range(3,10)})
+	_play_sfx("ultimate_overdrive")
 	var dmg := hero_power * 7.5 * (1.0 + float(ascensions)*0.05)
 	_deal_damage(dmg,true,Color("#fff091"),"ultimate")
-	_spawn_burst(Vector2(505,525),Color("#fff091"),38)
-	_show_toast("WILDBLOOM!")
+	_spawn_burst(Vector2(505,525),Color("#fff091"),64)
+	_show_toast("CELESTIAL WILDBLOOM!")
 
 func _on_enemy_defeated() -> void:
 	if battle_mode == "dungeon":
@@ -569,6 +604,7 @@ func _on_stage_advance() -> void:
 		_seed_weather()
 
 func _spawn_enemy() -> void:
+	boss_phase_mask = 0
 	if battle_mode == "tower":
 		var theme: Dictionary = D.TOWER_THEMES[int((tower_floor-1)/10)%D.TOWER_THEMES.size()]
 		enemy_boss = tower_floor % 10 == 0
@@ -1116,12 +1152,18 @@ func _setup_colossus_assets() -> void:
 			var aura = load(aura_path)
 			if aura is Texture2D:
 				premium_atlases.append(aura)
-	for i in 4:
+	for i in 12:
 		var noise_path := "res://assets/visual/magic_noise_%d.png" % i
 		if ResourceLoader.exists(noise_path):
 			var noise = load(noise_path)
 			if noise is Texture2D:
 				magic_noise_maps.append(noise)
+	for i in 6:
+		var burst_path := "res://assets/visual/celestial_burst_%d.png" % i
+		if ResourceLoader.exists(burst_path):
+			var burst = load(burst_path)
+			if burst is Texture2D:
+				celestial_burst_maps.append(burst)
 
 func _music_paths() -> Array[String]:
 	return [
@@ -1629,6 +1671,25 @@ func _seed_weather() -> void:
 		})
 
 func _update_fx(delta: float) -> void:
+	for i in range(shockwaves.size()-1,-1,-1):
+		shockwaves[i]["life"] = float(shockwaves[i]["life"]) - delta
+		shockwaves[i]["r"] = float(shockwaves[i]["r"]) + float(shockwaves[i]["speed"]) * delta
+		if float(shockwaves[i]["life"]) <= 0.0: shockwaves.remove_at(i)
+	for i in range(light_beams.size()-1,-1,-1):
+		light_beams[i]["life"] = float(light_beams[i]["life"]) - delta
+		if float(light_beams[i]["life"]) <= 0.0: light_beams.remove_at(i)
+	for i in range(slash_arcs.size()-1,-1,-1):
+		slash_arcs[i]["life"] = float(slash_arcs[i]["life"]) - delta
+		slash_arcs[i]["rot"] = float(slash_arcs[i]["rot"]) + delta*3.8
+		if float(slash_arcs[i]["life"]) <= 0.0: slash_arcs.remove_at(i)
+	for i in range(screen_sparks.size()-1,-1,-1):
+		screen_sparks[i]["life"] = float(screen_sparks[i]["life"]) - delta
+		screen_sparks[i]["pos"] += Vector2(screen_sparks[i]["vel"]) * delta
+		screen_sparks[i]["vel"] *= 0.965
+		if float(screen_sparks[i]["life"]) <= 0.0: screen_sparks.remove_at(i)
+	for i in range(afterimages.size()-1,-1,-1):
+		afterimages[i]["life"] = float(afterimages[i]["life"]) - delta
+		if float(afterimages[i]["life"]) <= 0.0: afterimages.remove_at(i)
 	for i in range(projectiles.size()-1,-1,-1):
 		projectiles[i]["t"]=float(projectiles[i]["t"])+delta
 		if float(projectiles[i]["t"])>=float(projectiles[i]["life"]): projectiles.remove_at(i)
@@ -1676,7 +1737,11 @@ func _draw() -> void:
 	if boss_intro>0.0: _draw_boss_intro()
 	if rarity_cutscene>0.0: _draw_rarity_cutscene()
 	if screen_flash>0.0:
-		draw_rect(Rect2(0,0,W,H),Color(rarity_cutscene_color.r,rarity_cutscene_color.g,rarity_cutscene_color.b,0.12*screen_flash))
+		draw_rect(Rect2(0,0,W,H),Color(rarity_cutscene_color.r,rarity_cutscene_color.g,rarity_cutscene_color.b,0.15*screen_flash))
+	if vignette_pulse>0.0:
+		_draw_cinematic_vignette(vignette_pulse)
+	if chroma_pulse>0.0:
+		_draw_chromatic_edges(chroma_pulse)
 	if offline_message!="":
 		_panel(Rect2(92,235,536,58),Color(0.05,0.07,0.08,0.92),Color("#89e8ff"),20,2)
 		_text(offline_message,Vector2(360,272),17,Color("#dfffff"),true)
@@ -1695,8 +1760,13 @@ func _draw_world() -> void:
 		var t:=float(y)/480.0
 		draw_rect(Rect2(0,y,W,26),sky.lerp(far,t*0.45))
 	var sun_pos:=Vector2(585,220)
+	draw_circle(sun_pos,96,Color(1,0.92,0.58,0.08))
 	draw_circle(sun_pos,72,Color(1,0.92,0.58,0.24))
 	draw_circle(sun_pos,48,Color(1,0.94,0.68,0.65))
+	for ray in 10:
+		var aa := time_alive*0.015 + TAU*float(ray)/10.0
+		var rr := 100.0 + 18.0*sin(time_alive*0.5+ray)
+		draw_line(sun_pos+Vector2.from_angle(aa)*58.0,sun_pos+Vector2.from_angle(aa)*rr,Color(1,0.94,0.72,0.065),6.0)
 
 	# moving cloud layers
 	for i in 6:
@@ -1716,10 +1786,15 @@ func _draw_world() -> void:
 	# premium overlays generated into the Colossus content pack
 	if _biome_index() < biome_overlays.size():
 		draw_texture_rect(biome_overlays[_biome_index()],Rect2(0,190,720,620),false,Color(1,1,1,0.085))
-	if magic_noise_maps.size() > 0 and (world_event_index >= 0 or enemy_boss or evolution_tier >= 4):
-		var noise_idx := (_biome_index() + maxi(0,world_event_index) + evolution_tier) % magic_noise_maps.size()
-		var noise_alpha := 0.045 if world_event_index >= 0 else 0.028
-		draw_texture_rect(magic_noise_maps[noise_idx],Rect2(0,180,720,640),false,Color(1,1,1,noise_alpha))
+	if magic_noise_maps.size() > 0:
+		var noise_idx := (_biome_index()*2 + maxi(0,world_event_index) + evolution_tier) % magic_noise_maps.size()
+		var noise_idx2 := (noise_idx + 5) % magic_noise_maps.size()
+		var noise_alpha := 0.055 if world_event_index >= 0 else (0.038 if enemy_boss or evolution_tier >= 4 else 0.016)
+		draw_texture_rect(magic_noise_maps[noise_idx],Rect2(-35+sin(time_alive*0.09)*24,165,790,665),false,Color(1,1,1,noise_alpha))
+		draw_texture_rect(magic_noise_maps[noise_idx2],Rect2(25+cos(time_alive*0.07)*30,235,720,510),false,Color(0.72,0.88,1.0,noise_alpha*0.48))
+	if celestial_burst_maps.size()>0 and world_event_index>=0:
+		var ev_idx := world_event_index % celestial_burst_maps.size()
+		draw_texture_rect(celestial_burst_maps[ev_idx],Rect2(110,160,500,500),false,Color(1,1,1,0.045+0.012*sin(time_alive*2.0)))
 	# environmental props
 	for x in [42,115,650,705]:
 		_draw_tree(Vector2(x,565+sin(float(x))*9.0),0.76 if x<200 else 0.92,near.darkened(0.22))
@@ -1763,6 +1838,10 @@ func _draw_top_hud() -> void:
 	_text("GIFT",Vector2(649,209),15,Color.WHITE,true)
 
 func _draw_battlefield() -> void:
+	if celestial_burst_maps.size()>0 and (enemy_boss or evolution_tier>=4 or overdrive_timer>0.0):
+		var cbidx := (evolution_tier + boss_phase_mask + int(overdrive_energy*5.0)) % celestial_burst_maps.size()
+		var cbalpha := 0.14 if enemy_boss else (0.10 if overdrive_timer>0.0 else 0.055)
+		draw_texture_rect(celestial_burst_maps[cbidx],Rect2(300,285,420,420),false,Color(1,1,1,cbalpha))
 	if premium_atlases.size() > 0 and (enemy_boss or evolution_tier >= 3):
 		var aura_idx := (evolution_tier + (1 if enemy_boss else 0)) % premium_atlases.size()
 		var aura_alpha := 0.10 if enemy_boss else 0.055
@@ -2062,6 +2141,35 @@ func _draw_boss_intro() -> void:
 	_text(str(enemy.get("name","Boss")),Vector2(360,416),24,Color(1,1,1,alpha),true)
 
 func _draw_fx() -> void:
+	for img in afterimages:
+		var aa:=clampf(float(img["life"])*1.8,0.0,1.0)
+		var pp:=Vector2(img["pos"])
+		var cc:=Color(img["color"]); cc.a=aa*0.20
+		draw_circle(pp,38.0,cc)
+		draw_circle(pp,22.0,Color(cc.r,cc.g,cc.b,aa*0.28))
+	for beam in light_beams:
+		var ba:=clampf(float(beam["life"]),0.0,1.0)
+		var bc:=Color(beam["color"])
+		var bx:=float(beam["x"])
+		var bw:=float(beam["width"])*(0.55+ba*0.45)
+		draw_colored_polygon(PackedVector2Array([Vector2(bx-bw*0.45,260),Vector2(bx+bw*0.45,260),Vector2(bx+bw,760),Vector2(bx-bw,760)]),Color(bc.r,bc.g,bc.b,0.05*ba))
+		draw_line(Vector2(bx,260),Vector2(bx,760),Color(bc.r,bc.g,bc.b,0.28*ba),maxf(2.0,bw*0.12))
+	for sw in shockwaves:
+		var sa:=clampf(float(sw["life"])*1.5,0.0,1.0)
+		var sc:=Color(sw["color"])
+		draw_arc(Vector2(sw["pos"]),float(sw["r"]),0,TAU,64,Color(sc.r,sc.g,sc.b,0.55*sa),maxf(2.0,10.0*sa))
+		draw_arc(Vector2(sw["pos"]),float(sw["r"])*0.72,0,TAU,64,Color(1,1,1,0.14*sa),3.0)
+	for arcfx in slash_arcs:
+		var aa:=clampf(float(arcfx["life"])*1.9,0.0,1.0)
+		var ac:=Color(arcfx["color"])
+		var rot:=float(arcfx["rot"])
+		draw_arc(Vector2(arcfx["pos"]),float(arcfx["r"]),rot-1.05,rot+1.05,32,Color(ac.r,ac.g,ac.b,0.72*aa),float(arcfx["width"])*aa)
+	for sp in screen_sparks:
+		var sa:=clampf(float(sp["life"])*1.6,0.0,1.0)
+		var sc:=Color(sp["color"])
+		var pp:=Vector2(sp["pos"])
+		var vv:=Vector2(sp["vel"]).normalized()*float(sp["size"])*2.8
+		draw_line(pp-vv,pp+vv,Color(sc.r,sc.g,sc.b,0.80*sa),maxf(1.0,float(sp["size"])*0.45))
 	for pr in projectiles:
 		var t:=clampf(float(pr["t"])/float(pr["life"]),0.0,1.0)
 		var from:=Vector2(pr["from"]); var to:=Vector2(pr["to"])
@@ -2080,6 +2188,62 @@ func _draw_fx() -> void:
 		var c:=Color(ring["color"]); c.a=clampf(float(ring["life"]),0.0,1.0)
 		draw_arc(Vector2(ring["pos"]),float(ring["r"]),0,TAU,48,c,7.0)
 
+
+func _spawn_celestial_impact(pos: Vector2,color: Color,kind: String,crit: bool) -> void:
+	var strength := 1.0
+	if kind=="skill": strength=1.45
+	elif kind=="ultimate": strength=2.4
+	elif crit: strength=1.6
+	shockwaves.append({"pos":pos,"r":10.0,"speed":170.0*strength,"life":0.62*strength,"color":color})
+	slash_arcs.append({"pos":pos,"r":45.0*strength,"rot":rng.randf()*TAU,"life":0.48*strength,"color":color,"width":12.0*strength})
+	afterimages.append({"pos":pos+Vector2(rng.randf_range(-14,14),rng.randf_range(-10,10)),"life":0.42*strength,"color":color})
+	for i in int(5+6*strength):
+		screen_sparks.append({"pos":pos,"vel":Vector2.from_angle(rng.randf()*TAU)*rng.randf_range(90,330)*strength,"life":rng.randf_range(0.32,0.72)*strength,"color":color,"size":rng.randf_range(2.0,7.0)*strength})
+	if crit or kind!="basic":
+		vignette_pulse=maxf(vignette_pulse,0.28*strength)
+		chroma_pulse=maxf(chroma_pulse,0.20*strength)
+	if kind=="ultimate":
+		light_beams.append({"x":pos.x,"life":0.9,"width":110.0,"color":color})
+	elif kind=="skill" and rng.randf()<0.45:
+		light_beams.append({"x":pos.x+rng.randf_range(-30,30),"life":0.42,"width":48.0,"color":color})
+
+func _update_boss_phases() -> void:
+	if not enemy_boss or enemy_hp_max<=0.0 or enemy_hp<=0.0:
+		return
+	var ratio:=enemy_hp/enemy_hp_max
+	if ratio<=0.66 and (boss_phase_mask & 1)==0:
+		boss_phase_mask|=1
+		_trigger_boss_phase(1)
+	if ratio<=0.33 and (boss_phase_mask & 2)==0:
+		boss_phase_mask|=2
+		_trigger_boss_phase(2)
+
+func _trigger_boss_phase(phase: int) -> void:
+	var col:=Color(str(enemy.get("color","#ff8a78")))
+	screen_flash=0.82
+	vignette_pulse=0.85
+	chroma_pulse=0.72
+	camera_shake=16.0+phase*4.0
+	light_beams.append({"x":510.0,"life":1.15,"width":110.0+phase*26.0,"color":col})
+	shockwaves.append({"pos":Vector2(510,525),"r":20.0,"speed":240.0,"life":1.1,"color":col})
+	for i in 24+phase*10:
+		screen_sparks.append({"pos":Vector2(510,525),"vel":Vector2.from_angle(rng.randf()*TAU)*rng.randf_range(160,520),"life":rng.randf_range(0.55,1.2),"color":col,"size":rng.randf_range(3,10)})
+	_play_sfx("boss_phase")
+	_show_toast("BOSS PHASE %d" % (phase+1))
+
+func _draw_cinematic_vignette(amount: float) -> void:
+	var a:=clampf(amount,0.0,1.0)
+	for i in 6:
+		var inset:=float(i)*14.0
+		draw_rect(Rect2(inset,inset,W-inset*2,H-inset*2),Color(0.02,0.0,0.04,0.015*a),false,9.0)
+	draw_rect(Rect2(0,0,W,95),Color(0,0,0,0.10*a))
+	draw_rect(Rect2(0,H-110,W,110),Color(0,0,0,0.12*a))
+
+func _draw_chromatic_edges(amount: float) -> void:
+	var a:=clampf(amount,0.0,1.0)
+	draw_line(Vector2(0,0),Vector2(0,H),Color(1,0.18,0.25,0.16*a),10.0)
+	draw_line(Vector2(W,0),Vector2(W,H),Color(0.2,0.75,1,0.16*a),10.0)
+	draw_line(Vector2(0,0),Vector2(W,0),Color(0.7,0.3,1,0.08*a),7.0)
 
 func _draw_colossus_bar() -> void:
 	var buttons := [
@@ -2311,7 +2475,12 @@ func _draw_evolution_panel() -> void:
 func _draw_rarity_cutscene() -> void:
 	var a := clampf(rarity_cutscene/1.75,0.0,1.0)
 	var col := rarity_cutscene_color
-	draw_rect(Rect2(0,0,W,H),Color(0.02,0.01,0.04,0.38*a))
+	draw_rect(Rect2(0,0,W,H),Color(0.02,0.01,0.04,0.52*a))
+	if celestial_burst_maps.size()>0:
+		var idx:=abs(rarity_cutscene_name.hash())%celestial_burst_maps.size()
+		draw_texture_rect(celestial_burst_maps[idx],Rect2(40,280,640,640),false,Color(col.r,col.g,col.b,0.26*a))
+	for bx in [145.0,230.0,360.0,490.0,575.0]:
+		draw_colored_polygon(PackedVector2Array([Vector2(bx-18,240),Vector2(bx+18,240),Vector2(bx+58,930),Vector2(bx-58,930)]),Color(col.r,col.g,col.b,0.035*a))
 	for i in 5:
 		var rad := 80.0+i*48.0+(1.0-a)*90.0
 		draw_arc(Vector2(360,610),rad,time_alive*(0.35+i*0.08),time_alive*(0.35+i*0.08)+TAU*0.72,64,Color(col.r,col.g,col.b,0.20*a),5)
