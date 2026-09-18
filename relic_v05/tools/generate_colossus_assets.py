@@ -309,3 +309,181 @@ for _ in range(5200):
     col=cols[hue]
     d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=col+(rnd.randint(25,165),))
 im.save(VFX / "spark_field.png", optimize=False)
+
+
+# v0.8 ULTRA ASSET REBUILD
+# High-resolution content is streamed in-game. Only the current biome/boss/cinematic
+# is loaded, so APK size can grow without forcing every texture into RAM.
+ULTRA = VISUAL / "v08"
+ULTRA.mkdir(parents=True, exist_ok=True)
+
+ultra_palettes = [
+    ((98,189,228),(65,135,105),(41,83,71),(245,212,113)),
+    ((91,113,184),(48,75,98),(32,53,68),(169,219,255)),
+    ((102,77,153),(61,54,101),(36,39,72),(210,157,255)),
+    ((197,91,73),(103,54,48),(55,38,40),(255,189,102)),
+    ((178,226,245),(101,155,178),(61,104,124),(232,250,255)),
+    ((70,157,161),(49,109,100),(28,74,72),(173,255,218)),
+    ((64,55,120),(47,42,92),(28,25,61),(185,139,255)),
+    ((236,169,82),(142,94,56),(82,58,51),(255,232,145)),
+]
+
+# 3K premium biome plates.
+for idx, (sky, mid, low, accent) in enumerate(ultra_palettes):
+    rnd = random.Random(71000 + idx)
+    w = h = 3072
+    im = Image.new("RGB",(w,h),sky)
+    d = ImageDraw.Draw(im,"RGBA")
+
+    # cinematic vertical gradient
+    for y in range(0,h,4):
+        t = y/(h-1)
+        if t < 0.56:
+            u=t/0.56
+            col=tuple(int(sky[k]*(1-u)+mid[k]*u) for k in range(3))
+        else:
+            u=(t-0.56)/0.44
+            col=tuple(int(mid[k]*(1-u)+low[k]*u) for k in range(3))
+        d.rectangle((0,y,w,y+5),fill=col+(255,))
+
+    # sun/moon + volumetric rays
+    sun=(2350,620)
+    for rr in range(420,40,-28):
+        a=max(4,int(54*(1-rr/450)))
+        d.ellipse((sun[0]-rr,sun[1]-rr,sun[0]+rr,sun[1]+rr),fill=accent+(a,))
+    d.ellipse((sun[0]-95,sun[1]-95,sun[0]+95,sun[1]+95),fill=accent+(220,))
+    for ray in range(28):
+        a = -0.75 + ray*0.055 + rnd.uniform(-0.02,0.02)
+        length=rnd.randint(950,1900)
+        width=rnd.randint(30,95)
+        x2=sun[0]+math.cos(a)*length
+        y2=sun[1]+math.sin(a)*length
+        d.line((sun[0],sun[1],x2,y2),fill=accent+(rnd.randint(7,20),),width=width)
+
+    # deep layered mountains and cliffs
+    for layer in range(7):
+        base_y=1150+layer*190
+        pts=[(0,h)]
+        step=170-layer*8
+        for x in range(-120,w+180,step):
+            peak=base_y+rnd.randint(-320+layer*22,150)
+            pts.append((x,peak))
+        pts.append((w,h))
+        fac=0.80-layer*0.055
+        lc=tuple(max(0,min(255,int(mid[k]*fac))) for k in range(3))
+        d.polygon(pts,fill=lc+(235-layer*15,))
+
+    # waterfalls / magical streams
+    for stream in range(4):
+        x=450+stream*680+rnd.randint(-100,100)
+        top=920+rnd.randint(-100,180)
+        width=rnd.randint(34,72)
+        d.rectangle((x-width,top,x+width,2400),fill=(172,230,255,46))
+        d.rectangle((x-width//3,top,x+width//3,2400),fill=(232,252,255,92))
+
+    # trees, crystals, glowing plants
+    for _ in range(170):
+        x=rnd.randint(20,w-20)
+        y=rnd.randint(1400,2860)
+        scale=rnd.uniform(0.55,1.8)
+        trunk=(x-rnd.randint(8,20),y-int(90*scale),x+rnd.randint(8,20),y)
+        d.rectangle(trunk,fill=(45,50,39,160))
+        crown=(x-int(65*scale),y-int(180*scale),x+int(65*scale),y-int(60*scale))
+        leaf_col=(max(30,mid[0]+rnd.randint(-25,25)),max(45,mid[1]+rnd.randint(-20,35)),max(45,mid[2]+rnd.randint(-20,35)),150)
+        d.ellipse(crown,fill=leaf_col)
+    for _ in range(95):
+        x=rnd.randint(0,w); y=rnd.randint(1500,2920)
+        hh=rnd.randint(25,130)
+        col=accent+(rnd.randint(75,170),)
+        d.polygon([(x,y-hh),(x-rnd.randint(6,24),y),(x+rnd.randint(6,24),y)],fill=col)
+
+    # spark depth
+    for _ in range(2600):
+        x=rnd.randrange(w); y=rnd.randrange(450,h)
+        rr=rnd.randint(1,7)
+        alpha=rnd.randint(12,90)
+        d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=accent+(alpha,))
+
+    # subtle high-frequency texture to prevent flat/cheap rendering and retain detail
+    noise=Image.frombytes("RGB",(w,h),rnd.randbytes(w*h*3))
+    im=Image.blend(im,noise,0.048)
+    im.save(ULTRA / f"ultra_biome_{idx}.png", optimize=False)
+
+# Eight premium boss-stage backplates, one per biome family.
+for idx in range(8):
+    rnd=random.Random(76000+idx)
+    w=h=2048
+    base=ultra_palettes[idx][2]
+    accent=ultra_palettes[idx][3]
+    im=Image.new("RGB",(w,h),base)
+    d=ImageDraw.Draw(im,"RGBA")
+    cx=cy=1024
+
+    # textured cosmic field
+    noise=Image.frombytes("RGB",(w,h),rnd.randbytes(w*h*3))
+    im=Image.blend(im,noise,0.07)
+    d=ImageDraw.Draw(im,"RGBA")
+    for ring in range(26):
+        rr=135+ring*34
+        alpha=max(8,125-ring*4)
+        d.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline=accent+(alpha,),width=2+(ring%5))
+    for ray in range(160):
+        a=2*math.pi*ray/160 + idx*0.07
+        r1=rnd.randint(120,360)
+        r2=rnd.randint(620,1000)
+        d.line((cx+math.cos(a)*r1,cy+math.sin(a)*r1,cx+math.cos(a)*r2,cy+math.sin(a)*r2),
+               fill=accent+(rnd.randint(10,70),),width=rnd.randint(1,9))
+    # large runic fragments
+    for _ in range(120):
+        x=rnd.randint(100,1948); y=rnd.randint(100,1948)
+        s=rnd.randint(14,90)
+        d.polygon([(x,y-s),(x+s,y),(x,y+s),(x-s,y)],outline=accent+(rnd.randint(20,120),))
+    im.save(ULTRA / f"boss_stage_{idx}.png", optimize=False)
+
+# Skill / ultimate cinematic plates. Loaded only during the effect.
+skill_colors=[
+    (111,245,151),(104,205,255),(142,231,255),(255,225,105),
+    (255,112,185),(194,122,255),(255,132,93),(255,244,181)
+]
+for idx,col in enumerate(skill_colors):
+    rnd=random.Random(80000+idx)
+    w=h=1536
+    im=Image.new("RGB",(w,h),(12,12,22))
+    noise=Image.frombytes("RGB",(w,h),rnd.randbytes(w*h*3))
+    im=Image.blend(im,noise,0.10)
+    d=ImageDraw.Draw(im,"RGBA")
+    cx=cy=768
+    for ring in range(18):
+        rr=70+ring*36
+        d.ellipse((cx-rr,cy-rr,cx+rr,cy+rr),outline=col+(max(12,170-ring*8),),width=3+(ring%6))
+    for ray in range(120):
+        a=2*math.pi*ray/120+rnd.uniform(-0.025,0.025)
+        r1=rnd.randint(40,180)
+        r2=rnd.randint(430,760)
+        d.line((cx+math.cos(a)*r1,cy+math.sin(a)*r1,cx+math.cos(a)*r2,cy+math.sin(a)*r2),
+               fill=col+(rnd.randint(25,130),),width=rnd.randint(2,8))
+    for _ in range(850):
+        x=rnd.randrange(w); y=rnd.randrange(h); rr=rnd.randint(1,8)
+        d.ellipse((x-rr,y-rr,x+rr,y+rr),fill=col+(rnd.randint(25,150),))
+    im.save(ULTRA / f"cinematic_{idx}.png", optimize=False)
+
+# High-resolution UI material surfaces used on loot/core/forge panels.
+for idx in range(4):
+    rnd=random.Random(85000+idx)
+    w=h=2048
+    base=[(28,31,40),(31,39,47),(43,31,52),(48,38,26)][idx]
+    im=Image.new("RGB",(w,h),base)
+    noise=Image.frombytes("RGB",(w,h),rnd.randbytes(w*h*3))
+    im=Image.blend(im,noise,0.055)
+    d=ImageDraw.Draw(im,"RGBA")
+    accent=[(113,210,255),(122,243,183),(218,139,255),(255,206,119)][idx]
+    for y in range(0,h,128):
+        d.line((0,y,w,y+rnd.randint(-18,18)),fill=accent+(18,),width=rnd.randint(1,4))
+    for x in range(0,w,128):
+        d.line((x,0,x+rnd.randint(-18,18),h),fill=accent+(14,),width=rnd.randint(1,4))
+    for ring in range(12):
+        rr=220+ring*70
+        d.ellipse((1024-rr,1024-rr,1024+rr,1024+rr),outline=accent+(max(7,55-ring*4),),width=2)
+    im.save(ULTRA / f"ui_surface_{idx}.png", optimize=False)
+
+print("Generated v0.8 Ultra Asset Rebuild pack")
