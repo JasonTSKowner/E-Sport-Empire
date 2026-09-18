@@ -383,7 +383,7 @@ func _draw_battlefield() -> void:
 
 func _draw_hero(pos: Vector2) -> void:
 	var tint := Color.WHITE.lerp(Color("#ff877f"), hit_flash*0.45)
-	draw_ellipse(pos+Vector2(0,40), Vector2(57,18), Color(0,0,0,0.15))
+	_ellipse(pos+Vector2(0,40), Vector2(57,18), Color(0,0,0,0.15))
 	draw_circle(pos+Vector2(0,8), 54, Color("#f4e5bc")*tint)
 	draw_circle(pos+Vector2(-25,-2), 7, Color("#362c2b"))
 	draw_circle(pos+Vector2(25,-2), 7, Color("#362c2b"))
@@ -404,7 +404,7 @@ func _draw_hero(pos: Vector2) -> void:
 
 func _draw_enemy(pos: Vector2) -> void:
 	var c := Color("#d36f7d").lerp(Color.WHITE, enemy_hit_flash*0.62)
-	draw_ellipse(pos+Vector2(0,56),Vector2(66,18),Color(0,0,0,0.16))
+	_ellipse(pos+Vector2(0,56),Vector2(66,18),Color(0,0,0,0.16))
 	draw_circle(pos,64,c)
 	draw_circle(pos+Vector2(-45,-43),27,c.darkened(0.08))
 	draw_circle(pos+Vector2(45,-43),27,c.darkened(0.08))
@@ -565,7 +565,7 @@ func _text(text: String, pos: Vector2, size: int, color: Color = Color.WHITE, ce
 		p.x -= s.x*0.5
 	draw_string(font,p,text,HORIZONTAL_ALIGNMENT_LEFT,-1,size,color)
 
-func draw_ellipse(center: Vector2, radii: Vector2, color: Color) -> void:
+func _ellipse(center: Vector2, radii: Vector2, color: Color) -> void:
 	var pts := PackedVector2Array()
 	for i in 32:
 		var a := TAU * float(i) / 32.0
