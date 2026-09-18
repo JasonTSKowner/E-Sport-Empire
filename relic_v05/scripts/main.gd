@@ -1793,6 +1793,105 @@ func _claim_achievements() -> void:
 # FX
 # -------------------------------------------------------------------
 
+func _update_vfx_v2(delta: float) -> void:
+	for i in range(vfx_particles_v2.size()-1,-1,-1):
+		var p: Dictionary = vfx_particles_v2[i]
+		p["life"] = float(p["life"]) - delta
+		p["pos"] = Vector2(p["pos"]) + Vector2(p["vel"]) * delta
+		p["vel"] = Vector2(p["vel"]) * pow(0.055,delta)
+		if str(p.get("mode","spark")) == "orb":
+			p["vel"].y -= 28.0 * delta
+		else:
+			p["vel"].y += 72.0 * delta
+		if float(p["life"]) <= 0.0:
+			vfx_particles_v2.remove_at(i)
+	for i in range(vfx_slashes.size()-1,-1,-1):
+		var s: Dictionary = vfx_slashes[i]
+		s["life"] = float(s["life"]) - delta
+		s["radius"] = float(s["radius"]) + float(s.get("grow",90.0)) * delta
+		s["angle"] = float(s["angle"]) + float(s.get("spin",0.0)) * delta
+		if float(s["life"]) <= 0.0:
+			vfx_slashes.remove_at(i)
+	for i in range(vfx_bursts.size()-1,-1,-1):
+		var b: Dictionary = vfx_bursts[i]
+		b["life"] = float(b["life"]) - delta
+		b["radius"] = float(b["radius"]) + float(b.get("speed",240.0)) * delta
+		if float(b["life"]) <= 0.0:
+			vfx_bursts.remove_at(i)
+
+func _spawn_vfx_event(kind: String, pos: Vector2, color: Color, power := 1.0) -> void:
+	var particle_count := 14
+	var slash_count := 1
+	var burst_count := 1
+	var speed_min := 90.0
+	var speed_max := 240.0
+	match kind:
+		"crit":
+			particle_count = 34
+			slash_count = 3
+			burst_count = 2
+			speed_max = 390.0
+		"skill":
+			particle_count = 42
+			slash_count = 4
+			burst_count = 3
+			speed_max = 430.0
+		"ultimate":
+			particle_count = 72
+			slash_count = 7
+			burst_count = 5
+			speed_min = 160.0
+			speed_max = 620.0
+		"boss_phase":
+			particle_count = 58
+			slash_count = 6
+			burst_count = 4
+			speed_max = 520.0
+		"core":
+			particle_count = 48
+			slash_count = 5
+			burst_count = 4
+			speed_max = 400.0
+		"gear":
+			particle_count = 30
+			slash_count = 3
+			burst_count = 2
+	for i in particle_count:
+		var angle := rng.randf()*TAU
+		var speed := rng.randf_range(speed_min,speed_max)*power
+		var mode := "streak" if i % 3 == 0 else ("orb" if i % 5 == 0 else "spark")
+		vfx_particles_v2.append({
+			"pos":pos + Vector2(rng.randf_range(-12,12),rng.randf_range(-12,12)),
+			"vel":Vector2(cos(angle),sin(angle))*speed,
+			"life":rng.randf_range(0.28,0.82) * (1.0+0.18*power),
+			"max_life":0.9,
+			"color":color,
+			"size":rng.randf_range(2.0,7.5)*(0.75+0.25*power),
+			"mode":mode
+		})
+	for i in slash_count:
+		vfx_slashes.append({
+			"pos":pos,
+			"radius":rng.randf_range(34.0,72.0),
+			"angle":rng.randf()*TAU,
+			"span":rng.randf_range(0.55,1.45),
+			"life":rng.randf_range(0.24,0.52),
+			"max_life":0.52,
+			"color":color,
+			"width":rng.randf_range(3.0,9.0)*(0.8+0.3*power),
+			"grow":rng.randf_range(70.0,165.0),
+			"spin":rng.randf_range(-2.7,2.7)
+		})
+	for i in burst_count:
+		vfx_bursts.append({
+			"pos":pos,
+			"radius":16.0+i*9.0,
+			"life":0.42+i*0.07,
+			"max_life":0.7,
+			"color":color,
+			"speed":180.0+i*65.0
+		})
+
 func _spawn_burst(pos: Vector2, color: Color, amount: int) -> void:
 	for i in amount:
 		var angle := rng.randf()*TAU
