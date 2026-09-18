@@ -1116,7 +1116,7 @@ func _setup_colossus_assets() -> void:
 			var aura = load(aura_path)
 			if aura is Texture2D:
 				premium_atlases.append(aura)
-	for i in 8:
+	for i in 4:
 		var noise_path := "res://assets/visual/magic_noise_%d.png" % i
 		if ResourceLoader.exists(noise_path):
 			var noise = load(noise_path)
