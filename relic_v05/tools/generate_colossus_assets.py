@@ -200,3 +200,16 @@ for idx in range(4):
     d.polygon(pts, outline=base+(220,))
     im = im.filter(ImageFilter.GaussianBlur(radius=0.35))
     im.save(VISUAL / f"boss_aura_{idx}.png", optimize=False)
+
+
+# High-detail 2K magic/noise maps used by world events, boss phases and
+# high-evolution aura overlays. These are intentionally high-frequency visual data.
+for idx in range(8):
+    rnd = random.Random(41000 + idx)
+    raw = rnd.randbytes(2048 * 2048)
+    noise = Image.frombytes("L", (2048, 2048), raw)
+    # Blend a second shifted noise layer to produce usable cloud/rune turbulence.
+    raw2 = rnd.randbytes(2048 * 2048)
+    noise2 = Image.frombytes("L", (2048, 2048), raw2).filter(ImageFilter.GaussianBlur(radius=3.0 + idx*0.2))
+    mixed = Image.blend(noise, noise2, 0.34)
+    mixed.save(VISUAL / f"magic_noise_{idx}.png", optimize=False)
