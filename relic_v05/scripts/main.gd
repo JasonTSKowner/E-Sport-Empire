@@ -122,6 +122,7 @@ var sfx_player: AudioStreamPlayer
 var music_track := -1
 var biome_overlays: Array[Texture2D] = []
 var premium_atlases: Array[Texture2D] = []
+var magic_noise_maps: Array[Texture2D] = []
 
 # UI / animation
 var active_tab := 2
@@ -1115,6 +1116,12 @@ func _setup_colossus_assets() -> void:
 			var aura = load(aura_path)
 			if aura is Texture2D:
 				premium_atlases.append(aura)
+	for i in 8:
+		var noise_path := "res://assets/visual/magic_noise_%d.png" % i
+		if ResourceLoader.exists(noise_path):
+			var noise = load(noise_path)
+			if noise is Texture2D:
+				magic_noise_maps.append(noise)
 
 func _music_paths() -> Array[String]:
 	return [
@@ -1706,9 +1713,13 @@ func _draw_world() -> void:
 	draw_colored_polygon(PackedVector2Array([Vector2(0,690),Vector2(720,620),Vector2(720,825),Vector2(0,825)]),ground)
 	draw_colored_polygon(PackedVector2Array([Vector2(0,732),Vector2(720,660),Vector2(720,825),Vector2(0,825)]),ground.lightened(0.08))
 
-	# premium overlay generated into the Colossus content pack
+	# premium overlays generated into the Colossus content pack
 	if _biome_index() < biome_overlays.size():
 		draw_texture_rect(biome_overlays[_biome_index()],Rect2(0,190,720,620),false,Color(1,1,1,0.085))
+	if magic_noise_maps.size() > 0 and (world_event_index >= 0 or enemy_boss or evolution_tier >= 4):
+		var noise_idx := (_biome_index() + maxi(0,world_event_index) + evolution_tier) % magic_noise_maps.size()
+		var noise_alpha := 0.045 if world_event_index >= 0 else 0.028
+		draw_texture_rect(magic_noise_maps[noise_idx],Rect2(0,180,720,640),false,Color(1,1,1,noise_alpha))
 	# environmental props
 	for x in [42,115,650,705]:
 		_draw_tree(Vector2(x,565+sin(float(x))*9.0),0.76 if x<200 else 0.92,near.darkened(0.22))
