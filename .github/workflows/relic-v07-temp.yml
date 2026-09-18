@@ -1,4 +1,4 @@
-name: Build Relic Ascension v0.7 Celestial Overdrive
+name: Build Relic Ascension v0.7 Visual Overkill
 
 on:
   pull_request:
@@ -12,17 +12,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: relic-v0.7-celestial-overdrive
+          ref: relic-v0.7-visual-overkill
 
-      - name: Generate Celestial content pack
+      - name: Generate Visual Overkill content pack
         shell: bash
         run: |
           set -euo pipefail
           python3 -m pip install --quiet pillow
           python3 relic_v05/tools/generate_colossus_assets.py
-          echo "Asset size:"
           du -sh relic_v05/assets
-          find relic_v05/assets -type f -maxdepth 3 -printf '%p %k KB\n' | sort | tail -n 40
+          find relic_v05/assets/visual/v07 -type f -maxdepth 2 -printf '%p %k KB\n' | sort || true
 
       - name: Install Godot
         shell: bash
@@ -63,7 +62,7 @@ jobs:
           export_filter="all_resources"
           include_filter=""
           exclude_filter=""
-          export_path="build/RelicAscension-v0.7-Celestial-Overdrive.apk"
+          export_path="build/RelicAscension-v0.7-Visual-Overkill.apk"
           patches=PackedStringArray()
           encryption_include_filters=""
           encryption_exclude_filters=""
@@ -83,9 +82,9 @@ jobs:
           architectures/x86=false
           architectures/x86_64=false
           version/code=8
-          version/name="0.7.0-celestial"
-          package/unique_name="com.tsk.relicascension.celestial"
-          package/name="Relic Ascension Celestial Overdrive"
+          version/name="0.7.0-visual-overkill"
+          package/unique_name="com.tsk.relicascension.visualoverkill"
+          package/name="Relic Ascension Visual Overkill"
           package/signed=false
           screen/immersive_mode=true
           screen/support_small=true
@@ -119,7 +118,7 @@ jobs:
           presets_to_export: Android
           cache: true
 
-      - name: Sign and measure APK
+      - name: Sign APK
         shell: bash
         run: |
           set -euo pipefail
@@ -130,12 +129,12 @@ jobs:
           "$APKSIGNER" sign --ks /tmp/relicsign/key.jks --ks-key-alias relic --ks-pass pass:android --key-pass pass:android "$APK"
           "$APKSIGNER" verify --verbose "$APK"
           ls -lh "$APK"
-          stat -c '%s bytes' "$APK"
+          stat -c '%s' "$APK"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Relic-Ascension-v0.7-Celestial-Overdrive-APK
+          name: Relic-Ascension-v0.7-Visual-Overkill-APK
           path: relic_v05/build/**/*.apk
           if-no-files-found: error
           retention-days: 7
