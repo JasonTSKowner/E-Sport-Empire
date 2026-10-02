@@ -1,4 +1,4 @@
-name: Build BassForge EQ V5 OVERDRIVE APK
+name: Build BassForge EQ V5.0.1 Stable APK
 
 on:
   push:
@@ -40,6 +40,12 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
+      - name: Restore stable BassForge signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: bassforge-stable-signing-v1
+
       - name: Build debug APK
         working-directory: bassforge
         run: gradle --no-daemon :app:assembleDebug --stacktrace
@@ -49,15 +55,15 @@ jobs:
         run: |
           APK="bassforge/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          cp "$APK" "BassForge-EQ-v5-OVERDRIVE.apk"
-          ls -lh "BassForge-EQ-v5-OVERDRIVE.apk"
+          cp "$APK" "BassForge-EQ-v5.0.1-STABLE.apk"
+          ls -lh "BassForge-EQ-v5.0.1-STABLE.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          "$APKSIGNER" verify --verbose "BassForge-EQ-v5-OVERDRIVE.apk"
+          "$APKSIGNER" verify --verbose "BassForge-EQ-v5.0.1-STABLE.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BassForge-EQ-v5-OVERDRIVE-APK
-          path: BassForge-EQ-v5-OVERDRIVE.apk
+          name: BassForge-EQ-v5.0.1-STABLE-APK
+          path: BassForge-EQ-v5.0.1-STABLE.apk
           if-no-files-found: error
           retention-days: 7
