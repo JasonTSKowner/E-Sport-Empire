@@ -130,10 +130,10 @@ func _run() -> void:
 	_check(schedule_state.training_breakthrough_chance() >= 0.12, "training exposes breakthrough chance")
 	_check(int(schedule_state.training_readiness(captain).get("slots_remaining", -1)) == 2, "focused training spends one slot")
 	_check(bool(schedule_state.train_player("captain", "mechanics_lab").get("ok", false)), "second focused training succeeds")
-	_check(bool(schedule_state.train_player("captain", "shooting_clinic").get("ok", false)), "third focused training succeeds")
+	_check(bool(schedule_state.train_player("captain", "finishing_pack").get("ok", false)), "third focused training succeeds")
 	_check(captain.get("training_history", []).size() == 3, "focused session history recorded")
 	_check(int(schedule_state.training_readiness(captain).get("slots_remaining", -1)) == 0, "focused sessions exhaust")
-	_check(not bool(schedule_state.train_player("captain", "defense_lab").get("ok", true)), "fourth immediate training blocked")
+	_check(not bool(schedule_state.train_player("captain", "defensive_reads").get("ok", true)), "fourth immediate training blocked")
 	var coach_odds_total := 0.0
 	for odds_value in schedule_state.coaching_rank_odds():
 		coach_odds_total += float(odds_value.get("chance", 0.0))
