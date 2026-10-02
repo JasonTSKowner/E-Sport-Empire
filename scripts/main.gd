@@ -1151,6 +1151,17 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 			UI.GOLD if int(player["fatigue"]) < 65 else UI.RED
 		)
 	)
+	var training_readiness := game.training_readiness(player)
+	status_row.add_child(
+		UI.badge(
+			"FOCUS %d/%d"
+			% [
+				int(training_readiness.get("slots_remaining", 0)),
+				int(training_readiness.get("limit", 0)),
+			],
+			UI.CYAN if bool(training_readiness.get("ok", false)) else UI.RED
+		)
+	)
 	status_row.add_child(Control.new())
 	status_row.get_child(status_row.get_child_count() - 1).size_flags_horizontal = (
 		Control.SIZE_EXPAND_FILL
@@ -1180,14 +1191,18 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 		)
 	box.add_child(
 		UI.overline(
-			"INSTANT PAID TRAINING  •  BONUS %s"
-			% _chance_text(game.training_breakthrough_chance()),
+			"FOCUSED TRAINING  •  %d/%d READY  •  BONUS %s"
+			% [
+				int(training_readiness.get("slots_remaining", 0)),
+				int(training_readiness.get("limit", 0)),
+				_chance_text(game.training_breakthrough_chance()),
+			],
 			UI.MUTED
 		)
 	)
 	box.add_child(
 		UI.label(
-			"Listed stat gains are guaranteed; every session also rolls FORM +2–6.",
+			"Up to 3 sessions per 20 min per player. Slots recover automatically; fatigue 80+ pauses training.",
 			9,
 			UI.DIM
 		)
@@ -1274,12 +1289,15 @@ func _training_program_grid(player: Dictionary) -> Control:
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
+	var readiness := game.training_readiness(player)
+	var focus_ready := bool(readiness.get("ok", false))
 	for program_value in game.development_programs():
 		var program: Dictionary = program_value
 		var program_id := str(program.get("id", ""))
 		var cost := game.training_cost(player, program_id)
 		var color := Color(str(program.get("color", "2de2ff")))
 		var affordable := int(game.data.get("cash", 0)) >= cost
+		var can_train := affordable and focus_ready
 		var button := UI.button(
 			"%s\n%s  •  %s  •  BONUS %s"
 			% [
@@ -1289,9 +1307,15 @@ func _training_program_grid(player: Dictionary) -> Control:
 				_chance_text(game.training_breakthrough_chance()),
 			],
 			color,
-			affordable,
+			can_train,
 			true
 		)
+		button.disabled = not can_train
+		if not focus_ready:
+			if bool(readiness.get("fatigue_blocked", false)):
+				button.tooltip_text = "Training paused: fatigue must drop below %d." % int(readiness.get("fatigue_limit", 80))
+			else:
+				button.tooltip_text = "Next focus session in %s." % _format_duration(int(readiness.get("seconds_until_slot", 0)))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.custom_minimum_size.y = 66
 		button.add_theme_font_size_override("font_size", 11)
