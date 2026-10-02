@@ -1,0 +1,63 @@
+name: Build BassForge EQ APK
+
+on:
+  push:
+    branches:
+      - chatgpt/bassforge-apk-v1
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ""
+          log-accepted-android-sdk-licenses: false
+
+      - name: Install Android 35 packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Build debug APK
+        working-directory: bassforge
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          APK="bassforge/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          cp "$APK" "BassForge-EQ-v1.apk"
+          ls -lh "BassForge-EQ-v1.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose "BassForge-EQ-v1.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BassForge-EQ-v1-APK
+          path: BassForge-EQ-v1.apk
+          if-no-files-found: error
+          retention-days: 7
