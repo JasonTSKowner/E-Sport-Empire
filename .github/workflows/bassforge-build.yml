@@ -1,4 +1,4 @@
-name: Build BassForge EQ V3 Premium APK
+name: Build BassForge EQ V3.1 Premium APK
 
 on:
   push:
@@ -49,15 +49,15 @@ jobs:
         run: |
           APK="bassforge/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          cp "$APK" "BassForge-EQ-v3-Premium.apk"
-          ls -lh "BassForge-EQ-v3-Premium.apk"
+          cp "$APK" "BassForge-EQ-v3.1-Premium.apk"
+          ls -lh "BassForge-EQ-v3.1-Premium.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          "$APKSIGNER" verify --verbose "BassForge-EQ-v3-Premium.apk"
+          "$APKSIGNER" verify --verbose "BassForge-EQ-v3.1-Premium.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BassForge-EQ-v3-Premium-APK
-          path: BassForge-EQ-v3-Premium.apk
+          name: BassForge-EQ-v3.1-Premium-APK
+          path: BassForge-EQ-v3.1-Premium.apk
           if-no-files-found: error
           retention-days: 7
