@@ -5,12 +5,15 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.res.ColorStateList;
 import android.content.Context;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.media.audiofx.AudioEffect;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -56,6 +59,11 @@ public class MainActivity extends Activity {
     private SeekBar subFocusBar;
     private SeekBar punchFocusBar;
     private SeekBar vocalBar;
+    private SeekBar intensityBar;
+    private SeekBar warmthBar;
+    private SeekBar presenceBar;
+    private SeekBar lowMidCutBar;
+    private SeekBar gainCeilingBar;
     private TextView bassValue;
     private TextView loudnessValue;
     private TextView subValue;
@@ -66,8 +74,15 @@ public class MainActivity extends Activity {
     private TextView subFocusValue;
     private TextView punchFocusValue;
     private TextView vocalValue;
+    private TextView intensityValue;
+    private TextView warmthValue;
+    private TextView presenceValue;
+    private TextView lowMidCutValue;
+    private TextView gainCeilingValue;
     private Switch dynamicBassSwitch;
     private Switch autoGainSwitch;
+    private Switch autoProfileSwitch;
+    private Switch autoStartSwitch;
     private TextView statusText;
     private Switch powerSwitch;
     private boolean buildingUi = true;
@@ -125,7 +140,7 @@ public class MainActivity extends Activity {
         brand.setLetterSpacing(0.08f);
         root.addView(brand);
 
-        TextView subtitle = text("REDLINE AUDIO ENGINE  •  V4", 12, ACCENT, true);
+        TextView subtitle = text("OVERDRIVE AUDIO SYSTEM  •  V5", 12, ACCENT, true);
         subtitle.setLetterSpacing(0.14f);
         root.addView(subtitle, marginTop(2));
 
@@ -354,6 +369,118 @@ public class MainActivity extends Activity {
             queueUpdate();
         }));
 
+        sectionTitle(root, "OVERDRIVE CONTROL");
+
+        LinearLayout intensityCard = card();
+        intensityCard.setOrientation(LinearLayout.VERTICAL);
+        intensityCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(intensityCard, marginTop(8));
+        LinearLayout ih = new LinearLayout(this);
+        ih.setOrientation(LinearLayout.HORIZONTAL);
+        ih.setGravity(Gravity.CENTER_VERTICAL);
+        TextView it = text("MASTER INTENSITY", 15, TEXT, true);
+        ih.addView(it, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        intensityValue = text("100%", 14, ACCENT, true);
+        ih.addView(intensityValue);
+        intensityCard.addView(ih);
+        intensityCard.addView(text("Scales the complete DSP curve from 50% to 150%", 12, MUTED, false), marginTop(3));
+        intensityBar = seek(50, 150);
+        intensityBar.setProgress(prefs.getInt("intensity", 100));
+        intensityCard.addView(intensityBar, marginTop(9));
+        intensityBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            intensityValue.setText(v + "%");
+            prefs.edit().putInt("intensity", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout warmthCard = card();
+        warmthCard.setOrientation(LinearLayout.VERTICAL);
+        warmthCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(warmthCard, marginTop(12));
+        LinearLayout wh = new LinearLayout(this);
+        wh.setOrientation(LinearLayout.HORIZONTAL);
+        wh.setGravity(Gravity.CENTER_VERTICAL);
+        TextView wt = text("WARMTH", 15, TEXT, true);
+        wh.addView(wt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        warmthValue = text("35%", 14, ACCENT, true);
+        wh.addView(warmthValue);
+        warmthCard.addView(wh);
+        warmthCard.addView(text("Adds body around 120–500 Hz", 12, MUTED, false), marginTop(3));
+        warmthBar = seek(0, 100);
+        warmthBar.setProgress(prefs.getInt("warmth", 35));
+        warmthCard.addView(warmthBar, marginTop(9));
+        warmthBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            warmthValue.setText(v + "%");
+            prefs.edit().putInt("warmth", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout presenceCard = card();
+        presenceCard.setOrientation(LinearLayout.VERTICAL);
+        presenceCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(presenceCard, marginTop(12));
+        LinearLayout ph = new LinearLayout(this);
+        ph.setOrientation(LinearLayout.HORIZONTAL);
+        ph.setGravity(Gravity.CENTER_VERTICAL);
+        TextView pt = text("PRESENCE", 15, TEXT, true);
+        ph.addView(pt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        presenceValue = text("40%", 14, ACCENT, true);
+        ph.addView(presenceValue);
+        presenceCard.addView(ph);
+        presenceCard.addView(text("Brings detail forward around 1.2–5.2 kHz", 12, MUTED, false), marginTop(3));
+        presenceBar = seek(0, 100);
+        presenceBar.setProgress(prefs.getInt("presence", 40));
+        presenceCard.addView(presenceBar, marginTop(9));
+        presenceBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            presenceValue.setText(v + "%");
+            prefs.edit().putInt("presence", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout lmcCard = card();
+        lmcCard.setOrientation(LinearLayout.VERTICAL);
+        lmcCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(lmcCard, marginTop(12));
+        LinearLayout lmh = new LinearLayout(this);
+        lmh.setOrientation(LinearLayout.HORIZONTAL);
+        lmh.setGravity(Gravity.CENTER_VERTICAL);
+        TextView lmt = text("LOW-MID CUT", 15, TEXT, true);
+        lmh.addView(lmt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        lowMidCutValue = text("35%", 14, ACCENT, true);
+        lmh.addView(lowMidCutValue);
+        lmcCard.addView(lmh);
+        lmcCard.addView(text("Removes boxiness/mud around 180–700 Hz", 12, MUTED, false), marginTop(3));
+        lowMidCutBar = seek(0, 100);
+        lowMidCutBar.setProgress(prefs.getInt("low_mid_cut", 35));
+        lmcCard.addView(lowMidCutBar, marginTop(9));
+        lowMidCutBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            lowMidCutValue.setText(v + "%");
+            prefs.edit().putInt("low_mid_cut", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout ceilingCard = card();
+        ceilingCard.setOrientation(LinearLayout.VERTICAL);
+        ceilingCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(ceilingCard, marginTop(12));
+        LinearLayout gh = new LinearLayout(this);
+        gh.setOrientation(LinearLayout.HORIZONTAL);
+        gh.setGravity(Gravity.CENTER_VERTICAL);
+        TextView gt = text("GAIN CEILING", 15, TEXT, true);
+        gh.addView(gt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        gainCeilingValue = text("+5 dB", 14, ACCENT, true);
+        gh.addView(gainCeilingValue);
+        ceilingCard.addView(gh);
+        ceilingCard.addView(text("Caps BassForge's extra digital output gain", 12, MUTED, false), marginTop(3));
+        gainCeilingBar = seek(0, 6);
+        gainCeilingBar.setProgress(prefs.getInt("gain_ceiling", 5));
+        ceilingCard.addView(gainCeilingBar, marginTop(9));
+        gainCeilingBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            gainCeilingValue.setText("+" + v + " dB");
+            prefs.edit().putInt("gain_ceiling", v).apply();
+            queueUpdate();
+        }));
+
         sectionTitle(root, "REDLINE ADVANCED");
 
         LinearLayout subFocusCard = card();
@@ -480,6 +607,73 @@ public class MainActivity extends Activity {
             if (buildingUi) return;
             prefs.edit().putBoolean("auto_gain", checked).apply();
             queueUpdate();
+        });
+
+        sectionTitle(root, "PRESET LAB");
+        HorizontalScrollView labScroll = new HorizontalScrollView(this);
+        labScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout labRow = new LinearLayout(this);
+        labRow.setOrientation(LinearLayout.HORIZONTAL);
+        labScroll.addView(labRow);
+        root.addView(labScroll, marginTop(8));
+        addActionButton(labRow, "SAVE S1", () -> saveSlot(1));
+        addActionButton(labRow, "LOAD S1", () -> loadSlot(1));
+        addActionButton(labRow, "SAVE S2", () -> saveSlot(2));
+        addActionButton(labRow, "LOAD S2", () -> loadSlot(2));
+        addActionButton(labRow, "SAVE S3", () -> saveSlot(3));
+        addActionButton(labRow, "LOAD S3", () -> loadSlot(3));
+
+        HorizontalScrollView abScroll = new HorizontalScrollView(this);
+        abScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout abRow = new LinearLayout(this);
+        abRow.setOrientation(LinearLayout.HORIZONTAL);
+        abScroll.addView(abRow);
+        root.addView(abScroll, marginTop(8));
+        addActionButton(abRow, "SAVE A", () -> saveSlot(10));
+        addActionButton(abRow, "LOAD A", () -> loadSlot(10));
+        addActionButton(abRow, "SAVE B", () -> saveSlot(11));
+        addActionButton(abRow, "LOAD B", () -> loadSlot(11));
+        addActionButton(abRow, "EXPORT", this::exportSettings);
+        addActionButton(abRow, "IMPORT", this::importSettings);
+        addActionButton(abRow, "DIAGNOSTICS", this::showDiagnostics);
+        addActionButton(abRow, "RESET", this::resetDefaults);
+
+        sectionTitle(root, "AUTOMATION");
+
+        LinearLayout autoProfileCard = card();
+        autoProfileCard.setOrientation(LinearLayout.HORIZONTAL);
+        autoProfileCard.setGravity(Gravity.CENTER_VERTICAL);
+        autoProfileCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        root.addView(autoProfileCard, marginTop(8));
+        LinearLayout apText = new LinearLayout(this);
+        apText.setOrientation(LinearLayout.VERTICAL);
+        autoProfileCard.addView(apText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        apText.addView(text("AUTO DEVICE PROFILE", 14, TEXT, true));
+        apText.addView(text("Adjusts profile when headphones or speaker output is detected", 11, MUTED, false), marginTop(2));
+        autoProfileSwitch = new Switch(this);
+        autoProfileSwitch.setChecked(prefs.getBoolean("auto_profile", false));
+        autoProfileCard.addView(autoProfileSwitch);
+        autoProfileSwitch.setOnCheckedChangeListener((b, checked) -> {
+            if (buildingUi) return;
+            prefs.edit().putBoolean("auto_profile", checked).apply();
+        });
+
+        LinearLayout autoStartCard = card();
+        autoStartCard.setOrientation(LinearLayout.HORIZONTAL);
+        autoStartCard.setGravity(Gravity.CENTER_VERTICAL);
+        autoStartCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        root.addView(autoStartCard, marginTop(12));
+        LinearLayout asText = new LinearLayout(this);
+        asText.setOrientation(LinearLayout.VERTICAL);
+        autoStartCard.addView(asText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        asText.addView(text("START AFTER REBOOT", 14, TEXT, true));
+        asText.addView(text("Restarts BassForge automatically after your phone boots", 11, MUTED, false), marginTop(2));
+        autoStartSwitch = new Switch(this);
+        autoStartSwitch.setChecked(prefs.getBoolean("auto_start", false));
+        autoStartCard.addView(autoStartSwitch);
+        autoStartSwitch.setOnCheckedChangeListener((b, checked) -> {
+            if (buildingUi) return;
+            prefs.edit().putBoolean("auto_start", checked).apply();
         });
 
         sectionTitle(root, "10-BAND CURVE");
@@ -620,6 +814,23 @@ public class MainActivity extends Activity {
         if (vocalValue != null) vocalValue.setText(vocal + "%");
         if (dynamicBassSwitch != null) dynamicBassSwitch.setChecked(prefs.getBoolean("dynamic_bass", true));
         if (autoGainSwitch != null) autoGainSwitch.setChecked(prefs.getBoolean("auto_gain", true));
+        int intensity = prefs.getInt("intensity", 100);
+        int warmth = prefs.getInt("warmth", 35);
+        int presence = prefs.getInt("presence", 40);
+        int lowMidCut = prefs.getInt("low_mid_cut", 35);
+        int gainCeiling = prefs.getInt("gain_ceiling", 5);
+        if (intensityBar != null) intensityBar.setProgress(intensity);
+        if (warmthBar != null) warmthBar.setProgress(warmth);
+        if (presenceBar != null) presenceBar.setProgress(presence);
+        if (lowMidCutBar != null) lowMidCutBar.setProgress(lowMidCut);
+        if (gainCeilingBar != null) gainCeilingBar.setProgress(gainCeiling);
+        if (intensityValue != null) intensityValue.setText(intensity + "%");
+        if (warmthValue != null) warmthValue.setText(warmth + "%");
+        if (presenceValue != null) presenceValue.setText(presence + "%");
+        if (lowMidCutValue != null) lowMidCutValue.setText(lowMidCut + "%");
+        if (gainCeilingValue != null) gainCeilingValue.setText("+" + gainCeiling + " dB");
+        if (autoProfileSwitch != null) autoProfileSwitch.setChecked(prefs.getBoolean("auto_profile", false));
+        if (autoStartSwitch != null) autoStartSwitch.setChecked(prefs.getBoolean("auto_start", false));
     }
 
     private void saveCurve() {
@@ -668,6 +879,155 @@ public class MainActivity extends Activity {
             statusText.setText(status);
             statusText.setTextColor(on ? GREEN : MUTED);
         }, 450);
+    }
+
+    private static final String[] SNAPSHOT_KEYS = {
+            "bass","loudness","sub","punch","width","clarity","treble",
+            "sub_focus","punch_focus","vocal","quality","intensity",
+            "warmth","presence","low_mid_cut","gain_ceiling"
+    };
+    private static final int[] SNAPSHOT_DEFAULTS = {
+            68,16,55,45,20,55,40,35,50,55,1,100,35,40,35,5
+    };
+
+    private void saveSlot(int slot) {
+        saveCurve();
+        SharedPreferences.Editor e = prefs.edit();
+        String p = "slot" + slot + "_";
+        e.putString(p + "curve", prefs.getString("curve", "0,0,0,0,0,0,0,0,0,0"));
+        for (int i = 0; i < SNAPSHOT_KEYS.length; i++) {
+            e.putInt(p + SNAPSHOT_KEYS[i], prefs.getInt(SNAPSHOT_KEYS[i], SNAPSHOT_DEFAULTS[i]));
+        }
+        e.putBoolean(p + "dynamic_bass", prefs.getBoolean("dynamic_bass", true));
+        e.putBoolean(p + "auto_gain", prefs.getBoolean("auto_gain", true));
+        e.putBoolean(p + "saved", true);
+        e.apply();
+        Toast.makeText(this, slot == 10 ? "A saved" : slot == 11 ? "B saved" : "Slot " + slot + " saved", Toast.LENGTH_SHORT).show();
+    }
+
+    private void loadSlot(int slot) {
+        String p = "slot" + slot + "_";
+        if (!prefs.getBoolean(p + "saved", false)) {
+            Toast.makeText(this, "Nothing saved here yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        SharedPreferences.Editor e = prefs.edit();
+        e.putString("curve", prefs.getString(p + "curve", "0,0,0,0,0,0,0,0,0,0"));
+        for (int i = 0; i < SNAPSHOT_KEYS.length; i++) {
+            e.putInt(SNAPSHOT_KEYS[i], prefs.getInt(p + SNAPSHOT_KEYS[i], SNAPSHOT_DEFAULTS[i]));
+        }
+        e.putBoolean("dynamic_bass", prefs.getBoolean(p + "dynamic_bass", true));
+        e.putBoolean("auto_gain", prefs.getBoolean(p + "auto_gain", true));
+        e.apply();
+        loadState();
+        refreshControls();
+        queueUpdate();
+    }
+
+    private void exportSettings() {
+        saveCurve();
+        StringBuilder out = new StringBuilder("BF5;");
+        out.append("curve=").append(prefs.getString("curve", "")).append(';');
+        for (int i = 0; i < SNAPSHOT_KEYS.length; i++) {
+            out.append(SNAPSHOT_KEYS[i]).append('=')
+                    .append(prefs.getInt(SNAPSHOT_KEYS[i], SNAPSHOT_DEFAULTS[i])).append(';');
+        }
+        out.append("dynamic_bass=").append(prefs.getBoolean("dynamic_bass", true)).append(';');
+        out.append("auto_gain=").append(prefs.getBoolean("auto_gain", true)).append(';');
+        ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("BassForge V5 Preset", out.toString()));
+        Toast.makeText(this, "Preset copied to clipboard", Toast.LENGTH_SHORT).show();
+    }
+
+    private void importSettings() {
+        ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (cm == null || !cm.hasPrimaryClip() || cm.getPrimaryClip() == null || cm.getPrimaryClip().getItemCount() == 0) {
+            Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        CharSequence cs = cm.getPrimaryClip().getItemAt(0).coerceToText(this);
+        String raw = cs == null ? "" : cs.toString();
+        if (!raw.startsWith("BF5;")) {
+            Toast.makeText(this, "No BassForge V5 preset in clipboard", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            SharedPreferences.Editor e = prefs.edit();
+            String[] parts = raw.substring(4).split(";");
+            for (String part : parts) {
+                int idx = part.indexOf('=');
+                if (idx <= 0) continue;
+                String key = part.substring(0, idx);
+                String val = part.substring(idx + 1);
+                if ("curve".equals(key)) e.putString("curve", val);
+                else if ("dynamic_bass".equals(key) || "auto_gain".equals(key)) e.putBoolean(key, Boolean.parseBoolean(val));
+                else {
+                    for (String known : SNAPSHOT_KEYS) {
+                        if (known.equals(key)) {
+                            e.putInt(key, Integer.parseInt(val));
+                            break;
+                        }
+                    }
+                }
+            }
+            e.apply();
+            loadState();
+            refreshControls();
+            queueUpdate();
+            Toast.makeText(this, "Preset imported", Toast.LENGTH_SHORT).show();
+        } catch (Exception ex) {
+            Toast.makeText(this, "Preset data is invalid", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showDiagnostics() {
+        StringBuilder info = new StringBuilder();
+        info.append("Device: ").append(Build.MANUFACTURER).append(" ").append(Build.MODEL).append("\n");
+        info.append("Android: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n\n");
+        try {
+            AudioEffect.Descriptor[] effects = AudioEffect.queryEffects();
+            info.append("Audio effects found: ").append(effects == null ? 0 : effects.length).append("\n");
+            boolean eq = false, bass = false, virt = false, loud = false;
+            if (effects != null) {
+                for (AudioEffect.Descriptor d : effects) {
+                    String n = (d.name == null ? "" : d.name).toLowerCase();
+                    if (n.contains("equalizer")) eq = true;
+                    if (n.contains("bass")) bass = true;
+                    if (n.contains("virtual")) virt = true;
+                    if (n.contains("loud")) loud = true;
+                }
+            }
+            info.append("Equalizer: ").append(eq ? "detected" : "not listed").append("\n");
+            info.append("BassBoost: ").append(bass ? "detected" : "not listed").append("\n");
+            info.append("Virtualizer: ").append(virt ? "detected" : "not listed").append("\n");
+            info.append("Loudness: ").append(loud ? "detected" : "not listed").append("\n\n");
+        } catch (Throwable t) {
+            info.append("Effect query unavailable on this device.\n\n");
+        }
+        info.append("Current engine status:\n")
+                .append(prefs.getString("engine_status", "Engine off"))
+                .append("\n\nSome apps or OEMs can still block third-party system-wide audio effects.");
+        new AlertDialog.Builder(this)
+                .setTitle("BassForge Diagnostics")
+                .setMessage(info.toString())
+                .setPositiveButton("CLOSE", null)
+                .show();
+    }
+
+    private void resetDefaults() {
+        prefs.edit()
+                .putString("curve", "7,7,6,4,2,0,0,0,1,1")
+                .putInt("bass", 68).putInt("loudness", 16).putInt("sub", 55)
+                .putInt("punch", 45).putInt("width", 20).putInt("clarity", 55)
+                .putInt("treble", 40).putInt("sub_focus", 35).putInt("punch_focus", 50)
+                .putInt("vocal", 55).putInt("quality", 1).putInt("intensity", 100)
+                .putInt("warmth", 35).putInt("presence", 40).putInt("low_mid_cut", 35)
+                .putInt("gain_ceiling", 5).putBoolean("dynamic_bass", true)
+                .putBoolean("auto_gain", true).apply();
+        loadState();
+        refreshControls();
+        queueUpdate();
+        Toast.makeText(this, "Audio settings reset", Toast.LENGTH_SHORT).show();
     }
 
     private void addActionButton(LinearLayout row, String label, Runnable action) {
@@ -748,6 +1108,27 @@ public class MainActivity extends Activity {
 
     private void showChangelog() {
         String log =
+                "V5 OVERDRIVE\n" +
+                "• Master Intensity 50–150%\n" +
+                "• Warmth control\n" +
+                "• Presence control\n" +
+                "• Low-Mid Cut\n" +
+                "• Adjustable digital Gain Ceiling\n" +
+                "• 3 independent preset slots\n" +
+                "• A/B comparison snapshots\n" +
+                "• Preset export to clipboard\n" +
+                "• Preset import from clipboard\n" +
+                "• Device/audio-effect diagnostics\n" +
+                "• Auto Device Profile\n" +
+                "• Start after reboot option\n" +
+                "• Notification NEXT preset control\n" +
+                "• 5-preset notification cycle\n" +
+                "• Device-aware headphone/speaker tuning\n" +
+                "• Extended snapshot system\n" +
+                "• Reset to factory audio settings\n" +
+                "• OVERDRIVE black/red interface\n" +
+                "• V5 preset format BF5\n" +
+                "• Expanded digital headroom controls\n\n" +
                 "V4 REDLINE\n" +
                 "• MAX CLEAN one-tap preset\n" +
                 "• Sub Focus + Punch Focus\n" +
