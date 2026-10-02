@@ -127,9 +127,10 @@ public class BassService extends Service {
         int sub = prefs.getInt("sub", 55);
         int punch = prefs.getInt("punch", 45);
         int width = prefs.getInt("width", 20);
+        int clarity = prefs.getInt("clarity", 55);
 
         for (FxSet fx : sessions.values()) {
-            fx.apply(curve, bass, loudness, sub, punch, width);
+            fx.apply(curve, bass, loudness, sub, punch, width, clarity);
         }
     }
 
@@ -219,6 +220,17 @@ public class BassService extends Service {
         return 0f;
     }
 
+    // Premium contour: reduce low-mid mud while restoring a little definition.
+    // This keeps strong bass from masking vocals and percussion.
+    private static float clarityContourDb(int hz, int clarity) {
+        float amount = clarity / 100f;
+        if (hz >= 180 && hz <= 320) return -2.2f * amount;
+        if (hz > 320 && hz <= 520) return -1.4f * amount;
+        if (hz >= 1800 && hz <= 4200) return 1.2f * amount;
+        if (hz > 4200 && hz <= 9000) return 0.8f * amount;
+        return 0f;
+    }
+
     private static class FxSet {
         Equalizer equalizer;
         BassBoost bassBoost;
@@ -262,7 +274,7 @@ public class BassService extends Service {
                     || virtualizer != null;
         }
 
-        void apply(int[] curve, int bass, int loudness, int sub, int punch, int width) {
+        void apply(int[] curve, int bass, int loudness, int sub, int punch, int width, int clarity) {
             float rawMax = 0f;
             for (int v : curve) rawMax = Math.max(rawMax, v);
             float effectiveMax = rawMax
@@ -273,7 +285,8 @@ public class BassService extends Service {
             // more digital space. It is intentionally conservative at extreme settings.
             float headroomDb = Math.max(0f, effectiveMax - 5f) * 0.46f
                     + Math.max(0, bass - 65) * 0.022f
-                    + Math.max(0, sub - 75) * 0.015f;
+                    + Math.max(0, sub - 75) * 0.015f
+                    + Math.max(0, punch - 80) * 0.010f;
 
             if (equalizer != null) {
                 try {
@@ -285,6 +298,7 @@ public class BassService extends Service {
                         float wantedDb = interpolatedDb(hz, curve)
                                 + subExtraDb(hz, sub)
                                 + punchExtraDb(hz, punch)
+                                + clarityContourDb(hz, clarity)
                                 - headroomDb;
 
                         int levelMb = Math.round(wantedDb * 100f);
