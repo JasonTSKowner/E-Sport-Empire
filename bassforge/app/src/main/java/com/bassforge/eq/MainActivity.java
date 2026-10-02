@@ -189,7 +189,7 @@ public class MainActivity extends Activity {
         subValue = text("55%", 14, ACCENT, true);
         subHeader.addView(subValue);
         subCard.addView(subHeader);
-        subCard.addView(text("Deep 31–125 Hz weight without only raising volume", 12, MUTED, false), marginTop(3));
+        subCard.addView(text("Deep 31–125 Hz weight • higher bass now also adds controlled loudness", 12, MUTED, false), marginTop(3));
         subBar = seek(0, 100);
         subBar.setProgress(prefs.getInt("sub", 55));
         subCard.addView(subBar, marginTop(9));
@@ -301,7 +301,7 @@ public class MainActivity extends Activity {
         loudnessValue = text("+0.0 dB", 14, ACCENT, true);
         loudHeader.addView(loudnessValue);
         loudCard.addView(loudHeader);
-        loudCard.addView(text("Extra output gain with Smart Headroom", 12, MUTED, false), marginTop(3));
+        loudCard.addView(text("Extra output gain • also follows Bass strength automatically", 12, MUTED, false), marginTop(3));
 
         loudnessBar = seek(0, 100);
         loudnessBar.setProgress(prefs.getInt("loudness", 20));
@@ -328,9 +328,9 @@ public class MainActivity extends Activity {
         safety.setPadding(dp(15), dp(14), dp(15), dp(14));
         safety.setBackground(roundRect(Color.rgb(15, 29, 23), dp(16), Color.TRANSPARENT, 0));
         root.addView(safety, marginTop(16));
-        safety.addView(text("PREMIUM HEADROOM • ALWAYS ON", 13, GREEN, true));
+        safety.addView(text("PREMIUM GAIN CONTROL • ALWAYS ON", 13, GREEN, true));
         safety.addView(text(
-                "V3 balances sub, punch, anti-mud contour and output gain together. Strong presets focus on cleaner low-end instead of simply forcing more master volume.",
+                "V3.1 links bass strength to a controlled output boost, while strong EQ peaks are still compensated to reduce harsh clipping and pumping.",
                 12, Color.rgb(184, 207, 193), false), marginTop(4));
 
         TextView compat = text(
