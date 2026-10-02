@@ -1,6 +1,8 @@
 # E-Sport Empire
 
-**Alpha v0.6.0 — Pro Circuit**
+**v1.0 Foundation Rebuild — active development branch**
+
+The v1.0 branch keeps the proven career/ranked systems while rebuilding the project foundation for cleaner iteration, stronger mobile UX and safer automated releases.
 
 A portrait-first Android esports career and organization game built with Godot 4. Start with zero cash, zero fans and only yourself as captain, then grow from solo ranked matches into a real esports organization.
 
