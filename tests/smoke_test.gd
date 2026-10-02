@@ -1,5 +1,6 @@
 extends SceneTree
 
+const AppConfigRef = preload("res://scripts/app_config.gd")
 const EmpireStateRef = preload("res://scripts/game_state.gd")
 const GameDataRef = preload("res://scripts/game_data.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
@@ -29,6 +30,9 @@ func _run() -> void:
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
+	_check(AppConfigRef.VERSION.begins_with("1.0."), "v1 app version")
+	_check(AppConfigRef.NAV_ENTRIES.size() == 5, "five primary navigation destinations")
+	_check(AppConfigRef.navigation_ids().has(AppConfigRef.DEFAULT_PAGE), "default page exists in navigation")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
 	_check(state.data.get("market", []).size() == 6, "market generation")
 	_check(state.data.get("coaching_market", []).size() == CoachingDataRef.OFFER_COUNT, "coaching market generation")
