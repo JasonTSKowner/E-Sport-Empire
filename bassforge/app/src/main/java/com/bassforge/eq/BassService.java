@@ -25,6 +25,7 @@ public class BassService extends Service {
     public static final String ACTION_STOP = "com.bassforge.eq.STOP";
     public static final String ACTION_OPEN_SESSION = "com.bassforge.eq.OPEN_SESSION";
     public static final String ACTION_CLOSE_SESSION = "com.bassforge.eq.CLOSE_SESSION";
+    public static final String ACTION_MAX_CLEAN = "com.bassforge.eq.MAX_CLEAN";
     public static final String EXTRA_SESSION_ID = "session_id";
 
     private static final int NOTIFICATION_ID = 4402;
@@ -61,6 +62,25 @@ public class BassService extends Service {
         ensureForeground();
         prefs.edit().putBoolean("engine_enabled", true).apply();
 
+        if (ACTION_MAX_CLEAN.equals(action)) {
+            prefs.edit()
+                    .putString("curve", "12,12,10,6,1,0,0,1,2,2")
+                    .putInt("bass", 100)
+                    .putInt("loudness", 34)
+                    .putInt("sub", 100)
+                    .putInt("punch", 88)
+                    .putInt("width", 22)
+                    .putInt("clarity", 88)
+                    .putInt("treble", 54)
+                    .putInt("sub_focus", 34)
+                    .putInt("punch_focus", 48)
+                    .putInt("vocal", 78)
+                    .putBoolean("dynamic_bass", true)
+                    .putBoolean("auto_gain", true)
+                    .putInt("quality", 2)
+                    .apply();
+        }
+
         if (ACTION_CLOSE_SESSION.equals(action)) {
             int id = intent.getIntExtra(EXTRA_SESSION_ID, -1);
             releaseSession(id);
@@ -94,7 +114,7 @@ public class BassService extends Service {
         Notification notification = builder
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentTitle("BassForge EQ V2")
-                .setContentText("Sub / punch / EQ engine active")
+                .setContentText("REDLINE engine active • tap for controls")
                 .setContentIntent(pi)
                 .setOngoing(true)
                 .build();
@@ -128,9 +148,17 @@ public class BassService extends Service {
         int punch = prefs.getInt("punch", 45);
         int width = prefs.getInt("width", 20);
         int clarity = prefs.getInt("clarity", 55);
+        int treble = prefs.getInt("treble", 40);
+        int subFocus = prefs.getInt("sub_focus", 35);
+        int punchFocus = prefs.getInt("punch_focus", 50);
+        int vocal = prefs.getInt("vocal", 55);
+        boolean dynamicBass = prefs.getBoolean("dynamic_bass", true);
+        boolean autoGain = prefs.getBoolean("auto_gain", true);
+        int quality = prefs.getInt("quality", 1);
 
         for (FxSet fx : sessions.values()) {
-            fx.apply(curve, bass, loudness, sub, punch, width, clarity);
+            fx.apply(curve, bass, loudness, sub, punch, width, clarity,
+                    treble, subFocus, punchFocus, vocal, dynamicBass, autoGain, quality);
         }
     }
 
@@ -203,20 +231,38 @@ public class BassService extends Service {
         return 0f;
     }
 
-    private static float subExtraDb(int hz, int sub) {
+    private static float subExtraDb(int hz, int sub, int focus, boolean dynamicBass, int quality) {
         float amount = sub / 100f;
-        if (hz <= 45) return 5.5f * amount;
-        if (hz <= 80) return 4.5f * amount;
-        if (hz <= 130) return 2.3f * amount;
-        if (hz <= 180) return 0.9f * amount;
+        int center = 32 + Math.round((focus / 100f) * 48f);
+        float distance = Math.abs((float)Math.log(Math.max(20, hz) / (double)center));
+        float shape = Math.max(0f, 1f - distance / 1.25f);
+        float q = quality == 0 ? 0.86f : quality == 2 ? 1.10f : quality >= 3 ? 1.18f : 1f;
+        float dyn = dynamicBass ? (0.88f + 0.12f * amount) : 1f;
+        return 6.0f * amount * shape * q * dyn;
+    }
+
+    private static float punchExtraDb(int hz, int punch, int focus, int quality) {
+        float amount = punch / 100f;
+        int center = 90 + Math.round((focus / 100f) * 150f);
+        float distance = Math.abs((float)Math.log(Math.max(50, hz) / (double)center));
+        float shape = Math.max(0f, 1f - distance / 0.95f);
+        float q = quality == 0 ? 0.85f : quality == 2 ? 1.08f : quality >= 3 ? 1.15f : 1f;
+        return 3.8f * amount * shape * q;
+    }
+
+    private static float trebleAirDb(int hz, int treble) {
+        float amount = treble / 100f;
+        if (hz >= 8000) return 2.0f * amount;
+        if (hz >= 4000) return 1.4f * amount;
+        if (hz >= 2000) return 0.7f * amount;
         return 0f;
     }
 
-    private static float punchExtraDb(int hz, int punch) {
-        float amount = punch / 100f;
-        if (hz >= 85 && hz <= 160) return 3.4f * amount;
-        if (hz > 160 && hz <= 280) return 2.4f * amount;
-        if (hz > 280 && hz <= 420) return 0.8f * amount;
+    private static float vocalProtectDb(int hz, int vocal) {
+        float amount = vocal / 100f;
+        if (hz >= 300 && hz <= 700) return -0.8f * amount;
+        if (hz > 700 && hz <= 2500) return 1.1f * amount;
+        if (hz > 2500 && hz <= 4200) return 0.7f * amount;
         return 0f;
     }
 
@@ -274,7 +320,9 @@ public class BassService extends Service {
                     || virtualizer != null;
         }
 
-        void apply(int[] curve, int bass, int loudness, int sub, int punch, int width, int clarity) {
+        void apply(int[] curve, int bass, int loudness, int sub, int punch, int width, int clarity,
+                   int treble, int subFocus, int punchFocus, int vocal,
+                   boolean dynamicBass, boolean autoGain, int quality) {
             float rawMax = 0f;
             for (int v : curve) rawMax = Math.max(rawMax, v);
             float effectiveMax = rawMax
@@ -296,9 +344,11 @@ public class BassService extends Service {
                     for (short b = 0; b < bands; b++) {
                         int hz = equalizer.getCenterFreq(b) / 1000;
                         float wantedDb = interpolatedDb(hz, curve)
-                                + subExtraDb(hz, sub)
-                                + punchExtraDb(hz, punch)
+                                + subExtraDb(hz, sub, subFocus, dynamicBass, quality)
+                                + punchExtraDb(hz, punch, punchFocus, quality)
                                 + clarityContourDb(hz, clarity)
+                                + trebleAirDb(hz, treble)
+                                + vocalProtectDb(hz, vocal)
                                 - headroomDb;
 
                         int levelMb = Math.round(wantedDb * 100f);
@@ -335,11 +385,15 @@ public class BassService extends Service {
                             + clamp(punch, 0, 100) * 0.25f);
 
                     // Keep extra gain under control when the EQ curve itself is already extreme.
-                    int overloadPenaltyMb = Math.round(Math.max(0f, effectiveMax - 10f) * 38f);
-                    int targetMb = userGainMb + bassLinkedMb - overloadPenaltyMb;
+                    int overloadPenaltyMb = autoGain
+                            ? Math.round(Math.max(0f, effectiveMax - 9f) * 44f)
+                            : 0;
+                    int qualityPenalty = quality >= 3 ? 45 : quality == 2 ? 20 : 0;
+                    int targetMb = userGainMb + bassLinkedMb - overloadPenaltyMb - qualityPenalty;
 
-                    // Hard cap around +6 dB total output gain.
-                    targetMb = clamp(targetMb, 0, 600);
+                    // REDLINE limiter ceiling. This protects digital headroom; it is not
+                    // a hearing-safety volume limiter.
+                    targetMb = clamp(targetMb, 0, 620);
                     loudnessEnhancer.setTargetGain(targetMb);
                 } catch (Throwable ignored) {
                 }
