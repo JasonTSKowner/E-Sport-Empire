@@ -2,6 +2,7 @@ package com.bassforge.eq;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.res.ColorStateList;
 import android.content.Context;
 import android.content.Intent;
@@ -24,6 +25,7 @@ import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +36,7 @@ public class MainActivity extends Activity {
     private static final int CARD_2 = Color.rgb(25, 25, 31);
     private static final int TEXT = Color.rgb(244, 244, 247);
     private static final int MUTED = Color.rgb(151, 151, 163);
-    private static final int ACCENT = Color.rgb(255, 74, 35);
+    private static final int ACCENT = Color.rgb(255, 25, 48);
     private static final int GREEN = Color.rgb(59, 214, 123);
 
     private static final String[] BAND_NAMES = {"31", "62", "125", "250", "500", "1K", "2K", "4K", "8K", "16K"};
@@ -50,12 +52,22 @@ public class MainActivity extends Activity {
     private SeekBar punchBar;
     private SeekBar widthBar;
     private SeekBar clarityBar;
+    private SeekBar trebleBar;
+    private SeekBar subFocusBar;
+    private SeekBar punchFocusBar;
+    private SeekBar vocalBar;
     private TextView bassValue;
     private TextView loudnessValue;
     private TextView subValue;
     private TextView punchValue;
     private TextView widthValue;
     private TextView clarityValue;
+    private TextView trebleValue;
+    private TextView subFocusValue;
+    private TextView punchFocusValue;
+    private TextView vocalValue;
+    private Switch dynamicBassSwitch;
+    private Switch autoGainSwitch;
     private TextView statusText;
     private Switch powerSwitch;
     private boolean buildingUi = true;
@@ -113,7 +125,7 @@ public class MainActivity extends Activity {
         brand.setLetterSpacing(0.08f);
         root.addView(brand);
 
-        TextView subtitle = text("PREMIUM BASS PROCESSING  •  V3", 12, ACCENT, true);
+        TextView subtitle = text("REDLINE AUDIO ENGINE  •  V4", 12, ACCENT, true);
         subtitle.setLetterSpacing(0.14f);
         root.addView(subtitle, marginTop(2));
 
@@ -168,6 +180,7 @@ public class MainActivity extends Activity {
         presetScroll.addView(presetRow);
         root.addView(presetScroll, marginTop(8));
 
+        addPreset(presetRow, "MAX CLEAN", new int[]{12,12,10,6,1,0,0,1,2,2}, 100, 34, 100, 88, 22, 88);
         addPreset(presetRow, "CLEAN", new int[]{0,0,0,0,0,0,0,0,0,0}, 0, 0, 0, 0, 0, 35);
         addPreset(presetRow, "PREMIUM", new int[]{7,7,6,4,2,0,0,0,1,1}, 72, 12, 62, 48, 16, 68);
         addPreset(presetRow, "DEEP CLEAN", new int[]{10,10,8,4,1,0,-1,0,1,1}, 82, 10, 88, 38, 12, 82);
@@ -175,6 +188,35 @@ public class MainActivity extends Activity {
         addPreset(presetRow, "CINEMA", new int[]{11,10,8,5,2,0,0,1,2,3}, 88, 12, 84, 58, 38, 58);
         addPreset(presetRow, "EARTHQUAKE", new int[]{12,12,10,7,3,0,-2,-1,1,2}, 100, 12, 94, 72, 22, 72);
         addPreset(presetRow, "ABYSS+", new int[]{12,12,11,7,2,-1,-2,-1,1,2}, 100, 8, 100, 84, 26, 82);
+
+        sectionTitle(root, "PROFILES & QUICK CONTROLS");
+        HorizontalScrollView profileScroll = new HorizontalScrollView(this);
+        profileScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout profileRow = new LinearLayout(this);
+        profileRow.setOrientation(LinearLayout.HORIZONTAL);
+        profileScroll.addView(profileRow);
+        root.addView(profileScroll, marginTop(8));
+
+        addActionButton(profileRow, "HEADPHONES", () -> applyProfile("headphones"));
+        addActionButton(profileRow, "SPEAKER", () -> applyProfile("speaker"));
+        addActionButton(profileRow, "GAMING", () -> applyProfile("gaming"));
+        addActionButton(profileRow, "MUSIC", () -> applyProfile("music"));
+        addActionButton(profileRow, "NIGHT", () -> applyProfile("night"));
+        addActionButton(profileRow, "SAVE CUSTOM", this::saveCustomPreset);
+        addActionButton(profileRow, "LOAD CUSTOM", this::loadCustomPreset);
+        addActionButton(profileRow, "CHANGELOG", this::showChangelog);
+
+        sectionTitle(root, "BASS CHARACTER");
+        HorizontalScrollView qualityScroll = new HorizontalScrollView(this);
+        qualityScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout qualityRow = new LinearLayout(this);
+        qualityRow.setOrientation(LinearLayout.HORIZONTAL);
+        qualityScroll.addView(qualityRow);
+        root.addView(qualityScroll, marginTop(8));
+        addActionButton(qualityRow, "SOFT", () -> setQuality(0));
+        addActionButton(qualityRow, "CLEAN", () -> setQuality(1));
+        addActionButton(qualityRow, "HARD", () -> setQuality(2));
+        addActionButton(qualityRow, "BRUTAL", () -> setQuality(3));
 
         LinearLayout subCard = card();
         subCard.setOrientation(LinearLayout.VERTICAL);
@@ -312,6 +354,134 @@ public class MainActivity extends Activity {
             queueUpdate();
         }));
 
+        sectionTitle(root, "REDLINE ADVANCED");
+
+        LinearLayout subFocusCard = card();
+        subFocusCard.setOrientation(LinearLayout.VERTICAL);
+        subFocusCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(subFocusCard, marginTop(8));
+        LinearLayout sfh = new LinearLayout(this);
+        sfh.setOrientation(LinearLayout.HORIZONTAL);
+        sfh.setGravity(Gravity.CENTER_VERTICAL);
+        TextView sft = text("SUB FOCUS", 15, TEXT, true);
+        sfh.addView(sft, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        subFocusValue = text("49 Hz", 14, ACCENT, true);
+        sfh.addView(subFocusValue);
+        subFocusCard.addView(sfh);
+        subFocusCard.addView(text("Moves the deepest bass focus from ~32 Hz to ~80 Hz", 12, MUTED, false), marginTop(3));
+        subFocusBar = seek(0, 100);
+        subFocusBar.setProgress(prefs.getInt("sub_focus", 35));
+        subFocusCard.addView(subFocusBar, marginTop(9));
+        subFocusBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            subFocusValue.setText((32 + Math.round(v * 0.48f)) + " Hz");
+            prefs.edit().putInt("sub_focus", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout punchFocusCard = card();
+        punchFocusCard.setOrientation(LinearLayout.VERTICAL);
+        punchFocusCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(punchFocusCard, marginTop(12));
+        LinearLayout pfh = new LinearLayout(this);
+        pfh.setOrientation(LinearLayout.HORIZONTAL);
+        pfh.setGravity(Gravity.CENTER_VERTICAL);
+        TextView pft = text("PUNCH FOCUS", 15, TEXT, true);
+        pfh.addView(pft, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        punchFocusValue = text("165 Hz", 14, ACCENT, true);
+        pfh.addView(punchFocusValue);
+        punchFocusCard.addView(pfh);
+        punchFocusCard.addView(text("Moves the kick impact from ~90 Hz to ~240 Hz", 12, MUTED, false), marginTop(3));
+        punchFocusBar = seek(0, 100);
+        punchFocusBar.setProgress(prefs.getInt("punch_focus", 50));
+        punchFocusCard.addView(punchFocusBar, marginTop(9));
+        punchFocusBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            punchFocusValue.setText((90 + Math.round(v * 1.5f)) + " Hz");
+            prefs.edit().putInt("punch_focus", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout trebleCard = card();
+        trebleCard.setOrientation(LinearLayout.VERTICAL);
+        trebleCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(trebleCard, marginTop(12));
+        LinearLayout th = new LinearLayout(this);
+        th.setOrientation(LinearLayout.HORIZONTAL);
+        th.setGravity(Gravity.CENTER_VERTICAL);
+        TextView tt = text("TREBLE / AIR", 15, TEXT, true);
+        th.addView(tt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        trebleValue = text("40%", 14, ACCENT, true);
+        th.addView(trebleValue);
+        trebleCard.addView(th);
+        trebleCard.addView(text("Restores top-end detail when bass is very strong", 12, MUTED, false), marginTop(3));
+        trebleBar = seek(0, 100);
+        trebleBar.setProgress(prefs.getInt("treble", 40));
+        trebleCard.addView(trebleBar, marginTop(9));
+        trebleBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            trebleValue.setText(v + "%");
+            prefs.edit().putInt("treble", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout vocalCard = card();
+        vocalCard.setOrientation(LinearLayout.VERTICAL);
+        vocalCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(vocalCard, marginTop(12));
+        LinearLayout vh = new LinearLayout(this);
+        vh.setOrientation(LinearLayout.HORIZONTAL);
+        vh.setGravity(Gravity.CENTER_VERTICAL);
+        TextView vt = text("VOCAL PROTECTION", 15, TEXT, true);
+        vh.addView(vt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        vocalValue = text("55%", 14, ACCENT, true);
+        vh.addView(vocalValue);
+        vocalCard.addView(vh);
+        vocalCard.addView(text("Keeps mids and vocals from disappearing behind the low end", 12, MUTED, false), marginTop(3));
+        vocalBar = seek(0, 100);
+        vocalBar.setProgress(prefs.getInt("vocal", 55));
+        vocalCard.addView(vocalBar, marginTop(9));
+        vocalBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            vocalValue.setText(v + "%");
+            prefs.edit().putInt("vocal", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout dynamicCard = card();
+        dynamicCard.setOrientation(LinearLayout.HORIZONTAL);
+        dynamicCard.setGravity(Gravity.CENTER_VERTICAL);
+        dynamicCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        root.addView(dynamicCard, marginTop(12));
+        LinearLayout dynText = new LinearLayout(this);
+        dynText.setOrientation(LinearLayout.VERTICAL);
+        dynamicCard.addView(dynText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        dynText.addView(text("DYNAMIC BASS CURVE", 14, TEXT, true));
+        dynText.addView(text("Non-linear shaping for stronger bass without only adding gain", 11, MUTED, false), marginTop(2));
+        dynamicBassSwitch = new Switch(this);
+        dynamicBassSwitch.setChecked(prefs.getBoolean("dynamic_bass", true));
+        dynamicCard.addView(dynamicBassSwitch);
+        dynamicBassSwitch.setOnCheckedChangeListener((b, checked) -> {
+            if (buildingUi) return;
+            prefs.edit().putBoolean("dynamic_bass", checked).apply();
+            queueUpdate();
+        });
+
+        LinearLayout autoGainCard = card();
+        autoGainCard.setOrientation(LinearLayout.HORIZONTAL);
+        autoGainCard.setGravity(Gravity.CENTER_VERTICAL);
+        autoGainCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        root.addView(autoGainCard, marginTop(12));
+        LinearLayout agText = new LinearLayout(this);
+        agText.setOrientation(LinearLayout.VERTICAL);
+        autoGainCard.addView(agText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        agText.addView(text("AUTO GAIN / LIMITER V2", 14, TEXT, true));
+        agText.addView(text("Reduces excessive gain when the EQ curve gets extreme", 11, MUTED, false), marginTop(2));
+        autoGainSwitch = new Switch(this);
+        autoGainSwitch.setChecked(prefs.getBoolean("auto_gain", true));
+        autoGainCard.addView(autoGainSwitch);
+        autoGainSwitch.setOnCheckedChangeListener((b, checked) -> {
+            if (buildingUi) return;
+            prefs.edit().putBoolean("auto_gain", checked).apply();
+            queueUpdate();
+        });
+
         sectionTitle(root, "10-BAND CURVE");
 
         LinearLayout eqCard = card();
@@ -328,9 +498,9 @@ public class MainActivity extends Activity {
         safety.setPadding(dp(15), dp(14), dp(15), dp(14));
         safety.setBackground(roundRect(Color.rgb(15, 29, 23), dp(16), Color.TRANSPARENT, 0));
         root.addView(safety, marginTop(16));
-        safety.addView(text("PREMIUM GAIN CONTROL • ALWAYS ON", 13, GREEN, true));
+        safety.addView(text("REDLINE LIMITER V2 • DIGITAL HEADROOM", 13, GREEN, true));
         safety.addView(text(
-                "V3.1 links bass strength to a controlled output boost, while strong EQ peaks are still compensated to reduce harsh clipping and pumping.",
+                "V4 REDLINE combines bass-linked loudness, Auto Gain, focus shaping and anti-mud processing. It reduces digital overload, but your phone volume still controls how loud your headphones actually are.",
                 12, Color.rgb(184, 207, 193), false), marginTop(4));
 
         TextView compat = text(
@@ -396,6 +566,17 @@ public class MainActivity extends Activity {
                     .putInt("width", width)
                     .putInt("clarity", clarity)
                     .apply();
+            if ("MAX CLEAN".equals(name)) {
+                prefs.edit()
+                        .putInt("treble", 54)
+                        .putInt("sub_focus", 34)
+                        .putInt("punch_focus", 48)
+                        .putInt("vocal", 78)
+                        .putBoolean("dynamic_bass", true)
+                        .putBoolean("auto_gain", true)
+                        .putInt("quality", 2)
+                        .apply();
+            }
             saveCurve();
             refreshControls();
             queueUpdate();
@@ -425,6 +606,20 @@ public class MainActivity extends Activity {
         if (punchValue != null) punchValue.setText(punch + "%");
         if (widthValue != null) widthValue.setText(width + "%");
         if (clarityValue != null) clarityValue.setText(clarity + "%");
+        int treble = prefs.getInt("treble", 40);
+        int subFocus = prefs.getInt("sub_focus", 35);
+        int punchFocus = prefs.getInt("punch_focus", 50);
+        int vocal = prefs.getInt("vocal", 55);
+        if (trebleBar != null) trebleBar.setProgress(treble);
+        if (subFocusBar != null) subFocusBar.setProgress(subFocus);
+        if (punchFocusBar != null) punchFocusBar.setProgress(punchFocus);
+        if (vocalBar != null) vocalBar.setProgress(vocal);
+        if (trebleValue != null) trebleValue.setText(treble + "%");
+        if (subFocusValue != null) subFocusValue.setText((32 + Math.round(subFocus * 0.48f)) + " Hz");
+        if (punchFocusValue != null) punchFocusValue.setText((90 + Math.round(punchFocus * 1.5f)) + " Hz");
+        if (vocalValue != null) vocalValue.setText(vocal + "%");
+        if (dynamicBassSwitch != null) dynamicBassSwitch.setChecked(prefs.getBoolean("dynamic_bass", true));
+        if (autoGainSwitch != null) autoGainSwitch.setChecked(prefs.getBoolean("auto_gain", true));
     }
 
     private void saveCurve() {
@@ -473,6 +668,107 @@ public class MainActivity extends Activity {
             statusText.setText(status);
             statusText.setTextColor(on ? GREEN : MUTED);
         }, 450);
+    }
+
+    private void addActionButton(LinearLayout row, String label, Runnable action) {
+        TextView button = text(label, 11, TEXT, true);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(13), dp(10), dp(13), dp(10));
+        button.setBackground(roundRect(CARD_2, dp(14), Color.rgb(65, 20, 29), dp(1)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, dp(8), 0);
+        row.addView(button, lp);
+        button.setOnClickListener(v -> action.run());
+    }
+
+    private void setQuality(int quality) {
+        prefs.edit().putInt("quality", quality).apply();
+        queueUpdate();
+        String[] names = {"SOFT", "CLEAN", "HARD", "BRUTAL"};
+        Toast.makeText(this, "Bass character: " + names[Math.max(0, Math.min(3, quality))], Toast.LENGTH_SHORT).show();
+    }
+
+    private void applyProfile(String profile) {
+        SharedPreferences.Editor e = prefs.edit();
+        if ("headphones".equals(profile)) {
+            e.putInt("width", 24).putInt("clarity", 82).putInt("treble", 48).putInt("vocal", 70)
+                    .putInt("sub_focus", 32).putInt("punch_focus", 46).putBoolean("auto_gain", true);
+        } else if ("speaker".equals(profile)) {
+            e.putInt("width", 8).putInt("clarity", 72).putInt("treble", 44).putInt("vocal", 62)
+                    .putInt("sub_focus", 62).putInt("punch_focus", 58).putBoolean("auto_gain", true);
+        } else if ("gaming".equals(profile)) {
+            e.putInt("bass", 58).putInt("sub", 42).putInt("punch", 62).putInt("clarity", 90)
+                    .putInt("treble", 68).putInt("vocal", 80).putInt("width", 42).putBoolean("auto_gain", true);
+        } else if ("night".equals(profile)) {
+            e.putInt("bass", 56).putInt("sub", 48).putInt("punch", 38).putInt("loudness", 12)
+                    .putInt("clarity", 76).putInt("treble", 45).putInt("width", 18).putBoolean("auto_gain", true);
+        } else {
+            e.putInt("bass", 84).putInt("sub", 82).putInt("punch", 68).putInt("clarity", 78)
+                    .putInt("treble", 52).putInt("vocal", 68).putInt("width", 24).putBoolean("auto_gain", true);
+        }
+        e.apply();
+        refreshControls();
+        queueUpdate();
+        Toast.makeText(this, profile.toUpperCase() + " profile applied", Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveCustomPreset() {
+        saveCurve();
+        SharedPreferences.Editor e = prefs.edit();
+        e.putString("custom_curve", prefs.getString("curve", "0,0,0,0,0,0,0,0,0,0"));
+        String[] keys = {"bass","loudness","sub","punch","width","clarity","treble","sub_focus","punch_focus","vocal","quality"};
+        int[] defs = {68,16,55,45,20,55,40,35,50,55,1};
+        for (int i = 0; i < keys.length; i++) e.putInt("custom_" + keys[i], prefs.getInt(keys[i], defs[i]));
+        e.putBoolean("custom_dynamic_bass", prefs.getBoolean("dynamic_bass", true));
+        e.putBoolean("custom_auto_gain", prefs.getBoolean("auto_gain", true));
+        e.putBoolean("custom_saved", true);
+        e.apply();
+        Toast.makeText(this, "Custom preset saved", Toast.LENGTH_SHORT).show();
+    }
+
+    private void loadCustomPreset() {
+        if (!prefs.getBoolean("custom_saved", false)) {
+            Toast.makeText(this, "No custom preset saved yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        SharedPreferences.Editor e = prefs.edit();
+        e.putString("curve", prefs.getString("custom_curve", "0,0,0,0,0,0,0,0,0,0"));
+        String[] keys = {"bass","loudness","sub","punch","width","clarity","treble","sub_focus","punch_focus","vocal","quality"};
+        int[] defs = {68,16,55,45,20,55,40,35,50,55,1};
+        for (int i = 0; i < keys.length; i++) e.putInt(keys[i], prefs.getInt("custom_" + keys[i], defs[i]));
+        e.putBoolean("dynamic_bass", prefs.getBoolean("custom_dynamic_bass", true));
+        e.putBoolean("auto_gain", prefs.getBoolean("custom_auto_gain", true));
+        e.apply();
+        loadState();
+        refreshControls();
+        queueUpdate();
+        Toast.makeText(this, "Custom preset loaded", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showChangelog() {
+        String log =
+                "V4 REDLINE\n" +
+                "• MAX CLEAN one-tap preset\n" +
+                "• Sub Focus + Punch Focus\n" +
+                "• Treble / Air + Vocal Protection\n" +
+                "• Dynamic Bass Curve\n" +
+                "• Auto Gain / Limiter V2\n" +
+                "• Bass character: Soft / Clean / Hard / Brutal\n" +
+                "• Headphones / Speaker / Gaming / Music / Night profiles\n" +
+                "• Custom preset Save / Load\n" +
+                "• Android Quick Tile support\n" +
+                "• REDLINE black/red UI\n\n" +
+                "V3.2\n• New neon BF launcher icon\n\n" +
+                "V3.1\n• Bass-linked loudness\n\n" +
+                "V3 Premium\n• Anti-Mud / Clean Bass + premium presets\n\n" +
+                "V2\n• Sub, Punch, Width and Abyss\n\n" +
+                "V1\n• First EQ / BassBoost / Loudness engine";
+        new AlertDialog.Builder(this)
+                .setTitle("BassForge EQ — Changelog")
+                .setMessage(log)
+                .setPositiveButton("CLOSE", null)
+                .show();
     }
 
     private void sectionTitle(LinearLayout root, String title) {
