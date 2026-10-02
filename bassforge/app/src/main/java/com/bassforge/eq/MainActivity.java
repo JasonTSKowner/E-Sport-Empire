@@ -46,8 +46,14 @@ public class MainActivity extends Activity {
     private SharedPreferences prefs;
     private SeekBar bassBar;
     private SeekBar loudnessBar;
+    private SeekBar subBar;
+    private SeekBar punchBar;
+    private SeekBar widthBar;
     private TextView bassValue;
     private TextView loudnessValue;
+    private TextView subValue;
+    private TextView punchValue;
+    private TextView widthValue;
     private TextView statusText;
     private Switch powerSwitch;
     private boolean buildingUi = true;
@@ -105,7 +111,7 @@ public class MainActivity extends Activity {
         brand.setLetterSpacing(0.08f);
         root.addView(brand);
 
-        TextView subtitle = text("EXTREME AUDIO LAB  •  V1", 12, ACCENT, true);
+        TextView subtitle = text("SUB • PUNCH • WIDTH • SMART HEADROOM  •  V2", 12, ACCENT, true);
         subtitle.setLetterSpacing(0.14f);
         root.addView(subtitle, marginTop(2));
 
@@ -160,12 +166,82 @@ public class MainActivity extends Activity {
         presetScroll.addView(presetRow);
         root.addView(presetScroll, marginTop(8));
 
-        addPreset(presetRow, "CLEAN", new int[]{0,0,0,0,0,0,0,0,0,0}, 0, 0);
-        addPreset(presetRow, "BASS", new int[]{5,5,4,3,2,1,0,0,0,0}, 55, 12);
-        addPreset(presetRow, "HEAVY", new int[]{8,8,7,5,3,1,0,0,1,1}, 75, 20);
-        addPreset(presetRow, "INSANE", new int[]{11,10,9,6,3,0,-1,0,1,2}, 90, 28);
-        addPreset(presetRow, "SUBWOOFER", new int[]{12,11,8,4,1,0,-1,-1,0,0}, 95, 24);
-        addPreset(presetRow, "EARTHQUAKE", new int[]{12,12,10,7,3,0,-2,-1,1,2}, 100, 36);
+        addPreset(presetRow, "CLEAN", new int[]{0,0,0,0,0,0,0,0,0,0}, 0, 0, 0, 0, 0);
+        addPreset(presetRow, "BASS", new int[]{5,5,4,3,2,1,0,0,0,0}, 55, 12, 35, 30, 10);
+        addPreset(presetRow, "HEAVY", new int[]{8,8,7,5,3,1,0,0,1,1}, 75, 18, 55, 50, 16);
+        addPreset(presetRow, "INSANE", new int[]{11,10,9,6,3,0,-1,0,1,2}, 90, 22, 70, 65, 22);
+        addPreset(presetRow, "SUBWOOFER", new int[]{12,11,8,4,1,0,-1,-1,0,0}, 92, 18, 90, 42, 14);
+        addPreset(presetRow, "EARTHQUAKE", new int[]{12,12,10,7,3,0,-2,-1,1,2}, 100, 18, 92, 72, 24);
+        addPreset(presetRow, "ABYSS", new int[]{12,12,11,7,2,-1,-2,-1,1,2}, 100, 12, 100, 82, 28);
+
+        LinearLayout subCard = card();
+        subCard.setOrientation(LinearLayout.VERTICAL);
+        subCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(subCard, marginTop(18));
+
+        LinearLayout subHeader = new LinearLayout(this);
+        subHeader.setOrientation(LinearLayout.HORIZONTAL);
+        subHeader.setGravity(Gravity.CENTER_VERTICAL);
+        TextView subTitle = text("SUB BASS", 15, TEXT, true);
+        subHeader.addView(subTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        subValue = text("55%", 14, ACCENT, true);
+        subHeader.addView(subValue);
+        subCard.addView(subHeader);
+        subCard.addView(text("Deep 31–125 Hz weight without only raising volume", 12, MUTED, false), marginTop(3));
+        subBar = seek(0, 100);
+        subBar.setProgress(prefs.getInt("sub", 55));
+        subCard.addView(subBar, marginTop(9));
+        subBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            subValue.setText(v + "%");
+            prefs.edit().putInt("sub", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout punchCard = card();
+        punchCard.setOrientation(LinearLayout.VERTICAL);
+        punchCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(punchCard, marginTop(12));
+
+        LinearLayout punchHeader = new LinearLayout(this);
+        punchHeader.setOrientation(LinearLayout.HORIZONTAL);
+        punchHeader.setGravity(Gravity.CENTER_VERTICAL);
+        TextView punchTitle = text("PUNCH", 15, TEXT, true);
+        punchHeader.addView(punchTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        punchValue = text("45%", 14, ACCENT, true);
+        punchHeader.addView(punchValue);
+        punchCard.addView(punchHeader);
+        punchCard.addView(text("Kick impact around 90–280 Hz", 12, MUTED, false), marginTop(3));
+        punchBar = seek(0, 100);
+        punchBar.setProgress(prefs.getInt("punch", 45));
+        punchCard.addView(punchBar, marginTop(9));
+        punchBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            punchValue.setText(v + "%");
+            prefs.edit().putInt("punch", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout widthCard = card();
+        widthCard.setOrientation(LinearLayout.VERTICAL);
+        widthCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(widthCard, marginTop(12));
+
+        LinearLayout widthHeader = new LinearLayout(this);
+        widthHeader.setOrientation(LinearLayout.HORIZONTAL);
+        widthHeader.setGravity(Gravity.CENTER_VERTICAL);
+        TextView widthTitle = text("WIDTH / SPACE", 15, TEXT, true);
+        widthHeader.addView(widthTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        widthValue = text("20%", 14, ACCENT, true);
+        widthHeader.addView(widthValue);
+        widthCard.addView(widthHeader);
+        widthCard.addView(text("Android virtualizer for a wider headphone image", 12, MUTED, false), marginTop(3));
+        widthBar = seek(0, 100);
+        widthBar.setProgress(prefs.getInt("width", 20));
+        widthCard.addView(widthBar, marginTop(9));
+        widthBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            widthValue.setText(v + "%");
+            prefs.edit().putInt("width", v).apply();
+            queueUpdate();
+        }));
 
         LinearLayout bassCard = card();
         bassCard.setOrientation(LinearLayout.VERTICAL);
@@ -206,7 +282,7 @@ public class MainActivity extends Activity {
         loudnessBar.setProgress(prefs.getInt("loudness", 20));
         loudCard.addView(loudnessBar, marginTop(9));
         loudnessBar.setOnSeekBarChangeListener(simpleSeek(v -> {
-            loudnessValue.setText(String.format("+%.1f dB", v * 0.06f));
+            loudnessValue.setText(String.format("+%.1f dB", v * 0.05f));
             prefs.edit().putInt("loudness", v).apply();
             queueUpdate();
         }));
@@ -227,9 +303,9 @@ public class MainActivity extends Activity {
         safety.setPadding(dp(15), dp(14), dp(15), dp(14));
         safety.setBackground(roundRect(Color.rgb(15, 29, 23), dp(16), Color.TRANSPARENT, 0));
         root.addView(safety, marginTop(16));
-        safety.addView(text("SMART HEADROOM • ON", 13, GREEN, true));
+        safety.addView(text("SMART HEADROOM V2 • ALWAYS ON", 13, GREEN, true));
         safety.addView(text(
-                "Strong bass automatically gets a little headroom before output. High listening levels can still damage hearing, so start low and raise it gradually.",
+                "Sub, punch and EQ boosts are automatically compensated before output. Extreme settings shape the bass more aggressively instead of simply forcing extra master volume.",
                 12, Color.rgb(184, 207, 193), false), marginTop(4));
 
         TextView compat = text(
@@ -275,7 +351,7 @@ public class MainActivity extends Activity {
         return row;
     }
 
-    private void addPreset(LinearLayout row, String name, int[] presetCurve, int bass, int loudness) {
+    private void addPreset(LinearLayout row, String name, int[] presetCurve, int bass, int loudness, int sub, int punch, int width) {
         TextView button = text(name, 12, TEXT, true);
         button.setGravity(Gravity.CENTER);
         button.setPadding(dp(14), dp(10), dp(14), dp(10));
@@ -287,7 +363,13 @@ public class MainActivity extends Activity {
 
         button.setOnClickListener(v -> {
             System.arraycopy(presetCurve, 0, curve, 0, curve.length);
-            prefs.edit().putInt("bass", bass).putInt("loudness", loudness).apply();
+            prefs.edit()
+                    .putInt("bass", bass)
+                    .putInt("loudness", loudness)
+                    .putInt("sub", sub)
+                    .putInt("punch", punch)
+                    .putInt("width", width)
+                    .apply();
             saveCurve();
             refreshControls();
             queueUpdate();
@@ -299,12 +381,21 @@ public class MainActivity extends Activity {
             bandBars.get(i).setProgress(curve[i] + 12);
             bandValues.get(i).setText(formatDb(curve[i]));
         }
-        int bass = prefs.getInt("bass", 65);
-        int loudness = prefs.getInt("loudness", 20);
+        int bass = prefs.getInt("bass", 68);
+        int loudness = prefs.getInt("loudness", 16);
+        int sub = prefs.getInt("sub", 55);
+        int punch = prefs.getInt("punch", 45);
+        int width = prefs.getInt("width", 20);
         if (bassBar != null) bassBar.setProgress(bass);
         if (loudnessBar != null) loudnessBar.setProgress(loudness);
+        if (subBar != null) subBar.setProgress(sub);
+        if (punchBar != null) punchBar.setProgress(punch);
+        if (widthBar != null) widthBar.setProgress(width);
         if (bassValue != null) bassValue.setText(bass + "%");
-        if (loudnessValue != null) loudnessValue.setText(String.format("+%.1f dB", loudness * 0.06f));
+        if (loudnessValue != null) loudnessValue.setText(String.format("+%.1f dB", loudness * 0.05f));
+        if (subValue != null) subValue.setText(sub + "%");
+        if (punchValue != null) punchValue.setText(punch + "%");
+        if (widthValue != null) widthValue.setText(width + "%");
     }
 
     private void saveCurve() {
