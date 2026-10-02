@@ -326,12 +326,20 @@ public class BassService extends Service {
 
             if (loudnessEnhancer != null) {
                 try {
-                    // User control tops out near +5 dB, but aggressive bass settings
-                    // automatically reduce that target to preserve headroom.
-                    int requestedMb = Math.round(clamp(loudness, 0, 100) * 5.0f);
-                    int penaltyMb = Math.round(Math.max(0f, effectiveMax - 7f) * 70f);
-                    int bassPenaltyMb = Math.max(0, bass + sub - 155) * 8;
-                    int targetMb = Math.max(0, requestedMb - penaltyMb - bassPenaltyMb);
+                    // V3.1: bass and output level rise together, but in a controlled way.
+                    // The automatic bass-linked gain is intentionally modest so a higher
+                    // bass setting feels bigger and louder without turning into a huge jump.
+                    int userGainMb = Math.round(clamp(loudness, 0, 100) * 5.0f);
+                    int bassLinkedMb = Math.round(clamp(bass, 0, 100) * 1.2f
+                            + clamp(sub, 0, 100) * 0.7f
+                            + clamp(punch, 0, 100) * 0.25f);
+
+                    // Keep extra gain under control when the EQ curve itself is already extreme.
+                    int overloadPenaltyMb = Math.round(Math.max(0f, effectiveMax - 10f) * 38f);
+                    int targetMb = userGainMb + bassLinkedMb - overloadPenaltyMb;
+
+                    // Hard cap around +6 dB total output gain.
+                    targetMb = clamp(targetMb, 0, 600);
                     loudnessEnhancer.setTargetGain(targetMb);
                 } catch (Throwable ignored) {
                 }
