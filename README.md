@@ -46,7 +46,7 @@ A portrait-first Android esports career and organization game built with Godot 4
 - Free-entry community cups display their exact win chance and provide the first virtual prize-money path
 - Eight meaningful player attributes: Mechanics, Rotation, Shooting, Defense, Game Sense, Boost Control, Consistency and Mentality
 - Six paid and targeted development programs instead of free random stat clicks
-- Instant repeatable training with visible guaranteed gains, price, fatigue and breakthrough chance
+- Focused player training with three sessions per 20-minute window, automatic slot recovery, fatigue gating, visible guaranteed gains, price and breakthrough chance
 - Bronze-to-SSL coaching market with rank emblems, specialties, guaranteed boosts, transparent extra-gain odds and very rare free sessions
 - No global energy gate or manual recovery button; player fatigue recovers automatically every real minute, including offline
 - Mechanics Arsenal progression from recoveries and aerials through Mustys, resets, Psycho and Triple Reset
