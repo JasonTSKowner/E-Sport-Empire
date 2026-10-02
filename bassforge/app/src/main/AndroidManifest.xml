@@ -30,6 +30,17 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <service
+            android:name=".BassTileService"
+            android:exported="true"
+            android:label="BassForge"
+            android:icon="@drawable/ic_launcher"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".AudioSessionReceiver"
             android:exported="true">
