@@ -49,11 +49,13 @@ public class MainActivity extends Activity {
     private SeekBar subBar;
     private SeekBar punchBar;
     private SeekBar widthBar;
+    private SeekBar clarityBar;
     private TextView bassValue;
     private TextView loudnessValue;
     private TextView subValue;
     private TextView punchValue;
     private TextView widthValue;
+    private TextView clarityValue;
     private TextView statusText;
     private Switch powerSwitch;
     private boolean buildingUi = true;
@@ -111,7 +113,7 @@ public class MainActivity extends Activity {
         brand.setLetterSpacing(0.08f);
         root.addView(brand);
 
-        TextView subtitle = text("SUB • PUNCH • WIDTH • SMART HEADROOM  •  V2", 12, ACCENT, true);
+        TextView subtitle = text("PREMIUM BASS PROCESSING  •  V3", 12, ACCENT, true);
         subtitle.setLetterSpacing(0.14f);
         root.addView(subtitle, marginTop(2));
 
@@ -166,13 +168,13 @@ public class MainActivity extends Activity {
         presetScroll.addView(presetRow);
         root.addView(presetScroll, marginTop(8));
 
-        addPreset(presetRow, "CLEAN", new int[]{0,0,0,0,0,0,0,0,0,0}, 0, 0, 0, 0, 0);
-        addPreset(presetRow, "BASS", new int[]{5,5,4,3,2,1,0,0,0,0}, 55, 12, 35, 30, 10);
-        addPreset(presetRow, "HEAVY", new int[]{8,8,7,5,3,1,0,0,1,1}, 75, 18, 55, 50, 16);
-        addPreset(presetRow, "INSANE", new int[]{11,10,9,6,3,0,-1,0,1,2}, 90, 22, 70, 65, 22);
-        addPreset(presetRow, "SUBWOOFER", new int[]{12,11,8,4,1,0,-1,-1,0,0}, 92, 18, 90, 42, 14);
-        addPreset(presetRow, "EARTHQUAKE", new int[]{12,12,10,7,3,0,-2,-1,1,2}, 100, 18, 92, 72, 24);
-        addPreset(presetRow, "ABYSS", new int[]{12,12,11,7,2,-1,-2,-1,1,2}, 100, 12, 100, 82, 28);
+        addPreset(presetRow, "CLEAN", new int[]{0,0,0,0,0,0,0,0,0,0}, 0, 0, 0, 0, 0, 35);
+        addPreset(presetRow, "PREMIUM", new int[]{7,7,6,4,2,0,0,0,1,1}, 72, 12, 62, 48, 16, 68);
+        addPreset(presetRow, "DEEP CLEAN", new int[]{10,10,8,4,1,0,-1,0,1,1}, 82, 10, 88, 38, 12, 82);
+        addPreset(presetRow, "CLUB", new int[]{9,9,8,6,3,0,0,1,2,2}, 88, 15, 72, 78, 24, 62);
+        addPreset(presetRow, "CINEMA", new int[]{11,10,8,5,2,0,0,1,2,3}, 88, 12, 84, 58, 38, 58);
+        addPreset(presetRow, "EARTHQUAKE", new int[]{12,12,10,7,3,0,-2,-1,1,2}, 100, 12, 94, 72, 22, 72);
+        addPreset(presetRow, "ABYSS+", new int[]{12,12,11,7,2,-1,-2,-1,1,2}, 100, 8, 100, 84, 26, 82);
 
         LinearLayout subCard = card();
         subCard.setOrientation(LinearLayout.VERTICAL);
@@ -217,6 +219,29 @@ public class MainActivity extends Activity {
         punchBar.setOnSeekBarChangeListener(simpleSeek(v -> {
             punchValue.setText(v + "%");
             prefs.edit().putInt("punch", v).apply();
+            queueUpdate();
+        }));
+
+        LinearLayout clarityCard = card();
+        clarityCard.setOrientation(LinearLayout.VERTICAL);
+        clarityCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(clarityCard, marginTop(12));
+
+        LinearLayout clarityHeader = new LinearLayout(this);
+        clarityHeader.setOrientation(LinearLayout.HORIZONTAL);
+        clarityHeader.setGravity(Gravity.CENTER_VERTICAL);
+        TextView clarityTitle = text("CLEAN BASS / ANTI-MUD", 15, TEXT, true);
+        clarityHeader.addView(clarityTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        clarityValue = text("55%", 14, ACCENT, true);
+        clarityHeader.addView(clarityValue);
+        clarityCard.addView(clarityHeader);
+        clarityCard.addView(text("Reduces low-mid mud and restores definition around vocals and percussion", 12, MUTED, false), marginTop(3));
+        clarityBar = seek(0, 100);
+        clarityBar.setProgress(prefs.getInt("clarity", 55));
+        clarityCard.addView(clarityBar, marginTop(9));
+        clarityBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            clarityValue.setText(v + "%");
+            prefs.edit().putInt("clarity", v).apply();
             queueUpdate();
         }));
 
@@ -303,9 +328,9 @@ public class MainActivity extends Activity {
         safety.setPadding(dp(15), dp(14), dp(15), dp(14));
         safety.setBackground(roundRect(Color.rgb(15, 29, 23), dp(16), Color.TRANSPARENT, 0));
         root.addView(safety, marginTop(16));
-        safety.addView(text("SMART HEADROOM V2 • ALWAYS ON", 13, GREEN, true));
+        safety.addView(text("PREMIUM HEADROOM • ALWAYS ON", 13, GREEN, true));
         safety.addView(text(
-                "Sub, punch and EQ boosts are automatically compensated before output. Extreme settings shape the bass more aggressively instead of simply forcing extra master volume.",
+                "V3 balances sub, punch, anti-mud contour and output gain together. Strong presets focus on cleaner low-end instead of simply forcing more master volume.",
                 12, Color.rgb(184, 207, 193), false), marginTop(4));
 
         TextView compat = text(
@@ -351,7 +376,7 @@ public class MainActivity extends Activity {
         return row;
     }
 
-    private void addPreset(LinearLayout row, String name, int[] presetCurve, int bass, int loudness, int sub, int punch, int width) {
+    private void addPreset(LinearLayout row, String name, int[] presetCurve, int bass, int loudness, int sub, int punch, int width, int clarity) {
         TextView button = text(name, 12, TEXT, true);
         button.setGravity(Gravity.CENTER);
         button.setPadding(dp(14), dp(10), dp(14), dp(10));
@@ -369,6 +394,7 @@ public class MainActivity extends Activity {
                     .putInt("sub", sub)
                     .putInt("punch", punch)
                     .putInt("width", width)
+                    .putInt("clarity", clarity)
                     .apply();
             saveCurve();
             refreshControls();
@@ -386,16 +412,19 @@ public class MainActivity extends Activity {
         int sub = prefs.getInt("sub", 55);
         int punch = prefs.getInt("punch", 45);
         int width = prefs.getInt("width", 20);
+        int clarity = prefs.getInt("clarity", 55);
         if (bassBar != null) bassBar.setProgress(bass);
         if (loudnessBar != null) loudnessBar.setProgress(loudness);
         if (subBar != null) subBar.setProgress(sub);
         if (punchBar != null) punchBar.setProgress(punch);
         if (widthBar != null) widthBar.setProgress(width);
+        if (clarityBar != null) clarityBar.setProgress(clarity);
         if (bassValue != null) bassValue.setText(bass + "%");
         if (loudnessValue != null) loudnessValue.setText(String.format("+%.1f dB", loudness * 0.05f));
         if (subValue != null) subValue.setText(sub + "%");
         if (punchValue != null) punchValue.setText(punch + "%");
         if (widthValue != null) widthValue.setText(width + "%");
+        if (clarityValue != null) clarityValue.setText(clarity + "%");
     }
 
     private void saveCurve() {
