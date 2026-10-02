@@ -111,11 +111,27 @@ public class BassService extends Service {
                 ? new Notification.Builder(this, CHANNEL_ID)
                 : new Notification.Builder(this);
 
+        Intent maxCleanIntent = new Intent(this, BassService.class);
+        maxCleanIntent.setAction(ACTION_MAX_CLEAN);
+        PendingIntent maxCleanPi = PendingIntent.getService(
+                this, 1, maxCleanIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Intent stopIntent = new Intent(this, BassService.class);
+        stopIntent.setAction(ACTION_STOP);
+        PendingIntent stopPi = PendingIntent.getService(
+                this, 2, stopIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
         Notification notification = builder
                 .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentTitle("BassForge EQ V2")
+                .setContentTitle("BassForge EQ V4 REDLINE")
                 .setContentText("REDLINE engine active • tap for controls")
                 .setContentIntent(pi)
+                .addAction(new Notification.Action.Builder(
+                        null, "MAX CLEAN", maxCleanPi).build())
+                .addAction(new Notification.Action.Builder(
+                        null, "OFF", stopPi).build())
                 .setOngoing(true)
                 .build();
 
