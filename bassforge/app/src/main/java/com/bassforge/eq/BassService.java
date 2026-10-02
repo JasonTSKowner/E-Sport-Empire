@@ -12,8 +12,12 @@ import android.media.audiofx.BassBoost;
 import android.media.audiofx.Equalizer;
 import android.media.audiofx.LoudnessEnhancer;
 import android.media.audiofx.Virtualizer;
+import android.media.AudioDeviceCallback;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Handler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +30,7 @@ public class BassService extends Service {
     public static final String ACTION_OPEN_SESSION = "com.bassforge.eq.OPEN_SESSION";
     public static final String ACTION_CLOSE_SESSION = "com.bassforge.eq.CLOSE_SESSION";
     public static final String ACTION_MAX_CLEAN = "com.bassforge.eq.MAX_CLEAN";
+    public static final String ACTION_NEXT_PRESET = "com.bassforge.eq.NEXT_PRESET";
     public static final String EXTRA_SESSION_ID = "session_id";
 
     private static final int NOTIFICATION_ID = 4402;
@@ -36,12 +41,15 @@ public class BassService extends Service {
 
     private final Map<Integer, FxSet> sessions = new HashMap<>();
     private SharedPreferences prefs;
+    private AudioManager audioManager;
+    private AudioDeviceCallback deviceCallback;
 
     @Override
     public void onCreate() {
         super.onCreate();
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         createNotificationChannel();
+        registerDeviceWatcher();
     }
 
     @Override
@@ -63,22 +71,11 @@ public class BassService extends Service {
         prefs.edit().putBoolean("engine_enabled", true).apply();
 
         if (ACTION_MAX_CLEAN.equals(action)) {
-            prefs.edit()
-                    .putString("curve", "12,12,10,6,1,0,0,1,2,2")
-                    .putInt("bass", 100)
-                    .putInt("loudness", 34)
-                    .putInt("sub", 100)
-                    .putInt("punch", 88)
-                    .putInt("width", 22)
-                    .putInt("clarity", 88)
-                    .putInt("treble", 54)
-                    .putInt("sub_focus", 34)
-                    .putInt("punch_focus", 48)
-                    .putInt("vocal", 78)
-                    .putBoolean("dynamic_bass", true)
-                    .putBoolean("auto_gain", true)
-                    .putInt("quality", 2)
-                    .apply();
+            applyPreset(0);
+        } else if (ACTION_NEXT_PRESET.equals(action)) {
+            int next = (prefs.getInt("cycle_index", 0) + 1) % 5;
+            prefs.edit().putInt("cycle_index", next).apply();
+            applyPreset(next);
         }
 
         if (ACTION_CLOSE_SESSION.equals(action)) {
@@ -117,6 +114,12 @@ public class BassService extends Service {
                 this, 1, maxCleanIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
+        Intent nextIntent = new Intent(this, BassService.class);
+        nextIntent.setAction(ACTION_NEXT_PRESET);
+        PendingIntent nextPi = PendingIntent.getService(
+                this, 3, nextIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
         Intent stopIntent = new Intent(this, BassService.class);
         stopIntent.setAction(ACTION_STOP);
         PendingIntent stopPi = PendingIntent.getService(
@@ -130,6 +133,8 @@ public class BassService extends Service {
                 .setContentIntent(pi)
                 .addAction(new Notification.Action.Builder(
                         null, "MAX CLEAN", maxCleanPi).build())
+                .addAction(new Notification.Action.Builder(
+                        null, "NEXT", nextPi).build())
                 .addAction(new Notification.Action.Builder(
                         null, "OFF", stopPi).build())
                 .setOngoing(true)
@@ -171,11 +176,84 @@ public class BassService extends Service {
         boolean dynamicBass = prefs.getBoolean("dynamic_bass", true);
         boolean autoGain = prefs.getBoolean("auto_gain", true);
         int quality = prefs.getInt("quality", 1);
+        int intensity = prefs.getInt("intensity", 100);
+        int warmth = prefs.getInt("warmth", 35);
+        int presence = prefs.getInt("presence", 40);
+        int lowMidCut = prefs.getInt("low_mid_cut", 35);
+        int gainCeiling = prefs.getInt("gain_ceiling", 5);
 
         for (FxSet fx : sessions.values()) {
             fx.apply(curve, bass, loudness, sub, punch, width, clarity,
-                    treble, subFocus, punchFocus, vocal, dynamicBass, autoGain, quality);
+                    treble, subFocus, punchFocus, vocal, dynamicBass, autoGain, quality,
+                    intensity, warmth, presence, lowMidCut, gainCeiling);
         }
+    }
+
+    private void applyPreset(int index) {
+        SharedPreferences.Editor e = prefs.edit();
+        switch (index) {
+            case 1: // CLUB
+                e.putString("curve", "10,10,9,6,2,0,0,1,2,2")
+                        .putInt("bass", 92).putInt("sub", 82).putInt("punch", 90)
+                        .putInt("loudness", 28).putInt("clarity", 68).putInt("treble", 52)
+                        .putInt("vocal", 58).putInt("width", 28).putInt("quality", 2);
+                break;
+            case 2: // DEEP
+                e.putString("curve", "12,12,10,5,1,0,-1,0,1,1")
+                        .putInt("bass", 96).putInt("sub", 100).putInt("punch", 54)
+                        .putInt("loudness", 22).putInt("clarity", 84).putInt("treble", 48)
+                        .putInt("vocal", 72).putInt("width", 18).putInt("quality", 1);
+                break;
+            case 3: // GAMING
+                e.putString("curve", "5,5,4,2,0,1,2,3,3,2")
+                        .putInt("bass", 58).putInt("sub", 44).putInt("punch", 66)
+                        .putInt("loudness", 18).putInt("clarity", 92).putInt("treble", 72)
+                        .putInt("vocal", 82).putInt("width", 44).putInt("quality", 1);
+                break;
+            case 4: // NIGHT
+                e.putString("curve", "5,5,4,2,1,0,0,1,1,1")
+                        .putInt("bass", 58).putInt("sub", 50).putInt("punch", 40)
+                        .putInt("loudness", 10).putInt("clarity", 78).putInt("treble", 42)
+                        .putInt("vocal", 70).putInt("width", 16).putInt("quality", 0);
+                break;
+            default: // MAX CLEAN
+                e.putString("curve", "12,12,10,6,1,0,0,1,2,2")
+                        .putInt("bass", 100).putInt("sub", 100).putInt("punch", 88)
+                        .putInt("loudness", 34).putInt("clarity", 88).putInt("treble", 54)
+                        .putInt("vocal", 78).putInt("width", 22).putInt("quality", 2);
+                break;
+        }
+        e.putInt("sub_focus", 34).putInt("punch_focus", 48)
+                .putBoolean("dynamic_bass", true).putBoolean("auto_gain", true)
+                .putInt("intensity", 100).putInt("warmth", 35)
+                .putInt("presence", 42).putInt("low_mid_cut", 42).putInt("gain_ceiling", 5)
+                .apply();
+    }
+
+    private void registerDeviceWatcher() {
+        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audioManager == null || Build.VERSION.SDK_INT < 23) return;
+        deviceCallback = new AudioDeviceCallback() {
+            @Override
+            public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+                if (!prefs.getBoolean("auto_profile", false) || addedDevices == null) return;
+                for (AudioDeviceInfo d : addedDevices) {
+                    int type = d.getType();
+                    if (type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+                            || type == AudioDeviceInfo.TYPE_WIRED_HEADSET
+                            || type == AudioDeviceInfo.TYPE_USB_HEADSET
+                            || type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) {
+                        prefs.edit().putInt("width", 26).putInt("clarity", 82)
+                                .putInt("vocal", 72).putInt("treble", 50).apply();
+                    } else if (type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                        prefs.edit().putInt("width", 6).putInt("sub_focus", 68)
+                                .putInt("punch_focus", 62).putInt("clarity", 76).apply();
+                    }
+                }
+                applyAll();
+            }
+        };
+        audioManager.registerAudioDeviceCallback(deviceCallback, new Handler(getMainLooper()));
     }
 
     private int[] readCurve() {
@@ -219,6 +297,11 @@ public class BassService extends Service {
     @Override
     public void onDestroy() {
         releaseAll();
+        try {
+            if (audioManager != null && deviceCallback != null && Build.VERSION.SDK_INT >= 23) {
+                audioManager.unregisterAudioDeviceCallback(deviceCallback);
+            }
+        } catch (Throwable ignored) {}
         super.onDestroy();
     }
 
@@ -282,6 +365,27 @@ public class BassService extends Service {
         return 0f;
     }
 
+    private static float warmthDb(int hz, int warmth) {
+        float amount = warmth / 100f;
+        if (hz >= 120 && hz <= 250) return 1.7f * amount;
+        if (hz > 250 && hz <= 500) return 1.0f * amount;
+        return 0f;
+    }
+
+    private static float presenceDb(int hz, int presence) {
+        float amount = presence / 100f;
+        if (hz >= 1200 && hz <= 2800) return 1.5f * amount;
+        if (hz > 2800 && hz <= 5200) return 1.0f * amount;
+        return 0f;
+    }
+
+    private static float lowMidCutDb(int hz, int cut) {
+        float amount = cut / 100f;
+        if (hz >= 180 && hz <= 350) return -2.1f * amount;
+        if (hz > 350 && hz <= 700) return -1.2f * amount;
+        return 0f;
+    }
+
     // Premium contour: reduce low-mid mud while restoring a little definition.
     // This keeps strong bass from masking vocals and percussion.
     private static float clarityContourDb(int hz, int clarity) {
@@ -338,7 +442,8 @@ public class BassService extends Service {
 
         void apply(int[] curve, int bass, int loudness, int sub, int punch, int width, int clarity,
                    int treble, int subFocus, int punchFocus, int vocal,
-                   boolean dynamicBass, boolean autoGain, int quality) {
+                   boolean dynamicBass, boolean autoGain, int quality,
+                   int intensity, int warmth, int presence, int lowMidCut, int gainCeiling) {
             float rawMax = 0f;
             for (int v : curve) rawMax = Math.max(rawMax, v);
             float effectiveMax = rawMax
@@ -359,13 +464,16 @@ public class BassService extends Service {
 
                     for (short b = 0; b < bands; b++) {
                         int hz = equalizer.getCenterFreq(b) / 1000;
-                        float wantedDb = interpolatedDb(hz, curve)
+                        float shapedDb = interpolatedDb(hz, curve)
                                 + subExtraDb(hz, sub, subFocus, dynamicBass, quality)
                                 + punchExtraDb(hz, punch, punchFocus, quality)
                                 + clarityContourDb(hz, clarity)
                                 + trebleAirDb(hz, treble)
                                 + vocalProtectDb(hz, vocal)
-                                - headroomDb;
+                                + warmthDb(hz, warmth)
+                                + presenceDb(hz, presence)
+                                + lowMidCutDb(hz, lowMidCut);
+                        float wantedDb = shapedDb * (clamp(intensity, 50, 150) / 100f) - headroomDb;
 
                         int levelMb = Math.round(wantedDb * 100f);
                         levelMb = clamp(levelMb, range[0], range[1]);
@@ -407,9 +515,9 @@ public class BassService extends Service {
                     int qualityPenalty = quality >= 3 ? 45 : quality == 2 ? 20 : 0;
                     int targetMb = userGainMb + bassLinkedMb - overloadPenaltyMb - qualityPenalty;
 
-                    // REDLINE limiter ceiling. This protects digital headroom; it is not
-                    // a hearing-safety volume limiter.
-                    targetMb = clamp(targetMb, 0, 620);
+                    // Configurable digital gain ceiling (0..6 dB).
+                    int ceilingMb = clamp(gainCeiling, 0, 6) * 100;
+                    targetMb = clamp(targetMb, 0, ceilingMb);
                     loudnessEnhancer.setTargetGain(targetMb);
                 } catch (Throwable ignored) {
                 }
