@@ -1,5 +1,6 @@
 extends Control
 
+const AppConfigRef = preload("res://scripts/app_config.gd")
 const GameDataRef = preload("res://scripts/game_data.gd")
 const EmpireStateRef = preload("res://scripts/game_state.gd")
 const RankedDataRef = preload("res://scripts/ranked_data.gd")
@@ -13,7 +14,7 @@ const MatchVisualizerRef = preload("res://scripts/match_visualizer.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 
 var game: EmpireStateRef
-var current_page := "home"
+var current_page := AppConfigRef.DEFAULT_PAGE
 var shell: VBoxContainer
 var page_scroll: ScrollContainer
 var page_content: VBoxContainer
@@ -55,7 +56,7 @@ func _ready() -> void:
 	game = EmpireStateRef.new()
 	var offline: Dictionary = game.load_game()
 	_build_shell()
-	_show_page("home", false)
+	_show_page(AppConfigRef.DEFAULT_PAGE, false)
 	if int(offline.get("seconds", 0)) >= 60 and (int(offline.get("cash", 0)) > 0 or int(offline.get("fans", 0)) > 0):
 		call_deferred("_show_offline_message", offline)
 
@@ -143,8 +144,8 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge("ALPHA 0.6", UI.PURPLE)
-	version_badge.custom_minimum_size.x = 84
+	var version_badge := UI.badge(AppConfigRef.VERSION_BADGE, UI.PURPLE)
+	version_badge.custom_minimum_size.x = 94
 	brand_row.add_child(version_badge)
 
 	var stats := HBoxContainer.new()
@@ -200,13 +201,7 @@ func _build_bottom_navigation() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 5)
 	margin.add_child(row)
-	var entries := [
-		["home", "HOME", "01"],
-		["team", "TEAM", "02"],
-		["play", "PLAY", "03"],
-		["market", "SCOUT", "04"],
-		["empire", "EMPIRE", "05"],
-	]
+	var entries := AppConfigRef.NAV_ENTRIES
 	for entry in entries:
 		var button := Button.new()
 		button.text = "%s\n%s" % [entry[2], entry[1]]
