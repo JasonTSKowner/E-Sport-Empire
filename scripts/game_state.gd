@@ -11,6 +11,9 @@ const CareerDataRef = preload("res://scripts/career_data.gd")
 const DynastyDataRef = preload("res://scripts/dynasty_data.gd")
 const FATIGUE_RECOVERY_INTERVAL_SECONDS := 60
 const SEASON_MATCH_LIMIT := 36
+const TRAINING_SESSION_LIMIT := 3
+const TRAINING_WINDOW_SECONDS := 20 * 60
+const TRAINING_FATIGUE_LIMIT := 80
 
 const MATCH_ACTIONS := [
 	{
@@ -1019,6 +1022,42 @@ func development_programs() -> Array:
 	return DevelopmentDataRef.TRAINING_PROGRAMS.duplicate(true)
 
 
+func training_readiness(player: Dictionary) -> Dictionary:
+	var now := real_time_now()
+	var recent_timestamps: Array[int] = []
+	for entry_value in player.get("training_history", []):
+		var entry: Dictionary = entry_value
+		if str(entry.get("kind", "")) != "training":
+			continue
+		var timestamp := int(entry.get("timestamp", 0))
+		if timestamp <= 0:
+			continue
+		if maxi(0, now - timestamp) < TRAINING_WINDOW_SECONDS:
+			recent_timestamps.append(timestamp)
+	recent_timestamps.sort()
+	var sessions_used := recent_timestamps.size()
+	var slots_remaining := maxi(0, TRAINING_SESSION_LIMIT - sessions_used)
+	var fatigue := int(player.get("fatigue", 0))
+	var fatigue_blocked := fatigue >= TRAINING_FATIGUE_LIMIT
+	var seconds_until_slot := 0
+	if slots_remaining <= 0 and not recent_timestamps.is_empty():
+		seconds_until_slot = maxi(
+			1,
+			int(recent_timestamps[0]) + TRAINING_WINDOW_SECONDS - now
+		)
+	return {
+		"ok": slots_remaining > 0 and not fatigue_blocked,
+		"sessions_used": sessions_used,
+		"slots_remaining": slots_remaining,
+		"limit": TRAINING_SESSION_LIMIT,
+		"window_seconds": TRAINING_WINDOW_SECONDS,
+		"seconds_until_slot": seconds_until_slot,
+		"fatigue": fatigue,
+		"fatigue_limit": TRAINING_FATIGUE_LIMIT,
+		"fatigue_blocked": fatigue_blocked,
+	}
+
+
 func training_cost(player: Dictionary, program_id: String = "mechanics_lab") -> int:
 	var program := DevelopmentDataRef.program(program_id)
 	if program.is_empty():
@@ -1070,6 +1109,25 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 	var program := DevelopmentDataRef.program(program_id)
 	if program.is_empty():
 		return {"ok": false, "message": "Unknown development program."}
+	var readiness := training_readiness(player)
+	if not bool(readiness.get("ok", false)):
+		if bool(readiness.get("fatigue_blocked", false)):
+			return {
+				"ok": false,
+				"message": "%s is too fatigued for focused training. Fatigue must drop below %d."
+				% [str(player.get("name", "Player")), TRAINING_FATIGUE_LIMIT],
+				"readiness": readiness,
+			}
+		var wait_minutes := maxi(
+			1,
+			int(ceil(float(readiness.get("seconds_until_slot", 60)) / 60.0))
+		)
+		return {
+			"ok": false,
+			"message": "Focused training limit reached. Next session opens in about %d min."
+			% wait_minutes,
+			"readiness": readiness,
+		}
 	var cost := training_cost(player, program_id)
 	if int(data["cash"]) < cost:
 		return {
@@ -1161,6 +1219,7 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 		"breakthrough_chance": breakthrough_chance,
 		"unlocked_mechanics": new_mechanics,
 		"career": career_reward,
+		"readiness": training_readiness(player),
 	}
 
 
