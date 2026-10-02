@@ -1,4 +1,4 @@
-name: Build BassForge EQ V3.2 Icon APK
+name: Build BassForge EQ V4 REDLINE APK
 
 on:
   push:
@@ -49,15 +49,15 @@ jobs:
         run: |
           APK="bassforge/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          cp "$APK" "BassForge-EQ-v3.2-Icon.apk"
-          ls -lh "BassForge-EQ-v3.2-Icon.apk"
+          cp "$APK" "BassForge-EQ-v4-REDLINE.apk"
+          ls -lh "BassForge-EQ-v4-REDLINE.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          "$APKSIGNER" verify --verbose "BassForge-EQ-v3.2-Icon.apk"
+          "$APKSIGNER" verify --verbose "BassForge-EQ-v4-REDLINE.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BassForge-EQ-v3.2-Icon-APK
-          path: BassForge-EQ-v3.2-Icon.apk
+          name: BassForge-EQ-v4-REDLINE-APK
+          path: BassForge-EQ-v4-REDLINE.apk
           if-no-files-found: error
           retention-days: 7
