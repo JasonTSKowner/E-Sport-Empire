@@ -2,7 +2,7 @@ package com.bassforge.eq;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.ColorStateList;
+import android.content.res.ColorStateList;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
