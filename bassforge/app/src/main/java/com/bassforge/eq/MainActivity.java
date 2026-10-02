@@ -666,8 +666,8 @@ public class MainActivity extends Activity {
         LinearLayout asText = new LinearLayout(this);
         asText.setOrientation(LinearLayout.VERTICAL);
         autoStartCard.addView(asText, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        asText.addView(text("START AFTER REBOOT", 14, TEXT, true));
-        asText.addView(text("Restarts BassForge automatically after your phone boots", 11, MUTED, false), marginTop(2));
+        asText.addView(text("BOOT RESTART REMINDER", 14, TEXT, true));
+        asText.addView(text("Shows a tap-to-restart reminder after reboot on modern Android", 11, MUTED, false), marginTop(2));
         autoStartSwitch = new Switch(this);
         autoStartSwitch.setChecked(prefs.getBoolean("auto_start", false));
         autoStartCard.addView(autoStartSwitch);
@@ -1120,7 +1120,7 @@ public class MainActivity extends Activity {
                 "• Preset import from clipboard\n" +
                 "• Device/audio-effect diagnostics\n" +
                 "• Auto Device Profile\n" +
-                "• Start after reboot option\n" +
+                "• Boot restart reminder for Android 15+\n" +
                 "• Notification NEXT preset control\n" +
                 "• 5-preset notification cycle\n" +
                 "• Device-aware headphone/speaker tuning\n" +
