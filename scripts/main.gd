@@ -11,6 +11,8 @@ const CareerDataRef = preload("res://scripts/career_data.gd")
 const DynastyDataRef = preload("res://scripts/dynasty_data.gd")
 const MMRGraphRef = preload("res://scripts/mmr_graph.gd")
 const MatchVisualizerRef = preload("res://scripts/match_visualizer.gd")
+const TrainingVisualizerRef = preload("res://scripts/training_visualizer.gd")
+const FX = preload("res://scripts/ui_fx.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 
 var game: EmpireStateRef
@@ -294,12 +296,7 @@ func _show_page(page: String, animate: bool = true) -> void:
 	_refresh_top_bar()
 	_refresh_nav()
 	if animate:
-		page_content.modulate.a = 0.0
-		page_content.position.x = 12.0
-		var tween := create_tween().set_parallel(true)
-		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(page_content, "modulate:a", 1.0, 0.18)
-		tween.tween_property(page_content, "position:x", 0.0, 0.22)
+		FX.reveal(page_content, Vector2(14, 4), 0.22)
 
 
 func _apply_scroll_passthrough(node: Node) -> void:
@@ -1140,6 +1137,11 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	ovr.add_child(ovr_cap)
 	top.add_child(ovr)
 
+	var training_readiness := game.training_readiness(player)
+	box.add_child(UI.overline("TRAINING GROUND  •  LIVE SESSION VIEW", accent))
+	var training_view := TrainingVisualizerRef.new()
+	training_view.configure(player, training_readiness, accent)
+	box.add_child(training_view)
 	box.add_child(_development_stat_grid(player))
 	box.add_child(_mechanics_arsenal(player, accent))
 	var status_row := HBoxContainer.new()
@@ -1151,7 +1153,6 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 			UI.GOLD if int(player["fatigue"]) < 65 else UI.RED
 		)
 	)
-	var training_readiness := game.training_readiness(player)
 	status_row.add_child(
 		UI.badge(
 			"FOCUS %d/%d"
@@ -2836,43 +2837,36 @@ func _chance_text(chance: float) -> String:
 func _start_match(mode: String) -> void:
 	if match_overlay != null and is_instance_valid(match_overlay):
 		return
-	match_interactive = mode == "Rocket League"
+	match_interactive = false
 	match_session = {}
-	match_result = {}
-	if match_interactive:
-		match_session = game.prepare_match(mode)
-		if match_session.is_empty() or not bool(match_session.get("ok", false)):
-			_show_message(str(match_session.get("message", "Matchmaking failed. Try again.")), false)
-			return
-	else:
-		match_result = game.create_match(mode)
-		if match_result.is_empty() or not bool(match_result.get("ok", false)):
-			_show_message(str(match_result.get("message", "Matchmaking failed. Try again.")), false)
-			return
-		var events: Array = match_result.get("events", [])
-		if events.is_empty():
-			_show_message("Match data did not load. Try again.", false)
-			return
+	match_result = game.create_match(mode)
+	if match_result.is_empty() or not bool(match_result.get("ok", false)):
+		_show_message(str(match_result.get("message", "Matchmaking failed. Try again.")), false)
+		return
+	var events: Array = match_result.get("events", [])
+	if events.is_empty():
+		_show_message("Match data did not load. Try again.", false)
+		return
 	match_event_index = 0
 	match_speed = 1
 	match_finished = false
 	match_decision_locked = false
 	_build_match_overlay()
 	_refresh_top_bar()
-	if match_interactive:
-		call_deferred("_present_match_decision")
-	else:
-		call_deferred("_begin_match_playback")
+	call_deferred("_begin_match_playback")
 
 
 func _start_pro_circuit_match() -> void:
 	if match_overlay != null and is_instance_valid(match_overlay):
 		return
-	match_interactive = true
-	match_session = game.prepare_pro_circuit_match()
-	match_result = {}
-	if match_session.is_empty() or not bool(match_session.get("ok", false)):
-		_show_message(str(match_session.get("message", "The tournament server could not be prepared.")), false)
+	match_interactive = false
+	match_session = {}
+	match_result = game.create_pro_circuit_match()
+	if match_result.is_empty() or not bool(match_result.get("ok", false)):
+		_show_message(str(match_result.get("message", "The tournament match could not be simulated.")), false)
+		return
+	if match_result.get("events", []).is_empty():
+		_show_message("Tournament match data did not load.", false)
 		return
 	match_event_index = 0
 	match_speed = 1
@@ -2880,7 +2874,7 @@ func _start_pro_circuit_match() -> void:
 	match_decision_locked = false
 	_build_match_overlay()
 	_refresh_top_bar()
-	call_deferred("_present_match_decision")
+	call_deferred("_begin_match_playback")
 
 
 func _begin_match_playback() -> void:
@@ -2892,7 +2886,7 @@ func _begin_match_playback() -> void:
 
 
 func _build_match_overlay() -> void:
-	var source: Dictionary = match_session if match_interactive else match_result
+	var source: Dictionary = match_result
 	match_overlay = Control.new()
 	match_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	match_overlay.modulate.a = 0.0
@@ -2925,15 +2919,16 @@ func _build_match_overlay() -> void:
 	var mode := str(source["mode"])
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var is_circuit := str(source.get("competition", "ranked")) == "pro_circuit"
+	var circuit_data: Dictionary = source.get("circuit", {})
 	var header_row := HBoxContainer.new()
-	var live_label := "PRO CIRCUIT LIVE" if is_circuit else "TACTICAL MATCH" if match_interactive else "STREAM LIVE" if bool(source.get("streaming", false)) else "LIVE MATCH"
+	var live_label := "PRO CIRCUIT LIVE" if is_circuit else "STREAM LIVE" if bool(source.get("streaming", false)) else "RANKED LIVE"
 	header_row.add_child(UI.overline(("%s  •  %s" % [live_label, str(source.get("format", "RANKED"))]), accent))
 	var head_spacer := Control.new()
 	head_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(head_spacer)
 	header_row.add_child(
 		UI.badge(
-			game.circuit_round_name(int(source.get("circuit_stage", 0))) if is_circuit else "MAKE THE CALL" if match_interactive else ("%d VIEWERS" % int(source.get("stream_viewers", 0))) if bool(source.get("streaming", false)) else "RANKED",
+			str(circuit_data.get("round", "PRO CIRCUIT")) if is_circuit else ("%d VIEWERS" % int(source.get("stream_viewers", 0))) if bool(source.get("streaming", false)) else "AUTO SIM",
 			accent
 		)
 	)
@@ -2942,7 +2937,7 @@ func _build_match_overlay() -> void:
 	var opponent_profile: Dictionary = source.get("opponent_profile", {})
 	layout.add_child(
 		UI.badge(
-			"PRE-MATCH WIN ESTIMATE %s  •  %s"
+			"SCOUT MODEL %s  •  %s"
 			% [
 				_chance_text(float(source.get("estimated_win_chance", 0.5))),
 				str(opponent_profile.get("label", "NORMAL MATCH")),
@@ -2963,22 +2958,16 @@ func _build_match_overlay() -> void:
 		"TSK                    %s" % str(source["opponent"]).to_upper(), 10, accent, 800
 	)
 	team_names.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var progress_max := 6 if match_interactive else int(source.get("events", []).size())
+	var progress_max := maxi(1, int(source.get("events", []).size()))
 	match_progress = UI.progress(0, progress_max, accent, 7)
 	score_box.add_child(match_clock_label)
 	score_box.add_child(match_score_label)
 	score_box.add_child(team_names)
 	score_box.add_child(match_progress)
-	if match_interactive:
-		match_boost_label = UI.label("TACTICAL BOOST  •  %d / 100" % int(source.get("boost", 45)), 10, UI.CYAN, 800)
-		match_boost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		match_boost_bar = UI.progress(int(source.get("boost", 45)), 100, UI.CYAN, 5)
-		score_box.add_child(match_boost_label)
-		score_box.add_child(match_boost_bar)
 	layout.add_child(scoreboard)
 	match_visualizer = null
-	if match_interactive and mode == "Rocket League":
-		layout.add_child(UI.overline("LIVE ARENA  •  MOMENTUM CHANGES ODDS BY UP TO ±3pp", UI.CYAN))
+	if mode == "Rocket League":
+		layout.add_child(UI.overline("LIVE ARENA  •  TOP-DOWN AUTO SIMULATION", UI.CYAN))
 		match_visualizer = MatchVisualizerRef.new()
 		match_visualizer.configure(source)
 		layout.add_child(match_visualizer)
@@ -2990,19 +2979,15 @@ func _build_match_overlay() -> void:
 	event_panel.add_child(match_event_label)
 	layout.add_child(event_panel)
 
-	if match_interactive:
-		match_decision_box = VBoxContainer.new()
-		match_decision_box.add_theme_constant_override("separation", 8)
-		layout.add_child(match_decision_box)
-	else:
-		var speed_row := HBoxContainer.new()
-		speed_row.add_theme_constant_override("separation", 8)
-		for speed in [1, 2, 4]:
-			var speed_button := UI.button("%dx" % speed, accent, speed == 1, true)
-			speed_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			speed_button.pressed.connect(_set_match_speed.bind(speed))
-			speed_row.add_child(speed_button)
-		layout.add_child(speed_row)
+	match_decision_box = null
+	var speed_row := HBoxContainer.new()
+	speed_row.add_theme_constant_override("separation", 8)
+	for speed in [1, 2, 4]:
+		var speed_button := UI.button("%dx" % speed, accent, speed == 1, true)
+		speed_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		speed_button.pressed.connect(_set_match_speed.bind(speed))
+		speed_row.add_child(speed_button)
+	layout.add_child(speed_row)
 	layout.add_child(UI.overline("MATCH FEED", UI.MUTED))
 	var feed_panel := UI.card()
 	match_log_box = VBoxContainer.new()
@@ -3021,14 +3006,12 @@ func _build_match_overlay() -> void:
 	match_continue_button.pressed.connect(_close_match)
 	layout.add_child(match_continue_button)
 
-	match_timer = null
-	if not match_interactive:
-		match_timer = Timer.new()
-		match_timer.wait_time = 0.72
-		match_timer.one_shot = false
-		match_timer.process_callback = Timer.TIMER_PROCESS_IDLE
-		match_timer.timeout.connect(_advance_match)
-		match_overlay.add_child(match_timer)
+	match_timer = Timer.new()
+	match_timer.wait_time = 0.82
+	match_timer.one_shot = false
+	match_timer.process_callback = Timer.TIMER_PROCESS_IDLE
+	match_timer.timeout.connect(_advance_match)
+	match_overlay.add_child(match_timer)
 	_apply_scroll_passthrough(layout)
 	var tween := create_tween()
 	tween.tween_property(match_overlay, "modulate:a", 1.0, 0.22)
@@ -3170,7 +3153,7 @@ func _choose_match_action(action: String) -> void:
 
 
 func _set_match_speed(speed: int) -> void:
-	if match_finished or match_interactive:
+	if match_finished:
 		return
 	match_speed = speed
 	if match_timer != null:
@@ -3179,15 +3162,23 @@ func _set_match_speed(speed: int) -> void:
 
 
 func _advance_match() -> void:
-	if match_finished or match_interactive:
+	if match_finished:
 		return
 	var events: Array = match_result["events"]
 	if match_event_index >= events.size():
 		_finish_match_animation()
 		return
 	var event: Dictionary = events[match_event_index]
+	if match_visualizer != null and is_instance_valid(match_visualizer):
+		match_visualizer.play_turn(
+			event,
+			str(event.get("call", "control")),
+			int(event.get("quality", 0)),
+			int(event.get("momentum", 0))
+		)
 	_append_match_event(event)
 	match_progress.value = match_event_index + 1
+	FX.pulse(match_score_label, 1.025, 0.16)
 
 	var live_chat: Array = match_result.get("live_chat", [])
 	if bool(match_result.get("streaming", false)) and match_event_index < live_chat.size():
@@ -3262,7 +3253,7 @@ func _finish_match_animation() -> void:
 	result_panel.add_child(result_box)
 	result_box.add_child(
 		UI.badge(
-			"PLACEMENT COMPLETE  •  RANK REVEAL" if rank_reveal else "%s  •  MATCH COMPLETE" % game.circuit_round_name(int(match_session.get("circuit_stage", 0))) if is_circuit else "MATCH COMPLETE",
+			"PLACEMENT COMPLETE  •  RANK REVEAL" if rank_reveal else "%s  •  MATCH COMPLETE" % str(match_result.get("circuit", {}).get("round", "PRO CIRCUIT")) if is_circuit else "MATCH COMPLETE",
 			UI.GOLD if rank_reveal else accent
 		)
 	)
@@ -3285,11 +3276,6 @@ func _finish_match_animation() -> void:
 	opponent_row.add_child(_metric_block("OPPONENT", str(match_result.get("opponent", "Unknown")), UI.PURPLE))
 	opponent_row.add_child(_metric_block("OPP MMR", "EVENT SEED" if is_circuit else str(int(match_result.get("opponent_mmr", 0))) if show_rating else "HIDDEN", UI.PURPLE))
 	result_box.add_child(opponent_row)
-	if is_rocket_league:
-		var tactical_row := HBoxContainer.new()
-		tactical_row.add_child(_metric_block("TACTICAL GRADE", str(match_result.get("tactical_grade", "C")), UI.CYAN))
-		tactical_row.add_child(_metric_block("READ SCORE", "%+d" % int(match_result.get("decision_score", 0)), UI.GOLD))
-		result_box.add_child(tactical_row)
 	var career_row := HBoxContainer.new()
 	career_row.add_child(
 		_metric_block("CAREER XP", "+%d" % int(match_result.get("career_xp", 0)), UI.GOLD)
@@ -3325,6 +3311,8 @@ func _finish_match_animation() -> void:
 			rivalry_text += "  •  +%d RIVAL FANS" % int(match_result.get("rival_bonus_fans", 0))
 		result_box.add_child(UI.badge(rivalry_text, UI.RED))
 	match_result_box.add_child(result_panel)
+	FX.reveal(result_panel, Vector2(0, 18), 0.26)
+	FX.flash(match_event_label, accent, 0.34)
 
 	if is_rocket_league:
 		match_result_box.add_child(_post_match_stats_card())
