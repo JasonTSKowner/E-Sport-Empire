@@ -47,8 +47,8 @@ public class BootReceiver extends BroadcastReceiver {
 
             Notification n = b
                     .setSmallIcon(android.R.drawable.ic_media_play)
-                    .setContentTitle("BassForge EQ V5")
-                    .setContentText("Tap to restart the OVERDRIVE audio engine")
+                    .setContentTitle("BassForge EQ V6")
+                    .setContentText("Tap to restart the SONIC CORE audio engine")
                     .setContentIntent(pi)
                     .setAutoCancel(true)
                     .build();
