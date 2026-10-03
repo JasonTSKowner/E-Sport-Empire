@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
     private SeekBar presenceBar;
     private SeekBar lowMidCutBar;
     private SeekBar gainCeilingBar;
+    private SeekBar sonicStrengthBar;
     private TextView bassValue;
     private TextView loudnessValue;
     private TextView subValue;
@@ -79,10 +80,13 @@ public class MainActivity extends Activity {
     private TextView presenceValue;
     private TextView lowMidCutValue;
     private TextView gainCeilingValue;
+    private TextView sonicStrengthValue;
     private Switch dynamicBassSwitch;
     private Switch autoGainSwitch;
     private Switch autoProfileSwitch;
     private Switch autoStartSwitch;
+    private final List<Switch> qualitySwitches = new ArrayList<>();
+    private final List<String> qualitySwitchKeys = new ArrayList<>();
     private TextView statusText;
     private Switch powerSwitch;
     private boolean buildingUi = true;
@@ -99,6 +103,7 @@ public class MainActivity extends Activity {
         w.setNavigationBarColor(BG);
 
         prefs = getSharedPreferences(BassService.PREFS, MODE_PRIVATE);
+        initV6Defaults();
         loadState();
 
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -140,7 +145,7 @@ public class MainActivity extends Activity {
         brand.setLetterSpacing(0.08f);
         root.addView(brand);
 
-        TextView subtitle = text("OVERDRIVE AUDIO SYSTEM  •  V5", 12, ACCENT, true);
+        TextView subtitle = text("SONIC CORE AUDIO ENGINE  •  V6", 12, ACCENT, true);
         subtitle.setLetterSpacing(0.14f);
         root.addView(subtitle, marginTop(2));
 
@@ -368,6 +373,50 @@ public class MainActivity extends Activity {
             prefs.edit().putInt("loudness", v).apply();
             queueUpdate();
         }));
+
+        sectionTitle(root, "SONIC CORE • AUTO QUALITY");
+
+        LinearLayout sonicCard = card();
+        sonicCard.setOrientation(LinearLayout.VERTICAL);
+        sonicCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(sonicCard, marginTop(8));
+
+        LinearLayout sonicHeader = new LinearLayout(this);
+        sonicHeader.setOrientation(LinearLayout.HORIZONTAL);
+        sonicHeader.setGravity(Gravity.CENTER_VERTICAL);
+        TextView sonicTitle = text("QUALITY ENGINE STRENGTH", 15, TEXT, true);
+        sonicHeader.addView(sonicTitle, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        sonicStrengthValue = text("78%", 14, ACCENT, true);
+        sonicHeader.addView(sonicStrengthValue);
+        sonicCard.addView(sonicHeader);
+        sonicCard.addView(text("Automatically tightens bass, restores clarity and protects digital headroom", 12, MUTED, false), marginTop(3));
+
+        sonicStrengthBar = seek(0, 100);
+        sonicStrengthBar.setProgress(prefs.getInt("sonic_strength", 78));
+        sonicCard.addView(sonicStrengthBar, marginTop(9));
+        sonicStrengthBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            sonicStrengthValue.setText(v + "%");
+            prefs.edit().putInt("sonic_strength", v).apply();
+            queueUpdate();
+        }));
+
+        HorizontalScrollView sonicActions = new HorizontalScrollView(this);
+        sonicActions.setHorizontalScrollBarEnabled(false);
+        LinearLayout sonicActionRow = new LinearLayout(this);
+        sonicActionRow.setOrientation(LinearLayout.HORIZONTAL);
+        sonicActions.addView(sonicActionRow);
+        root.addView(sonicActions, marginTop(8));
+        addActionButton(sonicActionRow, "AUTO QUALITY MAX", this::enableSonicCoreMax);
+        addActionButton(sonicActionRow, "QUALITY BALANCED", this::enableSonicCoreBalanced);
+
+        addQualitySwitch(root, "SONIC CORE", "Master automatic quality processing", "sonic_core");
+        addQualitySwitch(root, "CURVE SMOOTHING", "Smooths harsh EQ jumps between bands", "curve_smoothing");
+        addQualitySwitch(root, "AUTO ANTI-MUD", "Cleans 180–850 Hz more when bass is heavy", "auto_clean");
+        addQualitySwitch(root, "BASS DEFINITION", "Tightens the sub-to-midbass transition", "bass_definition");
+        addQualitySwitch(root, "CLARITY RESTORE", "Restores detail that strong bass can mask", "clarity_restore");
+        addQualitySwitch(root, "TRANSIENT FOCUS", "Adds cleaner kick attack and percussion definition", "transient_focus");
+        addQualitySwitch(root, "STEREO GUARD", "Reduces excessive width when low-end load is high", "stereo_guard");
+        addQualitySwitch(root, "ADAPTIVE HEADROOM", "Automatically creates more digital space at extreme settings", "adaptive_headroom");
 
         sectionTitle(root, "OVERDRIVE CONTROL");
 
@@ -831,6 +880,12 @@ public class MainActivity extends Activity {
         if (gainCeilingValue != null) gainCeilingValue.setText("+" + gainCeiling + " dB");
         if (autoProfileSwitch != null) autoProfileSwitch.setChecked(prefs.getBoolean("auto_profile", false));
         if (autoStartSwitch != null) autoStartSwitch.setChecked(prefs.getBoolean("auto_start", false));
+        int sonicStrength = prefs.getInt("sonic_strength", 78);
+        if (sonicStrengthBar != null) sonicStrengthBar.setProgress(sonicStrength);
+        if (sonicStrengthValue != null) sonicStrengthValue.setText(sonicStrength + "%");
+        for (int i = 0; i < qualitySwitches.size() && i < qualitySwitchKeys.size(); i++) {
+            qualitySwitches.get(i).setChecked(prefs.getBoolean(qualitySwitchKeys.get(i), true));
+        }
     }
 
     private void saveCurve() {
@@ -879,6 +934,89 @@ public class MainActivity extends Activity {
             statusText.setText(status);
             statusText.setTextColor(on ? GREEN : MUTED);
         }, 450);
+    }
+
+    private void initV6Defaults() {
+        if (prefs.getBoolean("v6_defaults_applied", false)) return;
+        prefs.edit()
+                .putBoolean("sonic_core", true)
+                .putInt("sonic_strength", 78)
+                .putBoolean("curve_smoothing", true)
+                .putBoolean("auto_clean", true)
+                .putBoolean("bass_definition", true)
+                .putBoolean("clarity_restore", true)
+                .putBoolean("transient_focus", true)
+                .putBoolean("stereo_guard", true)
+                .putBoolean("adaptive_headroom", true)
+                .putBoolean("auto_profile", true)
+                .putBoolean("auto_gain", true)
+                .putBoolean("dynamic_bass", true)
+                .putBoolean("v6_defaults_applied", true)
+                .apply();
+    }
+
+    private void addQualitySwitch(LinearLayout root, String title, String description, String key) {
+        LinearLayout qualityCard = card();
+        qualityCard.setOrientation(LinearLayout.HORIZONTAL);
+        qualityCard.setGravity(Gravity.CENTER_VERTICAL);
+        qualityCard.setPadding(dp(16), dp(13), dp(16), dp(13));
+        root.addView(qualityCard, marginTop(8));
+
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        qualityCard.addView(copy, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        copy.addView(text(title, 14, TEXT, true));
+        copy.addView(text(description, 11, MUTED, false), marginTop(2));
+
+        Switch sw = new Switch(this);
+        sw.setChecked(prefs.getBoolean(key, true));
+        qualityCard.addView(sw);
+        qualitySwitches.add(sw);
+        qualitySwitchKeys.add(key);
+
+        sw.setOnCheckedChangeListener((button, checked) -> {
+            if (buildingUi) return;
+            prefs.edit().putBoolean(key, checked).apply();
+            queueUpdate();
+        });
+    }
+
+    private void enableSonicCoreMax() {
+        prefs.edit()
+                .putBoolean("sonic_core", true)
+                .putInt("sonic_strength", 92)
+                .putBoolean("curve_smoothing", true)
+                .putBoolean("auto_clean", true)
+                .putBoolean("bass_definition", true)
+                .putBoolean("clarity_restore", true)
+                .putBoolean("transient_focus", true)
+                .putBoolean("stereo_guard", true)
+                .putBoolean("adaptive_headroom", true)
+                .putBoolean("auto_profile", true)
+                .putBoolean("auto_gain", true)
+                .putBoolean("dynamic_bass", true)
+                .apply();
+        refreshControls();
+        queueUpdate();
+        Toast.makeText(this, "SONIC CORE MAX enabled", Toast.LENGTH_SHORT).show();
+    }
+
+    private void enableSonicCoreBalanced() {
+        prefs.edit()
+                .putBoolean("sonic_core", true)
+                .putInt("sonic_strength", 72)
+                .putBoolean("curve_smoothing", true)
+                .putBoolean("auto_clean", true)
+                .putBoolean("bass_definition", true)
+                .putBoolean("clarity_restore", true)
+                .putBoolean("transient_focus", true)
+                .putBoolean("stereo_guard", true)
+                .putBoolean("adaptive_headroom", true)
+                .putBoolean("auto_gain", true)
+                .apply();
+        refreshControls();
+        queueUpdate();
+        Toast.makeText(this, "Balanced quality engine enabled", Toast.LENGTH_SHORT).show();
     }
 
     private static final String[] SNAPSHOT_KEYS = {
@@ -1108,6 +1246,25 @@ public class MainActivity extends Activity {
 
     private void showChangelog() {
         String log =
+                "V6 SONIC CORE\n" +
+                "• New automatic SONIC CORE quality engine\n" +
+                "• Enabled automatically after updating\n" +
+                "• Quality Engine Strength control\n" +
+                "• Curve Smoothing\n" +
+                "• Auto Anti-Mud processing\n" +
+                "• Automatic Bass Definition\n" +
+                "• Automatic Clarity Restore\n" +
+                "• Transient Focus\n" +
+                "• Stereo Guard\n" +
+                "• Adaptive Headroom\n" +
+                "• Auto Device Profile now enabled by default\n" +
+                "• Dynamic Bass + Auto Gain enabled by default\n" +
+                "• AUTO QUALITY MAX one-tap mode\n" +
+                "• QUALITY BALANCED one-tap mode\n" +
+                "• More controlled width at extreme low-end settings\n" +
+                "• Stronger anti-clipping behavior at extreme EQ levels\n" +
+                "• Smoother tonal transitions between EQ bands\n" +
+                "• Better detail retention with heavy bass\n\n" +
                 "V5 OVERDRIVE\n" +
                 "• Master Intensity 50–150%\n" +
                 "• Warmth control\n" +
