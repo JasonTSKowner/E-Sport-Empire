@@ -17,6 +17,7 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Handler;
 
 import java.util.HashMap;
@@ -43,6 +44,7 @@ public class BassService extends Service {
     private SharedPreferences prefs;
     private AudioManager audioManager;
     private AudioDeviceCallback deviceCallback;
+    private final Handler shutdownHandler = new Handler(Looper.getMainLooper());
 
     @Override
     public void onCreate() {
@@ -59,14 +61,24 @@ public class BassService extends Service {
         if (ACTION_STOP.equals(action)) {
             prefs.edit()
                     .putBoolean("engine_enabled", false)
-                    .putString("engine_status", "Engine off")
+                    .putString("engine_status", "Engine off • clean shutdown")
                     .apply();
-            releaseAll();
-            stopForeground(STOP_FOREGROUND_REMOVE);
-            stopSelf();
+
+            shutdownHandler.removeCallbacksAndMessages(null);
+            neutralizeAll();
+
+            // Give Android's audio stack a brief moment to apply the neutral state
+            // before the effects are detached. This avoids leaving some OEM audio
+            // pipelines sounding hollow, phasey or unusually thin after OFF.
+            shutdownHandler.postDelayed(() -> {
+                releaseAll();
+                stopForeground(STOP_FOREGROUND_REMOVE);
+                stopSelf();
+            }, 120L);
             return START_NOT_STICKY;
         }
 
+        shutdownHandler.removeCallbacksAndMessages(null);
         ensureForeground();
         prefs.edit().putBoolean("engine_enabled", true).apply();
 
@@ -298,7 +310,14 @@ public class BassService extends Service {
 
     private void releaseSession(int id) {
         FxSet fx = sessions.remove(id);
-        if (fx != null) fx.release();
+        if (fx != null) {
+            fx.neutralize();
+            fx.release();
+        }
+    }
+
+    private void neutralizeAll() {
+        for (FxSet fx : sessions.values()) fx.neutralize();
     }
 
     private void releaseAll() {
@@ -308,6 +327,8 @@ public class BassService extends Service {
 
     @Override
     public void onDestroy() {
+        shutdownHandler.removeCallbacksAndMessages(null);
+        neutralizeAll();
         releaseAll();
         try {
             if (audioManager != null && deviceCallback != null && Build.VERSION.SDK_INT >= 23) {
@@ -608,6 +629,41 @@ public class BassService extends Service {
                 } catch (Throwable ignored) {
                 }
             }
+        }
+
+        void neutralize() {
+            try {
+                if (equalizer != null) {
+                    short bands = equalizer.getNumberOfBands();
+                    short[] range = equalizer.getBandLevelRange();
+                    short zero = (short) clamp(0, range[0], range[1]);
+                    for (short b = 0; b < bands; b++) {
+                        equalizer.setBandLevel(b, zero);
+                    }
+                    equalizer.setEnabled(false);
+                }
+            } catch (Throwable ignored) {}
+
+            try {
+                if (bassBoost != null) {
+                    bassBoost.setStrength((short) 0);
+                    bassBoost.setEnabled(false);
+                }
+            } catch (Throwable ignored) {}
+
+            try {
+                if (loudnessEnhancer != null) {
+                    loudnessEnhancer.setTargetGain(0);
+                    loudnessEnhancer.setEnabled(false);
+                }
+            } catch (Throwable ignored) {}
+
+            try {
+                if (virtualizer != null) {
+                    virtualizer.setStrength((short) 0);
+                    virtualizer.setEnabled(false);
+                }
+            } catch (Throwable ignored) {}
         }
 
         void release() {
