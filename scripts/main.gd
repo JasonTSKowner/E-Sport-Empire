@@ -42,6 +42,10 @@ var match_event_label: Label
 var match_progress: ProgressBar
 var match_boost_label: Label
 var match_boost_bar: ProgressBar
+var match_shots_label: Label
+var match_saves_label: Label
+var match_pressure_label: Label
+var live_match_stats: Dictionary = {}
 var match_log_box: VBoxContainer
 var match_log_scroll: ScrollContainer
 var match_result_box: VBoxContainer
@@ -2851,6 +2855,11 @@ func _start_match(mode: String) -> void:
 	match_speed = 1
 	match_finished = false
 	match_decision_locked = false
+	live_match_stats = {
+		"shots_ours": 0, "shots_theirs": 0,
+		"saves_ours": 0, "saves_theirs": 0,
+		"pressure_ours": 0, "pressure_theirs": 0,
+	}
 	_build_match_overlay()
 	_refresh_top_bar()
 	call_deferred("_begin_match_playback")
@@ -2872,6 +2881,11 @@ func _start_pro_circuit_match() -> void:
 	match_speed = 1
 	match_finished = false
 	match_decision_locked = false
+	live_match_stats = {
+		"shots_ours": 0, "shots_theirs": 0,
+		"saves_ours": 0, "saves_theirs": 0,
+		"pressure_ours": 0, "pressure_theirs": 0,
+	}
 	_build_match_overlay()
 	_refresh_top_bar()
 	call_deferred("_begin_match_playback")
@@ -2964,6 +2978,18 @@ func _build_match_overlay() -> void:
 	score_box.add_child(match_score_label)
 	score_box.add_child(team_names)
 	score_box.add_child(match_progress)
+	var live_stats_row := HBoxContainer.new()
+	live_stats_row.add_theme_constant_override("separation", 7)
+	match_shots_label = UI.label("SHOTS  0 - 0", 10, UI.CYAN, 800)
+	match_shots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	match_saves_label = UI.label("SAVES  0 - 0", 10, UI.GREEN, 800)
+	match_saves_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	match_pressure_label = UI.label("PRESSURE  50 - 50", 10, UI.GOLD, 800)
+	match_pressure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	live_stats_row.add_child(match_shots_label)
+	live_stats_row.add_child(match_saves_label)
+	live_stats_row.add_child(match_pressure_label)
+	score_box.add_child(live_stats_row)
 	layout.add_child(scoreboard)
 	match_visualizer = null
 	if mode == "Rocket League":
@@ -3169,6 +3195,7 @@ func _advance_match() -> void:
 		_finish_match_animation()
 		return
 	var event: Dictionary = events[match_event_index]
+	_update_live_match_metrics(event)
 	if match_visualizer != null and is_instance_valid(match_visualizer):
 		match_visualizer.play_turn(
 			event,
@@ -3220,6 +3247,47 @@ func _append_match_event(event: Dictionary, feedback: String = "") -> void:
 	var tween := create_tween()
 	tween.tween_property(feed_row, "modulate:a", 1.0, 0.12)
 
+
+
+func _update_live_match_metrics(event: Dictionary) -> void:
+	var event_type := str(event.get("type", "neutral"))
+	var quality := int(event.get("quality", 0))
+	if event_type == "good":
+		live_match_stats["shots_ours"] = int(live_match_stats.get("shots_ours", 0)) + 1
+	elif event_type == "bad":
+		live_match_stats["shots_theirs"] = int(live_match_stats.get("shots_theirs", 0)) + 1
+	elif quality > 0:
+		live_match_stats["shots_ours"] = int(live_match_stats.get("shots_ours", 0)) + 1
+		live_match_stats["saves_theirs"] = int(live_match_stats.get("saves_theirs", 0)) + 1
+	elif quality < 0:
+		live_match_stats["shots_theirs"] = int(live_match_stats.get("shots_theirs", 0)) + 1
+		live_match_stats["saves_ours"] = int(live_match_stats.get("saves_ours", 0)) + 1
+
+	if quality > 0:
+		live_match_stats["pressure_ours"] = int(live_match_stats.get("pressure_ours", 0)) + 2
+	elif quality < 0:
+		live_match_stats["pressure_theirs"] = int(live_match_stats.get("pressure_theirs", 0)) + 2
+	else:
+		live_match_stats["pressure_ours"] = int(live_match_stats.get("pressure_ours", 0)) + 1
+		live_match_stats["pressure_theirs"] = int(live_match_stats.get("pressure_theirs", 0)) + 1
+
+	var ours_pressure := int(live_match_stats.get("pressure_ours", 0))
+	var theirs_pressure := int(live_match_stats.get("pressure_theirs", 0))
+	var total_pressure := maxi(1, ours_pressure + theirs_pressure)
+	var ours_percent := int(round(float(ours_pressure) / float(total_pressure) * 100.0))
+	var theirs_percent := 100 - ours_percent
+	if match_shots_label != null:
+		match_shots_label.text = "SHOTS  %d - %d" % [
+			int(live_match_stats.get("shots_ours", 0)),
+			int(live_match_stats.get("shots_theirs", 0)),
+		]
+	if match_saves_label != null:
+		match_saves_label.text = "SAVES  %d - %d" % [
+			int(live_match_stats.get("saves_ours", 0)),
+			int(live_match_stats.get("saves_theirs", 0)),
+		]
+	if match_pressure_label != null:
+		match_pressure_label.text = "PRESSURE  %d - %d" % [ours_percent, theirs_percent]
 
 
 func _scroll_match_feed_to_bottom() -> void:
