@@ -1,4 +1,4 @@
-name: Build BassForge EQ V6.0.1 STABLE APK
+name: Build BassForge EQ V6.0.2 Unsigned Release
 
 on:
   push:
@@ -40,30 +40,22 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      - name: Restore stable BassForge signing key
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: bassforge-stable-signing-v2
-
-      - name: Build debug APK
+      - name: Build unsigned release APK
         working-directory: bassforge
-        run: gradle --no-daemon :app:assembleDebug --stacktrace
+        run: gradle --no-daemon :app:assembleRelease --stacktrace
 
-      - name: Verify APK
+      - name: Collect unsigned APK
         shell: bash
         run: |
-          APK="bassforge/app/build/outputs/apk/debug/app-debug.apk"
+          APK="bassforge/app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$APK"
-          cp "$APK" "BassForge-EQ-v6.0.1-STABLE.apk"
-          ls -lh "BassForge-EQ-v6.0.1-STABLE.apk"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          "$APKSIGNER" verify --verbose --print-certs "BassForge-EQ-v6.0.1-STABLE.apk"
+          cp "$APK" "BassForge-EQ-v6.0.2-UNSIGNED.apk"
+          ls -lh "BassForge-EQ-v6.0.2-UNSIGNED.apk"
 
-      - name: Upload APK
+      - name: Upload unsigned APK
         uses: actions/upload-artifact@v4
         with:
-          name: BassForge-EQ-v6.0.1-STABLE-APK
-          path: BassForge-EQ-v6.0.1-STABLE.apk
+          name: BassForge-EQ-v6.0.2-UNSIGNED-APK
+          path: BassForge-EQ-v6.0.2-UNSIGNED.apk
           if-no-files-found: error
           retention-days: 7
