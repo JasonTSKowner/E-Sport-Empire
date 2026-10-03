@@ -1,8 +1,8 @@
 # E-Sport Empire
 
-**v1.0 Foundation Rebuild — active development branch**
+**v1.1 UI & FX Overhaul — active development branch**
 
-The v1.0 branch keeps the proven career/ranked systems while rebuilding the project foundation for cleaner iteration, stronger mobile UX and safer automated releases.
+The v1 branch keeps the proven career/ranked systems while rebuilding presentation and flow: automatic stat-driven matches, top-down live arenas, animated training grounds, reusable motion FX and a cleaner mobile-first UI.
 
 A portrait-first Android esports career and organization game built with Godot 4. Start with zero cash, zero fans and only yourself as captain, then grow from solo ranked matches into a real esports organization.
 
@@ -19,8 +19,8 @@ A portrait-first Android esports career and organization game built with Godot 4
 - Dynamic player archetypes such as Mechanical Finisher, Defensive Anchor, Field General and Clutch Specialist
 - Independent Rocket League 1v1, 2v2 and 3v3 ratings with ten-match placements
 - All three ladders now seed at 100 MMR; existing v0.4.5 progress is rebased without deleting earned/lost points
-- Interactive Rocket League matches with six tactical reads, meaningful counter-calls and limited overtime
-- Match decisions display exact score, concede and no-goal percentages before every call
+- Automatic Rocket League match simulation driven by player attributes, boost management, club identity and opponent pressure
+- Top-down live match broadcast with automatic event playback, speed controls and no manual tactical decision prompts
 - Animated live arena with moving cars, ball sequences, goal flashes and a live momentum meter
 - Momentum reacts to reads, goals and readable repeats while changing visible odds by at most ±3 percentage points
 - Full post-match analytics for shots, saves, possession, perfect reads and final momentum
