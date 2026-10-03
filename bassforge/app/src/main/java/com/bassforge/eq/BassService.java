@@ -326,6 +326,10 @@ public class BassService extends Service {
         return Math.max(min, Math.min(max, value));
     }
 
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
     private static float interpolatedDb(int hz, int[] curve) {
         if (hz <= TARGET_FREQS[0]) return curve[0];
         if (hz >= TARGET_FREQS[TARGET_FREQS.length - 1]) return curve[curve.length - 1];
