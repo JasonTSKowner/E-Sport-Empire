@@ -10,8 +10,8 @@ android {
         applicationId "com.bassforge.eq"
         minSdk 23
         targetSdk 35
-        versionCode 12
-        versionName "6.0.3"
+        versionCode 13
+        versionName "6.1"
     }
 
     buildTypes {
