@@ -26,6 +26,7 @@ var reputation_label: Label
 var season_label: Label
 var clock_timer: Timer
 var nav_buttons: Dictionary = {}
+var header_snapshot: Dictionary = {"cash": "", "fans": "", "reputation": ""}
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_token := 0
@@ -244,15 +245,41 @@ func _build_toast() -> void:
 
 
 func _refresh_top_bar() -> void:
-	cash_label.text = GameDataRef.format_cash(int(game.data.get("cash", 0)))
-	fans_label.text = GameDataRef.format_number(int(game.data.get("fans", 0)))
-	reputation_label.text = str(int(game.data.get("reputation", 0)))
+	_set_header_value(
+		"cash",
+		cash_label,
+		GameDataRef.format_cash(int(game.data.get("cash", 0))),
+		UI.CYAN
+	)
+	_set_header_value(
+		"fans",
+		fans_label,
+		GameDataRef.format_number(int(game.data.get("fans", 0))),
+		UI.PURPLE
+	)
+	_set_header_value(
+		"reputation",
+		reputation_label,
+		str(int(game.data.get("reputation", 0))),
+		UI.GREEN
+	)
 	season_label.text = "S%d  •  MATCH %d/%d  •  %s" % [
 		int(game.data.get("season", 1)),
 		game.season_match_progress(),
 		EmpireStateRef.SEASON_MATCH_LIMIT,
 		game.real_time_label(),
 	]
+
+
+func _set_header_value(key: String, label: Label, value: String, accent: Color) -> void:
+	if label == null:
+		return
+	var previous := str(header_snapshot.get(key, ""))
+	label.text = value
+	if not previous.is_empty() and previous != value:
+		FX.pulse(label, 1.07, 0.22)
+		FX.flash(label, accent, 0.30)
+	header_snapshot[key] = value
 
 
 func _refresh_nav() -> void:
