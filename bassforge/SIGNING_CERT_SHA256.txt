@@ -1,4 +1,5 @@
 BassForge release signing certificate
-SHA-256: ab4e675d953f019b455c5e5116021715fe7b26b46391571a5e2583faaf52df98
+SHA-256: 588c774ef4606fce6d02ed33e0d3341d57ce56cbe9b308a2bb7ab6b9546bd6ad
 
 Public certificate fingerprint only. The private signing key is NOT stored in this public repository.
+Baseline: BassForge V6.1 Extreme Clean
