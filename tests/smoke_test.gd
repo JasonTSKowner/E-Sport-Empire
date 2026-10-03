@@ -30,7 +30,7 @@ func _run() -> void:
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
-	_check(AppConfigRef.VERSION.begins_with("1.0."), "v1 app version")
+	_check(AppConfigRef.VERSION.begins_with("1.1."), "v1.1 UI/FX app version")
 	_check(AppConfigRef.NAV_ENTRIES.size() == 5, "five primary navigation destinations")
 	_check(AppConfigRef.navigation_ids().has(AppConfigRef.DEFAULT_PAGE), "default page exists in navigation")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
@@ -65,8 +65,8 @@ func _run() -> void:
 	var one_before := int(state.playlist_record("1v1")["mmr"])
 	var first_match: Dictionary = state.create_match("Rocket League")
 	_check(bool(first_match.get("ok", false)), "1v1 match creation")
-	_check(first_match.get("events", []).size() >= 6 and first_match.get("events", []).size() <= 8, "match decision count")
-	_check(first_match.get("decisions", []).size() == first_match.get("events", []).size(), "decision event parity")
+	_check(first_match.get("events", []).size() >= 6 and first_match.get("events", []).size() <= 8, "auto simulation event count")
+	_check(first_match.get("decisions", []).size() == first_match.get("events", []).size(), "simulation telemetry parity")
 	_check(abs(int(first_match.get("mmr_delta", 0))) >= 20, "placement delta lower bound")
 	_check(abs(int(first_match.get("mmr_delta", 0))) <= 30, "placement delta upper bound")
 	_check(int(state.playlist_record("1v1")["mmr"]) != one_before, "1v1 mmr changed")
@@ -437,27 +437,26 @@ func _run() -> void:
 	_check(program_grid.get_child_count() == 6, "six mobile training program buttons")
 	program_grid.free()
 
-	print("SMOKE 6/7: full match flow")
+	print("SMOKE 6/7: full auto-sim match flow")
 	main.ranked_view = "overview"
 	main._show_page("play", false)
 	main._start_match("Rocket League")
 	await process_frame
-	_check(main.match_interactive, "Rocket League match is interactive")
-	_check(main.match_visualizer != null, "live arena visualizer mounted")
-	var counters := {"press": "counter", "control": "press", "counter": "control"}
-	for decision_index in range(8):
+	_check(not main.match_interactive, "Rocket League match uses auto simulation")
+	_check(main.match_session.is_empty(), "no player decision session exposed")
+	_check(main.match_decision_box == null, "decision UI removed from live match")
+	_check(main.match_visualizer != null, "top-down live arena visualizer mounted")
+	_check(bool(main.match_result.get("ok", false)), "auto-sim result saved")
+	_check(main.match_result.get("events", []).size() >= 6, "auto-sim events recorded")
+	_check(main.match_result.get("match_stats", {}).has("shots_ours"), "post-match analytics recorded")
+	if main.match_timer != null:
+		main.match_timer.stop()
+	for event_index in range(main.match_result.get("events", []).size() + 1):
 		if main.match_finished:
 			break
-		var situation: Dictionary = main.game.current_match_situation(main.match_session)
-		var best_action := str(counters.get(str(situation.get("opponent_action", "press")), "counter"))
-		if not main.game.can_play_match_action(main.match_session, best_action):
-			best_action = "control"
-		main._choose_match_action(best_action)
+		main._advance_match()
 		await process_frame
-	_check(main.match_finished, "match finishes")
-	_check(bool(main.match_result.get("ok", false)), "interactive result saved")
-	_check(main.match_result.get("decisions", []).size() >= 6, "interactive decisions recorded")
-	_check(main.match_result.get("match_stats", {}).has("shots_ours"), "post-match analytics recorded")
+	_check(main.match_finished, "auto-sim playback finishes")
 	_check(main.match_result_box.visible, "match result panel")
 	_check(main.match_continue_button.visible, "match continue button")
 	await main._close_match()
