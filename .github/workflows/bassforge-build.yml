@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.android/debug.keystore
-          key: bassforge-stable-signing-v1
+          key: bassforge-stable-signing-v2
 
       - name: Build debug APK
         working-directory: bassforge
