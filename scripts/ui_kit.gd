@@ -33,9 +33,9 @@ static func box(
 	style.content_margin_right = 16.0
 	style.content_margin_top = 14.0
 	style.content_margin_bottom = 14.0
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.24)
-	style.shadow_size = 5
-	style.shadow_offset = Vector2(0.0, 3.0)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.34)
+	style.shadow_size = 9
+	style.shadow_offset = Vector2(0.0, 5.0)
 	style.anti_aliasing = true
 	return style
 
@@ -45,9 +45,13 @@ static func card(accent: Color = Color.TRANSPARENT) -> PanelContainer:
 	var border := Color(0.24, 0.34, 0.62, 0.28)
 	if accent.a > 0.0:
 		border = Color(accent.r, accent.g, accent.b, 0.42)
-	var style := box(Color(0.045, 0.071, 0.16, 0.96), 20, border, 1)
+	var style := box(Color(0.035, 0.052, 0.115, 0.97), 18, border, 1)
+	style.content_margin_left = 17.0
+	style.content_margin_right = 17.0
+	style.content_margin_top = 16.0
+	style.content_margin_bottom = 16.0
 	if accent.a > 0.0:
-		style.border_width_left = 4
+		style.border_width_left = 3
 	panel.add_theme_stylebox_override("panel", style)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -96,13 +100,15 @@ static func button(
 	node.add_theme_color_override("font_hover_color", TEXT)
 	node.add_theme_color_override("font_pressed_color", TEXT)
 	node.add_theme_color_override("font_disabled_color", Color(MUTED.r, MUTED.g, MUTED.b, 0.45))
-	var normal_color := Color(accent.r, accent.g, accent.b, 0.16 if filled else 0.07)
-	var normal_border := Color(accent.r, accent.g, accent.b, 0.72 if filled else 0.38)
+	var normal_color := Color(accent.r, accent.g, accent.b, 0.18 if filled else 0.055)
+	var normal_border := Color(accent.r, accent.g, accent.b, 0.78 if filled else 0.30)
 	var normal := box(normal_color, 14, normal_border, 1)
 	normal.content_margin_left = 16.0
 	normal.content_margin_right = 16.0
-	var hover := box(Color(accent.r, accent.g, accent.b, 0.26), 14, accent, 1)
-	var pressed := box(Color(accent.r, accent.g, accent.b, 0.36), 14, accent.lightened(0.12), 1)
+	var hover := box(Color(accent.r, accent.g, accent.b, 0.24), 14, Color(accent.r, accent.g, accent.b, 0.92), 1)
+	var pressed := box(Color(accent.r, accent.g, accent.b, 0.34), 12, accent.lightened(0.10), 2)
+	pressed.content_margin_top = 16.0
+	pressed.content_margin_bottom = 12.0
 	var disabled := box(Color(0.15, 0.18, 0.28, 0.25), 14, Color(0.3, 0.34, 0.46, 0.22), 1)
 	node.add_theme_stylebox_override("normal", normal)
 	node.add_theme_stylebox_override("hover", hover)
@@ -122,7 +128,7 @@ static func progress(
 	bar.show_percentage = false
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.custom_minimum_size.y = height
-	var background := box(Color(0.18, 0.23, 0.39, 0.5), int(height / 2.0))
+	var background := box(Color(0.10, 0.14, 0.27, 0.82), int(height / 2.0))
 	background.content_margin_left = 0.0
 	background.content_margin_right = 0.0
 	background.content_margin_top = 0.0
