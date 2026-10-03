@@ -203,13 +203,16 @@ public class BassService extends Service {
         boolean transientFocus = prefs.getBoolean("transient_focus", true);
         boolean stereoGuard = prefs.getBoolean("stereo_guard", true);
         boolean adaptiveHeadroom = prefs.getBoolean("adaptive_headroom", true);
+        boolean extremeBass = prefs.getBoolean("extreme_bass", false);
+        int extremeStrength = prefs.getInt("extreme_strength", 88);
 
         for (FxSet fx : sessions.values()) {
             fx.apply(curve, bass, loudness, sub, punch, width, clarity,
                     treble, subFocus, punchFocus, vocal, dynamicBass, autoGain, quality,
                     intensity, warmth, presence, lowMidCut, gainCeiling,
                     sonicCore, sonicStrength, curveSmoothing, autoClean, bassDefinition,
-                    clarityRestore, transientFocus, stereoGuard, adaptiveHeadroom);
+                    clarityRestore, transientFocus, stereoGuard, adaptiveHeadroom,
+                    extremeBass, extremeStrength);
         }
     }
 
@@ -411,6 +414,26 @@ public class BassService extends Service {
         return 0f;
     }
 
+    private static float extremeBassDb(int hz, int strength, int subFocus) {
+        float s = clamp(strength, 0, 100) / 100f;
+        int center = 34 + Math.round((subFocus / 100f) * 26f);
+        float distance = Math.abs((float) Math.log(Math.max(20, hz) / (double) center));
+        float shape = Math.max(0f, 1f - distance / 0.92f);
+
+        if (hz <= 90) return 3.4f * s * shape;
+        if (hz > 90 && hz <= 150) return -0.95f * s;
+        if (hz > 150 && hz <= 280) return -1.45f * s;
+        if (hz > 280 && hz <= 450) return -0.85f * s;
+        return 0f;
+    }
+
+    private static float extremeClarityDb(int hz, int strength) {
+        float s = clamp(strength, 0, 100) / 100f;
+        if (hz >= 1500 && hz <= 3200) return 0.85f * s;
+        if (hz > 3200 && hz <= 6500) return 0.55f * s;
+        return 0f;
+    }
+
     private static float subExtraDb(int hz, int sub, int focus, boolean dynamicBass, int quality) {
         float amount = sub / 100f;
         int center = 32 + Math.round((focus / 100f) * 48f);
@@ -527,7 +550,8 @@ public class BassService extends Service {
                    int intensity, int warmth, int presence, int lowMidCut, int gainCeiling,
                    boolean sonicCore, int sonicStrength, boolean curveSmoothing,
                    boolean autoClean, boolean bassDefinition, boolean clarityRestore,
-                   boolean transientFocus, boolean stereoGuard, boolean adaptiveHeadroom) {
+                   boolean transientFocus, boolean stereoGuard, boolean adaptiveHeadroom,
+                   boolean extremeBass, int extremeStrength) {
             float rawMax = 0f;
             for (int v : curve) rawMax = Math.max(rawMax, v);
             float effectiveMax = rawMax
@@ -543,6 +567,11 @@ public class BassService extends Service {
             if (sonicCore && adaptiveHeadroom) {
                 float load = clamp((bass + sub + punch + Math.max(100, intensity)) / 450f, 0f, 1f);
                 headroomDb += load * (sonicStrength / 100f) * 1.15f;
+            }
+            if (extremeBass) {
+                // Extreme mode pushes low-frequency shaping, not unrestricted output gain.
+                // Extra headroom offsets the stronger sub contour to keep the result cleaner.
+                headroomDb += 0.9f + (extremeStrength / 100f) * 1.25f;
             }
 
             if (equalizer != null) {
@@ -570,6 +599,10 @@ public class BassService extends Service {
                             if (clarityRestore) shapedDb += clarityRestoreDb(hz, bass, sub, sonicStrength);
                             if (transientFocus) shapedDb += transientFocusDb(hz, punch, sonicStrength);
                         }
+                        if (extremeBass) {
+                            shapedDb += extremeBassDb(hz, extremeStrength, subFocus);
+                            shapedDb += extremeClarityDb(hz, extremeStrength);
+                        }
                         float wantedDb = shapedDb * (clamp(intensity, 50, 150) / 100f) - headroomDb;
 
                         int levelMb = Math.round(wantedDb * 100f);
@@ -596,6 +629,10 @@ public class BassService extends Service {
                         int guard = Math.round(Math.max(0, lowEndLoad - 65) * 0.32f * (sonicStrength / 100f));
                         effectiveWidth = Math.max(0, width - guard);
                     }
+                    if (extremeBass) {
+                        int extraGuard = Math.round((extremeStrength / 100f) * 10f);
+                        effectiveWidth = Math.max(0, effectiveWidth - extraGuard);
+                    }
                     virtualizer.setStrength((short) clamp(effectiveWidth * 10, 0, 1000));
                 } catch (Throwable ignored) {
                 }
@@ -618,6 +655,9 @@ public class BassService extends Service {
                     if (sonicCore && adaptiveHeadroom) {
                         overloadPenaltyMb += Math.round(
                                 Math.max(0f, effectiveMax - 6.5f) * 18f * (sonicStrength / 100f));
+                    }
+                    if (extremeBass) {
+                        overloadPenaltyMb += 35 + Math.round((extremeStrength / 100f) * 55f);
                     }
                     int qualityPenalty = quality >= 3 ? 45 : quality == 2 ? 20 : 0;
                     int targetMb = userGainMb + bassLinkedMb - overloadPenaltyMb - qualityPenalty;
