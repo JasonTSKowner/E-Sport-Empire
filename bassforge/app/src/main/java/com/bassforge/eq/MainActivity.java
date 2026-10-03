@@ -1022,10 +1022,16 @@ public class MainActivity extends Activity {
     private static final String[] SNAPSHOT_KEYS = {
             "bass","loudness","sub","punch","width","clarity","treble",
             "sub_focus","punch_focus","vocal","quality","intensity",
-            "warmth","presence","low_mid_cut","gain_ceiling"
+            "warmth","presence","low_mid_cut","gain_ceiling","sonic_strength"
     };
     private static final int[] SNAPSHOT_DEFAULTS = {
-            68,16,55,45,20,55,40,35,50,55,1,100,35,40,35,5
+            68,16,55,45,20,55,40,35,50,55,1,100,35,40,35,5,78
+    };
+
+    private static final String[] QUALITY_BOOL_KEYS = {
+            "dynamic_bass","auto_gain","sonic_core","curve_smoothing","auto_clean",
+            "bass_definition","clarity_restore","transient_focus","stereo_guard",
+            "adaptive_headroom","auto_profile"
     };
 
     private void saveSlot(int slot) {
@@ -1036,8 +1042,9 @@ public class MainActivity extends Activity {
         for (int i = 0; i < SNAPSHOT_KEYS.length; i++) {
             e.putInt(p + SNAPSHOT_KEYS[i], prefs.getInt(SNAPSHOT_KEYS[i], SNAPSHOT_DEFAULTS[i]));
         }
-        e.putBoolean(p + "dynamic_bass", prefs.getBoolean("dynamic_bass", true));
-        e.putBoolean(p + "auto_gain", prefs.getBoolean("auto_gain", true));
+        for (String key : QUALITY_BOOL_KEYS) {
+            e.putBoolean(p + key, prefs.getBoolean(key, true));
+        }
         e.putBoolean(p + "saved", true);
         e.apply();
         Toast.makeText(this, slot == 10 ? "A saved" : slot == 11 ? "B saved" : "Slot " + slot + " saved", Toast.LENGTH_SHORT).show();
@@ -1054,8 +1061,9 @@ public class MainActivity extends Activity {
         for (int i = 0; i < SNAPSHOT_KEYS.length; i++) {
             e.putInt(SNAPSHOT_KEYS[i], prefs.getInt(p + SNAPSHOT_KEYS[i], SNAPSHOT_DEFAULTS[i]));
         }
-        e.putBoolean("dynamic_bass", prefs.getBoolean(p + "dynamic_bass", true));
-        e.putBoolean("auto_gain", prefs.getBoolean(p + "auto_gain", true));
+        for (String key : QUALITY_BOOL_KEYS) {
+            e.putBoolean(key, prefs.getBoolean(p + key, true));
+        }
         e.apply();
         loadState();
         refreshControls();
@@ -1070,8 +1078,9 @@ public class MainActivity extends Activity {
             out.append(SNAPSHOT_KEYS[i]).append('=')
                     .append(prefs.getInt(SNAPSHOT_KEYS[i], SNAPSHOT_DEFAULTS[i])).append(';');
         }
-        out.append("dynamic_bass=").append(prefs.getBoolean("dynamic_bass", true)).append(';');
-        out.append("auto_gain=").append(prefs.getBoolean("auto_gain", true)).append(';');
+        for (String key : QUALITY_BOOL_KEYS) {
+            out.append(key).append('=').append(prefs.getBoolean(key, true)).append(';');
+        }
         ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
         if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("BassForge V5 Preset", out.toString()));
         Toast.makeText(this, "Preset copied to clipboard", Toast.LENGTH_SHORT).show();
@@ -1098,7 +1107,7 @@ public class MainActivity extends Activity {
                 String key = part.substring(0, idx);
                 String val = part.substring(idx + 1);
                 if ("curve".equals(key)) e.putString("curve", val);
-                else if ("dynamic_bass".equals(key) || "auto_gain".equals(key)) e.putBoolean(key, Boolean.parseBoolean(val));
+                else if (isQualityBoolKey(key)) e.putBoolean(key, Boolean.parseBoolean(val));
                 else {
                     for (String known : SNAPSHOT_KEYS) {
                         if (known.equals(key)) {
@@ -1116,6 +1125,13 @@ public class MainActivity extends Activity {
         } catch (Exception ex) {
             Toast.makeText(this, "Preset data is invalid", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private boolean isQualityBoolKey(String key) {
+        for (String known : QUALITY_BOOL_KEYS) {
+            if (known.equals(key)) return true;
+        }
+        return false;
     }
 
     private void showDiagnostics() {
@@ -1160,8 +1176,13 @@ public class MainActivity extends Activity {
                 .putInt("treble", 40).putInt("sub_focus", 35).putInt("punch_focus", 50)
                 .putInt("vocal", 55).putInt("quality", 1).putInt("intensity", 100)
                 .putInt("warmth", 35).putInt("presence", 40).putInt("low_mid_cut", 35)
-                .putInt("gain_ceiling", 5).putBoolean("dynamic_bass", true)
-                .putBoolean("auto_gain", true).apply();
+                .putInt("gain_ceiling", 5).putInt("sonic_strength", 78)
+                .putBoolean("dynamic_bass", true).putBoolean("auto_gain", true)
+                .putBoolean("sonic_core", true).putBoolean("curve_smoothing", true)
+                .putBoolean("auto_clean", true).putBoolean("bass_definition", true)
+                .putBoolean("clarity_restore", true).putBoolean("transient_focus", true)
+                .putBoolean("stereo_guard", true).putBoolean("adaptive_headroom", true)
+                .putBoolean("auto_profile", true).apply();
         loadState();
         refreshControls();
         queueUpdate();
