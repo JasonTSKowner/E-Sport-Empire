@@ -1956,26 +1956,68 @@ func _interactive_event_time(turn: int) -> String:
 	return "%d:%02d" % [seconds_left / 60, seconds_left % 60]
 
 
-func create_match(mode: String) -> Dictionary:
-	var session: Dictionary = prepare_match(mode)
+func _auto_match_action(session: Dictionary) -> String:
+	var available: Array[String] = []
+	for definition_value in match_action_definitions():
+		var definition: Dictionary = definition_value
+		var key := str(definition.get("key", ""))
+		if can_play_match_action(session, key):
+			available.append(key)
+	if available.is_empty():
+		return "control"
+
+	var situation := current_match_situation(session)
+	var ideal := "control"
+	if not situation.is_empty():
+		ideal = str(TACTIC_COUNTER.get(str(situation.get("opponent_action", "control")), "control"))
+
+	var team_stats: Dictionary = session.get("team_stats", {})
+	var game_sense := float(team_stats.get("game_sense", 50))
+	var consistency := float(team_stats.get("consistency", 50))
+	var mentality := float(team_stats.get("mentality", 50))
+	var read_chance := clampf(
+		0.48
+		+ (game_sense - 50.0) * 0.006
+		+ (consistency - 50.0) * 0.003
+		+ (mentality - 50.0) * 0.002,
+		0.30,
+		0.88
+	)
+
+	if ideal in available and rng.randf() <= read_chance:
+		return ideal
+
+	var identity_action := str(session.get("club_identity_action", "counter"))
+	if identity_action in available and rng.randf() <= 0.52:
+		return identity_action
+
+	if "control" in available and int(session.get("boost", 0)) < 28:
+		return "control"
+
+	return available[rng.randi_range(0, available.size() - 1)]
+
+
+func _simulate_session(session: Dictionary) -> Dictionary:
 	if not bool(session.get("ok", false)):
 		return session
 	var safety := 0
-	while safety < 10:
-		var definitions: Array = match_action_definitions()
-		var available_definitions: Array = []
-		for definition_value in definitions:
-			var candidate: Dictionary = definition_value
-			if can_play_match_action(session, str(candidate.get("key", ""))):
-				available_definitions.append(candidate)
-		var definition: Dictionary = available_definitions[rng.randi_range(0, available_definitions.size() - 1)]
-		var turn_result: Dictionary = play_match_turn(session, str(definition["key"]))
+	while safety < 12:
+		var action := _auto_match_action(session)
+		var turn_result: Dictionary = play_match_turn(session, action)
 		if not bool(turn_result.get("ok", false)):
 			return turn_result
 		if bool(turn_result.get("finished", false)):
 			break
 		safety += 1
 	return finalize_match(session)
+
+
+func create_match(mode: String) -> Dictionary:
+	return _simulate_session(prepare_match(mode))
+
+
+func create_pro_circuit_match() -> Dictionary:
+	return _simulate_session(prepare_pro_circuit_match())
 
 
 func finalize_match(session: Dictionary) -> Dictionary:
