@@ -59,3 +59,21 @@ jobs:
           path: BassForge-EQ-v6.0.2-UNSIGNED.apk
           if-no-files-found: error
           retention-days: 7
+
+      - name: Collect apksigner tool
+        shell: bash
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -f "$APKSIGNER"
+          JAR="$(dirname "$APKSIGNER")/lib/apksigner.jar"
+          test -f "$JAR"
+          cp "$JAR" apksigner.jar
+          ls -lh apksigner.jar
+
+      - name: Upload apksigner tool
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-apksigner-35
+          path: apksigner.jar
+          if-no-files-found: error
+          retention-days: 7
