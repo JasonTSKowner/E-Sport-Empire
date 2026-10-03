@@ -1267,6 +1267,15 @@ public class MainActivity extends Activity {
 
     private void showChangelog() {
         String log =
+                "V6.0.3 CLEAN SHUTDOWN\n" +
+                "• Neutralizes all EQ bands before OFF\n" +
+                "• BassBoost returns to 0 before release\n" +
+                "• Loudness Enhancer returns to 0 before release\n" +
+                "• Virtualizer returns to 0 before release\n" +
+                "• All effects are disabled before detaching\n" +
+                "• 120 ms audio-stack settle window\n" +
+                "• Cleaner player-session shutdown\n" +
+                "• Fix for hollow / phasey / thin sound after switching BassForge off\n\n" +
                 "V6 SONIC CORE\n" +
                 "• New automatic SONIC CORE quality engine\n" +
                 "• Enabled automatically after updating\n" +
