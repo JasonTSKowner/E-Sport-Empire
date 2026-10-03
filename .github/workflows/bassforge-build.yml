@@ -1,4 +1,4 @@
-name: Build BassForge EQ V5.0.1 Stable APK
+name: Build BassForge EQ V6 SONIC CORE APK
 
 on:
   push:
@@ -55,15 +55,15 @@ jobs:
         run: |
           APK="bassforge/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
-          cp "$APK" "BassForge-EQ-v5.0.1-STABLE.apk"
-          ls -lh "BassForge-EQ-v5.0.1-STABLE.apk"
+          cp "$APK" "BassForge-EQ-v6-SONIC-CORE.apk"
+          ls -lh "BassForge-EQ-v6-SONIC-CORE.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          "$APKSIGNER" verify --verbose "BassForge-EQ-v5.0.1-STABLE.apk"
+          "$APKSIGNER" verify --verbose --print-certs "BassForge-EQ-v6-SONIC-CORE.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BassForge-EQ-v5.0.1-STABLE-APK
-          path: BassForge-EQ-v5.0.1-STABLE.apk
+          name: BassForge-EQ-v6-SONIC-CORE-APK
+          path: BassForge-EQ-v6-SONIC-CORE.apk
           if-no-files-found: error
           retention-days: 7
