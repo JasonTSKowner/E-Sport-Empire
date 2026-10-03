@@ -65,6 +65,7 @@ public class MainActivity extends Activity {
     private SeekBar lowMidCutBar;
     private SeekBar gainCeilingBar;
     private SeekBar sonicStrengthBar;
+    private SeekBar extremeStrengthBar;
     private TextView bassValue;
     private TextView loudnessValue;
     private TextView subValue;
@@ -81,6 +82,8 @@ public class MainActivity extends Activity {
     private TextView lowMidCutValue;
     private TextView gainCeilingValue;
     private TextView sonicStrengthValue;
+    private TextView extremeStrengthValue;
+    private Switch extremeBassSwitch;
     private Switch dynamicBassSwitch;
     private Switch autoGainSwitch;
     private Switch autoProfileSwitch;
@@ -145,7 +148,7 @@ public class MainActivity extends Activity {
         brand.setLetterSpacing(0.08f);
         root.addView(brand);
 
-        TextView subtitle = text("SONIC CORE AUDIO ENGINE  •  V6", 12, ACCENT, true);
+        TextView subtitle = text("EXTREME CLEAN AUDIO ENGINE  •  V6.1", 12, ACCENT, true);
         subtitle.setLetterSpacing(0.14f);
         root.addView(subtitle, marginTop(2));
 
@@ -200,6 +203,7 @@ public class MainActivity extends Activity {
         presetScroll.addView(presetRow);
         root.addView(presetScroll, marginTop(8));
 
+        addActionButton(presetRow, "EXTREME CLEAN", this::enableExtremeClean);
         addPreset(presetRow, "MAX CLEAN", new int[]{12,12,10,6,1,0,0,1,2,2}, 100, 34, 100, 88, 22, 88);
         addPreset(presetRow, "CLEAN", new int[]{0,0,0,0,0,0,0,0,0,0}, 0, 0, 0, 0, 0, 35);
         addPreset(presetRow, "PREMIUM", new int[]{7,7,6,4,2,0,0,0,1,1}, 72, 12, 62, 48, 16, 68);
@@ -417,6 +421,60 @@ public class MainActivity extends Activity {
         addQualitySwitch(root, "TRANSIENT FOCUS", "Adds cleaner kick attack and percussion definition", "transient_focus");
         addQualitySwitch(root, "STEREO GUARD", "Reduces excessive width when low-end load is high", "stereo_guard");
         addQualitySwitch(root, "ADAPTIVE HEADROOM", "Automatically creates more digital space at extreme settings", "adaptive_headroom");
+
+        sectionTitle(root, "EXTREME BASS • CLEAN LIMIT");
+
+        LinearLayout extremeCard = card();
+        extremeCard.setOrientation(LinearLayout.VERTICAL);
+        extremeCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+        root.addView(extremeCard, marginTop(8));
+
+        LinearLayout extremeHeader = new LinearLayout(this);
+        extremeHeader.setOrientation(LinearLayout.HORIZONTAL);
+        extremeHeader.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout extremeCopy = new LinearLayout(this);
+        extremeCopy.setOrientation(LinearLayout.VERTICAL);
+        extremeHeader.addView(extremeCopy, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        extremeCopy.addView(text("EXTREME BASS MODE", 15, TEXT, true));
+        extremeCopy.addView(text("Deep low-end shaping with extra anti-mud and headroom control", 11, MUTED, false), marginTop(2));
+        extremeBassSwitch = new Switch(this);
+        extremeBassSwitch.setChecked(prefs.getBoolean("extreme_bass", false));
+        extremeHeader.addView(extremeBassSwitch);
+        extremeCard.addView(extremeHeader);
+
+        LinearLayout extremeValueRow = new LinearLayout(this);
+        extremeValueRow.setOrientation(LinearLayout.HORIZONTAL);
+        extremeValueRow.setGravity(Gravity.CENTER_VERTICAL);
+        extremeValueRow.addView(text("EXTREME STRENGTH", 12, MUTED, true),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        extremeStrengthValue = text("88%", 14, ACCENT, true);
+        extremeValueRow.addView(extremeStrengthValue);
+        extremeCard.addView(extremeValueRow, marginTop(12));
+
+        extremeStrengthBar = seek(0, 100);
+        extremeStrengthBar.setProgress(prefs.getInt("extreme_strength", 88));
+        extremeCard.addView(extremeStrengthBar, marginTop(4));
+
+        extremeBassSwitch.setOnCheckedChangeListener((button, checked) -> {
+            if (buildingUi) return;
+            prefs.edit().putBoolean("extreme_bass", checked).apply();
+            queueUpdate();
+        });
+
+        extremeStrengthBar.setOnSeekBarChangeListener(simpleSeek(v -> {
+            extremeStrengthValue.setText(v + "%");
+            prefs.edit().putInt("extreme_strength", v).apply();
+            queueUpdate();
+        }));
+
+        HorizontalScrollView extremeActions = new HorizontalScrollView(this);
+        extremeActions.setHorizontalScrollBarEnabled(false);
+        LinearLayout extremeActionRow = new LinearLayout(this);
+        extremeActionRow.setOrientation(LinearLayout.HORIZONTAL);
+        extremeActions.addView(extremeActionRow);
+        root.addView(extremeActions, marginTop(8));
+        addActionButton(extremeActionRow, "EXTREME CLEAN", this::enableExtremeClean);
+        addActionButton(extremeActionRow, "EXTREME OFF", this::disableExtremeBass);
 
         sectionTitle(root, "OVERDRIVE CONTROL");
 
@@ -883,6 +941,10 @@ public class MainActivity extends Activity {
         int sonicStrength = prefs.getInt("sonic_strength", 78);
         if (sonicStrengthBar != null) sonicStrengthBar.setProgress(sonicStrength);
         if (sonicStrengthValue != null) sonicStrengthValue.setText(sonicStrength + "%");
+        int extremeStrength = prefs.getInt("extreme_strength", 88);
+        if (extremeStrengthBar != null) extremeStrengthBar.setProgress(extremeStrength);
+        if (extremeStrengthValue != null) extremeStrengthValue.setText(extremeStrength + "%");
+        if (extremeBassSwitch != null) extremeBassSwitch.setChecked(prefs.getBoolean("extreme_bass", false));
         for (int i = 0; i < qualitySwitches.size() && i < qualitySwitchKeys.size(); i++) {
             qualitySwitches.get(i).setChecked(prefs.getBoolean(qualitySwitchKeys.get(i), true));
         }
@@ -1019,19 +1081,63 @@ public class MainActivity extends Activity {
         Toast.makeText(this, "Balanced quality engine enabled", Toast.LENGTH_SHORT).show();
     }
 
+    private void enableExtremeClean() {
+        prefs.edit()
+                .putBoolean("extreme_bass", true)
+                .putInt("extreme_strength", 92)
+                .putInt("bass", 100)
+                .putInt("sub", 100)
+                .putInt("punch", 82)
+                .putInt("loudness", 18)
+                .putInt("width", 14)
+                .putInt("clarity", 95)
+                .putInt("treble", 52)
+                .putInt("sub_focus", 24)
+                .putInt("punch_focus", 42)
+                .putInt("vocal", 82)
+                .putInt("quality", 2)
+                .putInt("intensity", 112)
+                .putInt("warmth", 28)
+                .putInt("presence", 46)
+                .putInt("low_mid_cut", 64)
+                .putInt("gain_ceiling", 4)
+                .putInt("sonic_strength", 95)
+                .putBoolean("sonic_core", true)
+                .putBoolean("curve_smoothing", true)
+                .putBoolean("auto_clean", true)
+                .putBoolean("bass_definition", true)
+                .putBoolean("clarity_restore", true)
+                .putBoolean("transient_focus", true)
+                .putBoolean("stereo_guard", true)
+                .putBoolean("adaptive_headroom", true)
+                .putBoolean("auto_gain", true)
+                .putBoolean("dynamic_bass", true)
+                .apply();
+        refreshControls();
+        queueUpdate();
+        Toast.makeText(this, "EXTREME CLEAN enabled", Toast.LENGTH_SHORT).show();
+    }
+
+    private void disableExtremeBass() {
+        prefs.edit().putBoolean("extreme_bass", false).apply();
+        refreshControls();
+        queueUpdate();
+        Toast.makeText(this, "Extreme Bass off", Toast.LENGTH_SHORT).show();
+    }
+
     private static final String[] SNAPSHOT_KEYS = {
             "bass","loudness","sub","punch","width","clarity","treble",
             "sub_focus","punch_focus","vocal","quality","intensity",
-            "warmth","presence","low_mid_cut","gain_ceiling","sonic_strength"
+            "warmth","presence","low_mid_cut","gain_ceiling","sonic_strength","extreme_strength"
     };
     private static final int[] SNAPSHOT_DEFAULTS = {
-            68,16,55,45,20,55,40,35,50,55,1,100,35,40,35,5,78
+            68,16,55,45,20,55,40,35,50,55,1,100,35,40,35,5,78,88
     };
 
     private static final String[] QUALITY_BOOL_KEYS = {
             "dynamic_bass","auto_gain","sonic_core","curve_smoothing","auto_clean",
             "bass_definition","clarity_restore","transient_focus","stereo_guard",
-            "adaptive_headroom","auto_profile"
+            "adaptive_headroom","auto_profile","extreme_bass"
     };
 
     private void saveSlot(int slot) {
@@ -1176,13 +1282,13 @@ public class MainActivity extends Activity {
                 .putInt("treble", 40).putInt("sub_focus", 35).putInt("punch_focus", 50)
                 .putInt("vocal", 55).putInt("quality", 1).putInt("intensity", 100)
                 .putInt("warmth", 35).putInt("presence", 40).putInt("low_mid_cut", 35)
-                .putInt("gain_ceiling", 5).putInt("sonic_strength", 78)
+                .putInt("gain_ceiling", 5).putInt("sonic_strength", 78).putInt("extreme_strength", 88)
                 .putBoolean("dynamic_bass", true).putBoolean("auto_gain", true)
                 .putBoolean("sonic_core", true).putBoolean("curve_smoothing", true)
                 .putBoolean("auto_clean", true).putBoolean("bass_definition", true)
                 .putBoolean("clarity_restore", true).putBoolean("transient_focus", true)
                 .putBoolean("stereo_guard", true).putBoolean("adaptive_headroom", true)
-                .putBoolean("auto_profile", true).apply();
+                .putBoolean("auto_profile", true).putBoolean("extreme_bass", false).apply();
         loadState();
         refreshControls();
         queueUpdate();
@@ -1267,6 +1373,18 @@ public class MainActivity extends Activity {
 
     private void showChangelog() {
         String log =
+                "V6.1 EXTREME CLEAN\n" +
+                "• New Extreme Bass Mode\n" +
+                "• EXTREME CLEAN one-tap preset\n" +
+                "• Adjustable Extreme Strength\n" +
+                "• Dedicated ~28–90 Hz low-end shaping\n" +
+                "• Automatic boom reduction around 90–450 Hz\n" +
+                "• Extra clarity compensation while Extreme Bass is active\n" +
+                "• Additional adaptive headroom in Extreme mode\n" +
+                "• Stronger overload penalty instead of unrestricted gain\n" +
+                "• Extra stereo-width guard for cleaner low end\n" +
+                "• Extreme settings included in slots / A-B / export-import\n" +
+                "• Keeps the digital gain ceiling capped instead of chasing raw volume\n\n" +
                 "V6.0.3 CLEAN SHUTDOWN\n" +
                 "• Neutralizes all EQ bands before OFF\n" +
                 "• BassBoost returns to 0 before release\n" +
