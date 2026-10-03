@@ -128,8 +128,8 @@ public class BassService extends Service {
 
         Notification notification = builder
                 .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentTitle("BassForge EQ V4 REDLINE")
-                .setContentText("REDLINE engine active • tap for controls")
+                .setContentTitle("BassForge EQ V6 SONIC CORE")
+                .setContentText("SONIC CORE active • automatic quality processing")
                 .setContentIntent(pi)
                 .addAction(new Notification.Action.Builder(
                         null, "MAX CLEAN", maxCleanPi).build())
