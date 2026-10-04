@@ -84,6 +84,16 @@ func _reset_drill() -> void:
 	ball_trail.clear()
 
 
+func snapshot_state() -> Dictionary:
+	return {
+		"drill_id": drill_id,
+		"focus_remaining": focus_remaining,
+		"focus_limit": focus_limit,
+		"fatigue": fatigue,
+		"intensity": intensity,
+	}
+
+
 func _process(delta: float) -> void:
 	animation_time += delta
 	drill_phase = fmod(drill_phase + delta * (0.28 + intensity * 0.30), 1.0)
@@ -113,7 +123,9 @@ func _process(delta: float) -> void:
 		boost_particles.pop_front()
 	for particle in boost_particles:
 		particle["life"] = float(particle.get("life", 0.0)) - delta
-		particle["position"] = Vector2(particle.get("position", Vector2.ZERO)) + Vector2(particle.get("velocity", Vector2.ZERO)) * delta
+		var particle_position: Vector2 = particle.get("position", Vector2.ZERO)
+		var particle_velocity: Vector2 = particle.get("velocity", Vector2.ZERO)
+		particle["position"] = particle_position + particle_velocity * delta
 	for i in range(boost_particles.size() - 1, -1, -1):
 		if float(boost_particles[i].get("life", 0.0)) <= 0.0:
 			boost_particles.remove_at(i)
@@ -187,7 +199,8 @@ func _draw() -> void:
 
 	for particle in boost_particles:
 		var alpha := clampf(float(particle.get("life", 0.0)) / float(particle.get("max_life", 0.4)), 0.0, 1.0)
-		draw_circle(_field_point(Vector2(particle.get("position", Vector2.ZERO)), arena), 3.0, Color(accent.r, accent.g, accent.b, alpha * 0.35))
+		var particle_position: Vector2 = particle.get("position", Vector2.ZERO)
+		draw_circle(_field_point(particle_position, arena), 3.0, Color(accent.r, accent.g, accent.b, alpha * 0.35))
 
 	_draw_car(_field_point(car_position, arena))
 	_draw_ball(arena)
@@ -257,8 +270,10 @@ func _draw_drill_guides(arena: Rect2) -> void:
 
 func _draw_path(arena: Rect2, points: Array, color: Color) -> void:
 	for i in range(points.size() - 1):
-		var a := _field_point(Vector2(points[i]), arena)
-		var b := _field_point(Vector2(points[i + 1]), arena)
+		var point_a: Vector2 = points[i]
+		var point_b: Vector2 = points[i + 1]
+		var a := _field_point(point_a, arena)
+		var b := _field_point(point_b, arena)
 		draw_dashed_line(a, b, Color(color.r,color.g,color.b,0.38), 1.5, 6.0)
 
 
