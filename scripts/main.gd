@@ -688,6 +688,10 @@ func _contact_card(contact: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	panel.add_child(row)
+	var portrait := PlayerPortraitRef.new()
+	portrait.configure(str(contact.get("name", "Unknown")), accent)
+	portrait.custom_minimum_size = Vector2(52, 58)
+	row.add_child(portrait)
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_child(UI.overline(str(contact.get("source", "MATCH-KONTAKT")), accent))
@@ -1214,22 +1218,10 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 11)
 	box.add_child(top)
-	var avatar := PanelContainer.new()
-	avatar.custom_minimum_size = Vector2(52, 52)
-	avatar.add_theme_stylebox_override(
-		"panel",
-		UI.box(
-			Color(accent.r, accent.g, accent.b, 0.13),
-			17,
-			Color(accent.r, accent.g, accent.b, 0.34),
-			1
-		)
-	)
-	var avatar_text := UI.label(str(player["name"]).left(2), 15, accent, 800)
-	avatar_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	avatar_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	avatar.add_child(avatar_text)
-	top.add_child(avatar)
+	var portrait := PlayerPortraitRef.new()
+	portrait.configure(str(player["name"]), accent)
+	portrait.custom_minimum_size = Vector2(68, 76)
+	top.add_child(portrait)
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_theme_constant_override("separation", 1)
@@ -2522,6 +2514,10 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 10)
 	box.add_child(top)
+	var portrait := PlayerPortraitRef.new()
+	portrait.configure(str(player["name"]), accent)
+	portrait.custom_minimum_size = Vector2(64, 72)
+	top.add_child(portrait)
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_child(UI.overline("SCOUTING-REPORT", accent))
