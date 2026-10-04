@@ -140,8 +140,8 @@ public class BassService extends Service {
 
         Notification notification = builder
                 .setSmallIcon(android.R.drawable.ic_media_play)
-                .setContentTitle("BassForge EQ V6 SONIC CORE")
-                .setContentText("SONIC CORE active • automatic quality processing")
+                .setContentTitle("BassForge EQ V7 AURORA FX")
+                .setContentText("AURORA FX active • clean quality processing")
                 .setContentIntent(pi)
                 .addAction(new Notification.Action.Builder(
                         null, "MAX CLEAN", maxCleanPi).build())
@@ -206,13 +206,27 @@ public class BassService extends Service {
         boolean extremeBass = prefs.getBoolean("extreme_bass", false);
         int extremeStrength = prefs.getInt("extreme_strength", 88);
 
+        boolean auroraFx = prefs.getBoolean("aurora_fx", true);
+        int fxDepth = prefs.getInt("fx_depth", 62);
+        int fxTight = prefs.getInt("fx_tight", 58);
+        int fxImpact = prefs.getInt("fx_impact", 48);
+        int fxAir = prefs.getInt("fx_air", 42);
+        int fxSmooth = prefs.getInt("fx_smooth", 52);
+        boolean fxDepthOn = prefs.getBoolean("fx_depth_on", true);
+        boolean fxTightOn = prefs.getBoolean("fx_tight_on", true);
+        boolean fxImpactOn = prefs.getBoolean("fx_impact_on", true);
+        boolean fxAirOn = prefs.getBoolean("fx_air_on", true);
+        boolean fxSmoothOn = prefs.getBoolean("fx_smooth_on", true);
+
         for (FxSet fx : sessions.values()) {
             fx.apply(curve, bass, loudness, sub, punch, width, clarity,
                     treble, subFocus, punchFocus, vocal, dynamicBass, autoGain, quality,
                     intensity, warmth, presence, lowMidCut, gainCeiling,
                     sonicCore, sonicStrength, curveSmoothing, autoClean, bassDefinition,
                     clarityRestore, transientFocus, stereoGuard, adaptiveHeadroom,
-                    extremeBass, extremeStrength);
+                    extremeBass, extremeStrength,
+                    auroraFx, fxDepth, fxTight, fxImpact, fxAir, fxSmooth,
+                    fxDepthOn, fxTightOn, fxImpactOn, fxAirOn, fxSmoothOn);
         }
     }
 
@@ -414,6 +428,43 @@ public class BassService extends Service {
         return 0f;
     }
 
+    private static float auroraDepthDb(int hz, int amount) {
+        float a = clamp(amount, 0, 100) / 100f;
+        if (hz <= 42) return 2.4f * a;
+        if (hz <= 75) return 1.65f * a;
+        if (hz <= 105) return 0.55f * a;
+        return 0f;
+    }
+
+    private static float auroraTightDb(int hz, int amount) {
+        float a = clamp(amount, 0, 100) / 100f;
+        if (hz >= 90 && hz <= 155) return -0.85f * a;
+        if (hz > 155 && hz <= 300) return -1.55f * a;
+        if (hz > 300 && hz <= 520) return -0.75f * a;
+        return 0f;
+    }
+
+    private static float auroraImpactDb(int hz, int amount) {
+        float a = clamp(amount, 0, 100) / 100f;
+        if (hz >= 70 && hz <= 135) return 0.85f * a;
+        if (hz >= 1700 && hz <= 3400) return 0.75f * a;
+        return 0f;
+    }
+
+    private static float auroraAirDb(int hz, int amount) {
+        float a = clamp(amount, 0, 100) / 100f;
+        if (hz >= 4000 && hz < 8000) return 0.65f * a;
+        if (hz >= 8000) return 1.25f * a;
+        return 0f;
+    }
+
+    private static float auroraSmoothDb(int hz, int amount) {
+        float a = clamp(amount, 0, 100) / 100f;
+        if (hz >= 2500 && hz <= 5200) return -0.72f * a;
+        if (hz > 5200 && hz <= 8500) return -0.35f * a;
+        return 0f;
+    }
+
     private static float extremeBassDb(int hz, int strength, int subFocus) {
         float s = clamp(strength, 0, 100) / 100f;
         int center = 34 + Math.round((subFocus / 100f) * 26f);
@@ -551,7 +602,9 @@ public class BassService extends Service {
                    boolean sonicCore, int sonicStrength, boolean curveSmoothing,
                    boolean autoClean, boolean bassDefinition, boolean clarityRestore,
                    boolean transientFocus, boolean stereoGuard, boolean adaptiveHeadroom,
-                   boolean extremeBass, int extremeStrength) {
+                   boolean extremeBass, int extremeStrength,
+                   boolean auroraFx, int fxDepth, int fxTight, int fxImpact, int fxAir, int fxSmooth,
+                   boolean fxDepthOn, boolean fxTightOn, boolean fxImpactOn, boolean fxAirOn, boolean fxSmoothOn) {
             float rawMax = 0f;
             for (int v : curve) rawMax = Math.max(rawMax, v);
             float effectiveMax = rawMax
@@ -572,6 +625,9 @@ public class BassService extends Service {
                 // Extreme mode pushes low-frequency shaping, not unrestricted output gain.
                 // Extra headroom offsets the stronger sub contour to keep the result cleaner.
                 headroomDb += 0.9f + (extremeStrength / 100f) * 1.25f;
+            }
+            if (auroraFx && fxDepthOn) {
+                headroomDb += (fxDepth / 100f) * 0.55f;
             }
 
             if (equalizer != null) {
@@ -603,6 +659,13 @@ public class BassService extends Service {
                             shapedDb += extremeBassDb(hz, extremeStrength, subFocus);
                             shapedDb += extremeClarityDb(hz, extremeStrength);
                         }
+                        if (auroraFx) {
+                            if (fxDepthOn) shapedDb += auroraDepthDb(hz, fxDepth);
+                            if (fxTightOn) shapedDb += auroraTightDb(hz, fxTight);
+                            if (fxImpactOn) shapedDb += auroraImpactDb(hz, fxImpact);
+                            if (fxAirOn) shapedDb += auroraAirDb(hz, fxAir);
+                            if (fxSmoothOn) shapedDb += auroraSmoothDb(hz, fxSmooth);
+                        }
                         float wantedDb = shapedDb * (clamp(intensity, 50, 150) / 100f) - headroomDb;
 
                         int levelMb = Math.round(wantedDb * 100f);
@@ -632,6 +695,10 @@ public class BassService extends Service {
                     if (extremeBass) {
                         int extraGuard = Math.round((extremeStrength / 100f) * 10f);
                         effectiveWidth = Math.max(0, effectiveWidth - extraGuard);
+                    }
+                    if (auroraFx && fxTightOn) {
+                        int cleanGuard = Math.round((fxTight / 100f) * 4f);
+                        effectiveWidth = Math.max(0, effectiveWidth - cleanGuard);
                     }
                     virtualizer.setStrength((short) clamp(effectiveWidth * 10, 0, 1000));
                 } catch (Throwable ignored) {
