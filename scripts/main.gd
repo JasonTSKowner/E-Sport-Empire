@@ -259,9 +259,9 @@ func _build_toast() -> void:
 	toast_panel.offset_bottom = -82.0
 	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast_panel.add_theme_stylebox_override(
-		"panel", UI.box(Color(0.06, 0.095, 0.20, 0.98), 17, Color(0.18, 0.86, 1.0, 0.42), 1)
+		"panel", UI.box(Color(0.055, 0.068, 0.086, 0.99), 14, Color(0.55, 0.62, 0.70, 0.14), 1)
 	)
-	toast_label = UI.label("", 14, UI.TEXT, 700)
+	toast_label = UI.label("", 12, UI.TEXT, 700)
 	toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	toast_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	toast_panel.add_child(toast_label)
@@ -2579,7 +2579,7 @@ func _club_identity_card() -> Control:
 	box.add_child(UI.label(str(active.get("detail", "Lege fest, wie dein Verein spielen soll.")), 11, UI.MUTED))
 	box.add_child(
 		UI.label(
-			"The bonus is deterministic and appears inside every tactical probability before you choose. Switching identity is always free.",
+			"Der Bonus wirkt automatisch in der Match-Simulation. Du kannst die Vereins-DNA jederzeit kostenlos wechseln.",
 			10,
 			UI.DIM
 		)
@@ -2900,7 +2900,7 @@ func _show_message(message: String, positive: bool = true) -> void:
 	var accent := UI.GREEN if positive else UI.RED
 	toast_panel.add_theme_stylebox_override(
 		"panel",
-		UI.box(Color(0.06, 0.095, 0.20, 0.98), 17, Color(accent.r, accent.g, accent.b, 0.55), 1)
+		UI.box(Color(0.055, 0.068, 0.086, 0.99), 14, Color(accent.r, accent.g, accent.b, 0.24), 1)
 	)
 	toast_panel.visible = true
 	toast_panel.modulate.a = 0.0
