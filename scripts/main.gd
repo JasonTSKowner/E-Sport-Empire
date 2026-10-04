@@ -14,6 +14,18 @@ const MatchVisualizerRef = preload("res://scripts/match_visualizer.gd")
 const TrainingVisualizerRef = preload("res://scripts/training_visualizer.gd")
 const FX = preload("res://scripts/ui_fx.gd")
 const UI = preload("res://scripts/ui_kit.gd")
+const NAV_HOME = preload("res://assets/ui/nav_home.svg")
+const NAV_TEAM = preload("res://assets/ui/nav_team.svg")
+const NAV_RANKED = preload("res://assets/ui/nav_ranked.svg")
+const NAV_SCOUT = preload("res://assets/ui/nav_scout.svg")
+const NAV_CLUB = preload("res://assets/ui/nav_club.svg")
+const NAV_ICONS := {
+	"home": NAV_HOME,
+	"team": NAV_TEAM,
+	"play": NAV_RANKED,
+	"market": NAV_SCOUT,
+	"empire": NAV_CLUB,
+}
 
 var game: EmpireStateRef
 var current_page := AppConfigRef.DEFAULT_PAGE
@@ -96,8 +108,8 @@ func _build_shell() -> void:
 	page_content = VBoxContainer.new()
 	page_content.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page_content.add_theme_constant_override("separation", 11)
-	var page_margin := UI.margin(page_content, 12, 10, 12, 18)
+	page_content.add_theme_constant_override("separation", 12)
+	var page_margin := UI.margin(page_content, 12, 12, 12, 16)
 	page_margin.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_scroll.add_child(page_margin)
@@ -114,45 +126,48 @@ func _build_shell() -> void:
 
 func _build_top_bar() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 104.0
-	outer.add_theme_stylebox_override(
-		"panel", UI.box(Color(0.025, 0.04, 0.105, 0.98), 0, Color(0.18, 0.34, 0.65, 0.18), 0)
-	)
+	outer.custom_minimum_size.y = 88.0
+	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.985), 0, Color(0.55, 0.64, 0.74, 0.10), 0)
+	outer_style.shadow_size = 0
+	outer.add_theme_stylebox_override("panel", outer_style)
+
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_top", 8)
 	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 8)
+	margin.add_theme_constant_override("margin_bottom", 7)
 	outer.add_child(margin)
+
 	var vertical := VBoxContainer.new()
-	vertical.add_theme_constant_override("separation", 7)
+	vertical.add_theme_constant_override("separation", 6)
 	margin.add_child(vertical)
 
 	var brand_row := HBoxContainer.new()
-	brand_row.add_theme_constant_override("separation", 11)
+	brand_row.add_theme_constant_override("separation", 10)
 	vertical.add_child(brand_row)
-	var mark := PanelContainer.new()
-	mark.custom_minimum_size = Vector2(34, 34)
-	mark.add_theme_stylebox_override(
-		"panel", UI.box(Color(0.18, 0.82, 1.0, 0.12), 13, Color(0.18, 0.88, 1.0, 0.72), 1)
-	)
-	var mark_text := UI.label("EE", 13, UI.CYAN, 800)
+
+	var brand_mark := PanelContainer.new()
+	brand_mark.custom_minimum_size = Vector2(34, 34)
+	var mark_style := UI.box(Color(0.09, 0.12, 0.16, 1.0), 10, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.18), 1)
+	mark_style.shadow_size = 0
+	brand_mark.add_theme_stylebox_override("panel", mark_style)
+	var mark_text := UI.label("EE", 11, UI.TEXT, 800)
 	mark_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mark_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	mark.add_child(mark_text)
-	brand_row.add_child(mark)
+	brand_mark.add_child(mark_text)
+	brand_row.add_child(brand_mark)
 
 	var brand_text := VBoxContainer.new()
 	brand_text.add_theme_constant_override("separation", 0)
 	brand_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title := UI.label(str(game.data.get("club_name", "TSK ESPORTS")), 15, UI.TEXT, 800)
-	season_label = UI.label("", 11, UI.MUTED)
+	var title := UI.label(str(game.data.get("club_name", "TSK ESPORTS")), 14, UI.TEXT, 800)
+	season_label = UI.label("", 9, UI.MUTED, 700)
 	brand_text.add_child(title)
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
-	var version_badge := UI.badge(AppConfigRef.VERSION_BADGE, UI.PURPLE)
-	version_badge.custom_minimum_size.x = 76
+	var version_badge := UI.badge(AppConfigRef.VERSION_BADGE, UI.MUTED)
+	version_badge.custom_minimum_size.x = 66
 	brand_row.add_child(version_badge)
 
 	var stats := HBoxContainer.new()
@@ -169,59 +184,69 @@ func _build_top_bar() -> Control:
 	stats.add_child(reputation_chip)
 	return outer
 
-
 func _header_chip(caption: String, accent: Color) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override(
-		"panel",
-		UI.box(Color(0.07, 0.10, 0.22, 0.92), 13, Color(accent.r, accent.g, accent.b, 0.23), 1)
-	)
+	var style := UI.box(Color(0.055, 0.065, 0.082, 0.96), 10, Color(0.55, 0.62, 0.70, 0.08), 1)
+	style.content_margin_left = 8.0
+	style.content_margin_right = 8.0
+	style.content_margin_top = 5.0
+	style.content_margin_bottom = 5.0
+	style.shadow_size = 0
+	panel.add_theme_stylebox_override("panel", style)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	var dot := UI.label("•", 16, accent, 800)
+	row.add_theme_constant_override("separation", 5)
+	var dot := ColorRect.new()
+	dot.color = accent
+	dot.custom_minimum_size = Vector2(3, 22)
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(dot)
 	var text_box := VBoxContainer.new()
-	text_box.add_theme_constant_override("separation", 0)
-	var cap := UI.label(caption, 8, UI.MUTED, 800)
-	var value := UI.label("—", 12, UI.TEXT, 800)
+	text_box.add_theme_constant_override("separation", -1)
+	var cap := UI.label(caption, 7, UI.DIM, 800)
+	var value := UI.label("—", 11, UI.TEXT, 800)
 	text_box.add_child(cap)
 	text_box.add_child(value)
-	row.add_child(dot)
 	row.add_child(text_box)
 	panel.add_child(row)
 	panel.set_meta("value_label", value)
 	return panel
 
-
 func _build_bottom_navigation() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 72.0
-	outer.add_theme_stylebox_override(
-		"panel", UI.box(Color(0.025, 0.04, 0.105, 0.99), 0, Color(0.22, 0.38, 0.72, 0.2), 0)
-	)
+	outer.custom_minimum_size.y = 64.0
+	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.995), 0, Color(0.55, 0.64, 0.74, 0.10), 0)
+	outer_style.shadow_size = 0
+	outer.add_theme_stylebox_override("panel", outer_style)
+
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_top", 6)
 	margin.add_theme_constant_override("margin_right", 6)
-	margin.add_theme_constant_override("margin_bottom", 8)
+	margin.add_theme_constant_override("margin_bottom", 6)
 	outer.add_child(margin)
+
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 3)
 	margin.add_child(row)
-	var entries := AppConfigRef.NAV_ENTRIES
-	for entry in entries:
+	for entry in AppConfigRef.NAV_ENTRIES:
+		var page_id := str(entry[0])
 		var button := Button.new()
-		button.text = "%s\n%s" % [entry[2], entry[1]]
+		button.text = str(entry[1])
+		button.icon = NAV_ICONS.get(page_id)
+		button.icon_max_width = 17
+		button.expand_icon = true
+		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 54
-		button.add_theme_font_size_override("font_size", 10)
-		button.pressed.connect(_show_page.bind(entry[0], true))
+		button.custom_minimum_size.y = 50
+		button.add_theme_font_size_override("font_size", 9)
+		button.add_theme_constant_override("icon_max_width", 17)
+		button.pressed.connect(_show_page.bind(page_id, true))
 		row.add_child(button)
-		nav_buttons[entry[0]] = button
+		nav_buttons[page_id] = button
 	return outer
-
 
 func _build_toast() -> void:
 	toast_panel = PanelContainer.new()
@@ -286,21 +311,20 @@ func _refresh_nav() -> void:
 	for key in nav_buttons:
 		var button: Button = nav_buttons[key]
 		var selected: bool = str(key) == current_page
-		button.add_theme_color_override("font_color", UI.CYAN if selected else UI.MUTED)
+		button.add_theme_color_override("font_color", UI.TEXT if selected else UI.DIM)
 		button.add_theme_color_override("font_hover_color", UI.TEXT)
-		button.add_theme_stylebox_override(
-			"normal",
-			UI.box(
-				Color(0.16, 0.70, 1.0, 0.13) if selected else Color.TRANSPARENT,
-				14,
-				Color(0.18, 0.86, 1.0, 0.35) if selected else Color.TRANSPARENT,
-				1 if selected else 0
-			)
-		)
-		button.add_theme_stylebox_override("hover", UI.box(Color(0.14, 0.24, 0.45, 0.35), 14))
-		button.add_theme_stylebox_override("pressed", UI.box(Color(0.15, 0.65, 0.95, 0.20), 14))
+		button.add_theme_color_override("font_pressed_color", UI.TEXT)
+		button.add_theme_color_override("icon_normal_color", UI.CYAN if selected else UI.MUTED)
+		button.add_theme_color_override("icon_hover_color", UI.TEXT)
+		button.add_theme_color_override("icon_pressed_color", UI.CYAN)
+		var normal_color := Color(0.09, 0.12, 0.16, 0.96) if selected else Color.TRANSPARENT
+		var normal_border := Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.16) if selected else Color.TRANSPARENT
+		var normal_style := UI.box(normal_color, 11, normal_border, 1 if selected else 0)
+		normal_style.shadow_size = 0
+		button.add_theme_stylebox_override("normal", normal_style)
+		button.add_theme_stylebox_override("hover", UI.box(Color(0.09, 0.11, 0.14, 0.8), 11))
+		button.add_theme_stylebox_override("pressed", UI.box(Color(0.10, 0.14, 0.18, 0.95), 11, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.20), 1))
 		button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-
 
 func _show_page(page: String, animate: bool = true) -> void:
 	if match_overlay != null and is_instance_valid(match_overlay):
@@ -342,12 +366,23 @@ func _apply_scroll_passthrough(node: Node) -> void:
 
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
-	page_content.add_child(UI.overline(kicker, UI.CYAN))
-	page_content.add_child(UI.heading(title, 25))
-	var sub := UI.label(subtitle, 12, UI.MUTED)
-	sub.custom_minimum_size.y = 30
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 9)
+	var bar := ColorRect.new()
+	bar.color = UI.CYAN
+	bar.custom_minimum_size = Vector2(3, 42)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(bar)
+	var text_box := VBoxContainer.new()
+	text_box.add_theme_constant_override("separation", 1)
+	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_box.add_child(UI.overline(kicker, UI.MUTED))
+	text_box.add_child(UI.heading(title, 24))
+	row.add_child(text_box)
+	page_content.add_child(row)
+	var sub := UI.label(subtitle, 11, UI.MUTED)
+	sub.custom_minimum_size.y = 26
 	page_content.add_child(sub)
-
 
 func _mode_switch() -> void:
 	var row := HBoxContainer.new()
@@ -2652,16 +2687,7 @@ func _section_title(title: String, subtitle: String) -> Control:
 
 
 func _metric_block(caption: String, value: String, accent: Color) -> Control:
-	var box := VBoxContainer.new()
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 2)
-	var val := UI.label(value, 15 if value.length() < 11 else 11, UI.TEXT, 800)
-	val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var cap := UI.label(caption, 9, accent, 800)
-	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(val)
-	box.add_child(cap)
-	return box
+	return UI.metric_tile(caption, value, accent)
 
 
 func _rank_emblem(rank_data: Dictionary, size: float = 72.0) -> Control:
