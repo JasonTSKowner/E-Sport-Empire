@@ -50,6 +50,7 @@ var match_pressure_label: Label
 var live_match_stats: Dictionary = {}
 var match_log_box: VBoxContainer
 var match_log_scroll: ScrollContainer
+var match_feed_scroll: ScrollContainer
 var match_result_box: VBoxContainer
 var match_continue_button: Button
 var match_finished := false
@@ -3026,146 +3027,195 @@ func _build_match_overlay() -> void:
 	match_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	match_overlay.modulate.a = 0.0
 	add_child(match_overlay)
+
 	var dim := ColorRect.new()
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.01, 0.015, 0.045, 0.96)
+	dim.color = Color(0.018, 0.024, 0.032, 0.995)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	match_overlay.add_child(dim)
+
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_left", 10)
 	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_right", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
 	match_overlay.add_child(margin)
+
 	match_log_scroll = ScrollContainer.new()
 	match_log_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	match_log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	match_log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	match_log_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	match_log_scroll.scroll_deadzone = 8
-	match_log_scroll.scroll_vertical_custom_step = 72.0
+	match_log_scroll.scroll_vertical_custom_step = 64.0
 	match_log_scroll.follow_focus = false
 	margin.add_child(match_log_scroll)
+
 	var layout := VBoxContainer.new()
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 13)
+	layout.add_theme_constant_override("separation", 9)
 	match_log_scroll.add_child(layout)
+
 	var mode := str(source["mode"])
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var is_circuit := str(source.get("competition", "ranked")) == "pro_circuit"
 	var circuit_data: Dictionary = source.get("circuit", {})
-	var header_row := HBoxContainer.new()
-	var live_label := "PRO CIRCUIT LIVE" if is_circuit else "STREAM LIVE" if bool(source.get("streaming", false)) else "RANKED LIVE"
-	header_row.add_child(UI.overline(("%s  •  %s" % [live_label, str(source.get("format", "RANKED"))]), accent))
-	var head_spacer := Control.new()
-	head_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_row.add_child(head_spacer)
-	header_row.add_child(
+
+	var broadcast_header := HBoxContainer.new()
+	broadcast_header.add_theme_constant_override("separation", 8)
+	var broadcast_label := (
+		"PRO CIRCUIT"
+		if is_circuit
+		else "STREAM LIVE"
+		if bool(source.get("streaming", false))
+		else "RANKED LIVE"
+	)
+	broadcast_header.add_child(UI.overline("%s  •  %s" % [broadcast_label, str(source.get("format", "1v1"))], UI.MUTED))
+	var broadcast_spacer := Control.new()
+	broadcast_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	broadcast_header.add_child(broadcast_spacer)
+	broadcast_header.add_child(
 		UI.badge(
-			str(circuit_data.get("round", "PRO CIRCUIT")) if is_circuit else ("%d VIEWERS" % int(source.get("stream_viewers", 0))) if bool(source.get("streaming", false)) else "AUTO-SIM",
+			str(circuit_data.get("round", "PRO CIRCUIT"))
+			if is_circuit
+			else "%d ZUSCHAUER" % int(source.get("stream_viewers", 0))
+			if bool(source.get("streaming", false))
+			else "AUTO-SIM",
 			accent
 		)
 	)
-	layout.add_child(header_row)
-	layout.add_child(UI.heading(("%s vs %s" % ["KESHI" if str(source.get("format", "")) == "1v1" else "TSK", str(source["opponent"])]), 24))
-	var opponent_profile: Dictionary = source.get("opponent_profile", {})
-	layout.add_child(
-		UI.badge(
-			"SCOUT-MODELL %s  •  %s"
-			% [
-				_chance_text(float(source.get("estimated_win_chance", 0.5))),
-				str(opponent_profile.get("label", "NORMALES SPIEL")),
-			],
-			UI.GOLD
-		)
-	)
+	layout.add_child(broadcast_header)
 
-	var scoreboard := UI.card(accent)
+	var scoreboard := UI.hero(accent)
 	var score_box := VBoxContainer.new()
-	score_box.add_theme_constant_override("separation", 9)
+	score_box.add_theme_constant_override("separation", 7)
 	scoreboard.add_child(score_box)
-	match_clock_label = UI.overline("VERBINDUNG", UI.MUTED)
+
+	match_clock_label = UI.label("VERBINDUNG", 10, UI.MUTED, 800)
 	match_clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	score_box.add_child(match_clock_label)
 
 	var score_row := HBoxContainer.new()
-	score_row.add_theme_constant_override("separation", 8)
-	var our_team := PanelContainer.new()
-	our_team.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	our_team.add_theme_stylebox_override("panel", UI.box(Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.10), 12, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.32), 1))
-	var our_name := UI.label("TSK", 12, UI.CYAN, 800)
-	our_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	our_team.add_child(our_name)
-	score_row.add_child(our_team)
+	score_row.add_theme_constant_override("separation", 6)
 
-	match_score_label = UI.label("0 - 0", 37, UI.TEXT, 800)
-	match_score_label.custom_minimum_size.x = 112
+	var our_box := VBoxContainer.new()
+	our_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var our_name := UI.label("KESHI" if str(source.get("format", "")) == "1v1" else "TSK", 12, UI.CYAN, 800)
+	our_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var our_cap := UI.label("DEIN TEAM", 7, UI.DIM, 800)
+	our_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	our_box.add_child(our_name)
+	our_box.add_child(our_cap)
+	score_row.add_child(our_box)
+
+	match_score_label = UI.label("0  :  0", 38, UI.TEXT, 800)
+	match_score_label.custom_minimum_size.x = 116
 	match_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	match_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	score_row.add_child(match_score_label)
 
-	var opponent_team := PanelContainer.new()
-	opponent_team.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opponent_team.add_theme_stylebox_override("panel", UI.box(Color(UI.RED.r, UI.RED.g, UI.RED.b, 0.10), 12, Color(UI.RED.r, UI.RED.g, UI.RED.b, 0.32), 1))
-	var opponent_name := UI.label(str(source["opponent"]).to_upper(), 10, UI.RED, 800)
+	var opponent_box := VBoxContainer.new()
+	opponent_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var opponent_name := UI.label(str(source["opponent"]).to_upper(), 11, UI.RED, 800)
 	opponent_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	opponent_team.add_child(opponent_name)
-	score_row.add_child(opponent_team)
+	var opponent_cap := UI.label("GEGNER", 7, UI.DIM, 800)
+	opponent_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	opponent_box.add_child(opponent_name)
+	opponent_box.add_child(opponent_cap)
+	score_row.add_child(opponent_box)
 	score_box.add_child(score_row)
 
 	var progress_max := maxi(1, int(source.get("broadcast_events", source.get("events", [])).size()))
-	match_progress = UI.progress(0, progress_max, accent, 7)
+	match_progress = UI.progress(0, progress_max, accent, 5)
 	score_box.add_child(match_progress)
-	var live_stats_row := HBoxContainer.new()
-	live_stats_row.add_theme_constant_override("separation", 7)
-	match_shots_label = UI.label("SCHÜSSE  0 - 0", 10, UI.CYAN, 800)
-	match_shots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	match_saves_label = UI.label("PARADEN  0 - 0", 10, UI.GREEN, 800)
-	match_saves_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	match_pressure_label = UI.label("DRUCK  50 - 50", 10, UI.GOLD, 800)
-	match_pressure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	live_stats_row.add_child(match_shots_label)
-	live_stats_row.add_child(match_saves_label)
-	live_stats_row.add_child(match_pressure_label)
-	score_box.add_child(live_stats_row)
+
+	var opponent_profile: Dictionary = source.get("opponent_profile", {})
+	var model_text := "SCOUT-MODELL %s  •  %s" % [
+		_chance_text(float(source.get("estimated_win_chance", 0.5))),
+		str(opponent_profile.get("label", "NORMALES SPIEL")),
+	]
+	var model := UI.label(model_text, 8, UI.DIM, 700)
+	model.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	score_box.add_child(model)
 	layout.add_child(scoreboard)
+
 	match_visualizer = null
 	if mode == "Rocket League":
-		layout.add_child(UI.overline("LIVE-ARENA  •  BROADCAST-SIMULATION  •  PHYSIK-FX", UI.CYAN))
 		match_visualizer = MatchVisualizerRef.new()
 		match_visualizer.configure(source)
 		layout.add_child(match_visualizer)
 
-	var event_panel := UI.card(accent)
-	event_panel.custom_minimum_size.y = 82
-	match_event_label = UI.label("Die Teams betreten den Server...", 15, UI.TEXT, 700)
+	var event_panel := PanelContainer.new()
+	var event_style := UI.box(Color(0.055, 0.068, 0.086, 0.98), 12, Color(accent.r, accent.g, accent.b, 0.16), 1)
+	event_style.shadow_size = 0
+	event_panel.add_theme_stylebox_override("panel", event_style)
+	event_panel.custom_minimum_size.y = 62
+	match_event_label = UI.label("Die Teams betreten den Server...", 13, UI.TEXT, 700)
+	match_event_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	match_event_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	event_panel.add_child(match_event_label)
 	layout.add_child(event_panel)
 
+	var live_stats_row := HBoxContainer.new()
+	live_stats_row.add_theme_constant_override("separation", 6)
+	match_shots_label = UI.label("SCHÜSSE  0 - 0", 9, UI.CYAN, 800)
+	match_shots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	match_saves_label = UI.label("PARADEN  0 - 0", 9, UI.GREEN, 800)
+	match_saves_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	match_pressure_label = UI.label("DRUCK  50 - 50", 9, UI.GOLD, 800)
+	match_pressure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	live_stats_row.add_child(match_shots_label)
+	live_stats_row.add_child(match_saves_label)
+	live_stats_row.add_child(match_pressure_label)
+	layout.add_child(live_stats_row)
+
 	match_decision_box = null
-	var speed_row := HBoxContainer.new()
-	speed_row.add_theme_constant_override("separation", 8)
+	var controls := HBoxContainer.new()
+	controls.add_theme_constant_override("separation", 6)
+	controls.add_child(UI.overline("GESCHWINDIGKEIT", UI.DIM))
+	var controls_spacer := Control.new()
+	controls_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls.add_child(controls_spacer)
 	for speed in [1, 2, 4]:
 		var speed_button := UI.button("%dx" % speed, accent, speed == 1, true)
-		speed_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		speed_button.custom_minimum_size = Vector2(60, 38)
 		speed_button.pressed.connect(_set_match_speed.bind(speed))
-		speed_row.add_child(speed_button)
-	layout.add_child(speed_row)
-	layout.add_child(UI.overline("SPIELVERLAUF", UI.MUTED))
-	var feed_panel := UI.card()
+		controls.add_child(speed_button)
+	layout.add_child(controls)
+
+	var feed_header := HBoxContainer.new()
+	feed_header.add_child(UI.overline("LIVE-FEED", UI.MUTED))
+	var feed_spacer := Control.new()
+	feed_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	feed_header.add_child(feed_spacer)
+	feed_header.add_child(UI.label("AUTO", 8, UI.DIM, 800))
+	layout.add_child(feed_header)
+
+	var feed_panel := PanelContainer.new()
+	var feed_style := UI.box(Color(0.045, 0.055, 0.070, 0.96), 12, Color(0.55, 0.62, 0.70, 0.08), 1)
+	feed_style.shadow_size = 0
+	feed_panel.add_theme_stylebox_override("panel", feed_style)
+	feed_panel.custom_minimum_size.y = 112
+
+	match_feed_scroll = ScrollContainer.new()
+	match_feed_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	match_feed_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	match_feed_scroll.custom_minimum_size.y = 96
+	match_feed_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	feed_panel.add_child(match_feed_scroll)
+
 	match_log_box = VBoxContainer.new()
 	match_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	match_log_box.custom_minimum_size.y = 128.0
-	match_log_box.add_theme_constant_override("separation", 7)
-	feed_panel.add_child(match_log_box)
+	match_log_box.add_theme_constant_override("separation", 5)
+	match_feed_scroll.add_child(match_log_box)
 	layout.add_child(feed_panel)
 
 	match_result_box = VBoxContainer.new()
 	match_result_box.add_theme_constant_override("separation", 8)
 	match_result_box.visible = false
 	layout.add_child(match_result_box)
+
 	match_continue_button = UI.button("WEITER", accent, true)
 	match_continue_button.visible = false
 	match_continue_button.pressed.connect(_close_match)
@@ -3177,9 +3227,11 @@ func _build_match_overlay() -> void:
 	match_timer.process_callback = Timer.TIMER_PROCESS_IDLE
 	match_timer.timeout.connect(_advance_match)
 	match_overlay.add_child(match_timer)
+
 	_apply_scroll_passthrough(layout)
 	var tween := create_tween()
-	tween.tween_property(match_overlay, "modulate:a", 1.0, 0.22)
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(match_overlay, "modulate:a", 1.0, 0.18)
 
 
 func _present_match_decision() -> void:
@@ -3373,7 +3425,7 @@ func _advance_match() -> void:
 
 func _append_match_event(event: Dictionary, feedback: String = "") -> void:
 	match_clock_label.text = str(event["time"])
-	match_score_label.text = str(event["score"])
+	match_score_label.text = str(event["score"]).replace(" - ", "  :  ")
 	match_event_label.text = str(event["text"])
 	var accent := UI.MUTED
 	if str(event["type"]) == "good":
@@ -3442,10 +3494,10 @@ func _update_live_match_metrics(event: Dictionary) -> void:
 
 
 func _scroll_match_feed_to_bottom() -> void:
-	if match_log_scroll == null or not is_instance_valid(match_log_scroll):
+	if match_feed_scroll == null or not is_instance_valid(match_feed_scroll):
 		return
-	var bar := match_log_scroll.get_v_scroll_bar()
-	match_log_scroll.scroll_vertical = int(bar.max_value)
+	var bar := match_feed_scroll.get_v_scroll_bar()
+	match_feed_scroll.scroll_vertical = int(bar.max_value)
 
 
 func _finish_match_animation() -> void:
