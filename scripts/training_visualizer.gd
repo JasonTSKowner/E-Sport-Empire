@@ -308,7 +308,7 @@ func _draw_ball(arena: Rect2) -> void:
 		draw_circle(_field_point(ball_trail[i], arena), 3.0, Color(BALL.r,BALL.g,BALL.b,alpha))
 	var base := _field_point(ball_position, arena)
 	var lift := ball_height * 18.0
-	draw_ellipse(base + Vector2(2,4), Vector2(7.0 - ball_height*1.8, 3.2 - ball_height*0.8), Color(0,0,0,0.34))
+	_draw_soft_ellipse(base + Vector2(2,4), Vector2(7.0 - ball_height*1.8, 3.2 - ball_height*0.8), Color(0,0,0,0.34))
 	var visual := base - Vector2(0,lift)
 	draw_circle(visual, 10.0, Color(BALL.r,BALL.g,BALL.b,0.07))
 	draw_circle(visual, 6.0, BALL)
@@ -319,7 +319,7 @@ func _field_point(normalized: Vector2, arena: Rect2) -> Vector2:
 	return arena.position + Vector2(clampf(normalized.x,0.0,1.0)*arena.size.x, clampf(normalized.y,0.0,1.0)*arena.size.y)
 
 
-func draw_ellipse(center: Vector2, radii: Vector2, color: Color) -> void:
+func _draw_soft_ellipse(center: Vector2, radii: Vector2, color: Color) -> void:
 	var points := PackedVector2Array()
 	for i in range(24):
 		var a := TAU * float(i) / 24.0
