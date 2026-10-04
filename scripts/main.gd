@@ -1581,15 +1581,13 @@ func _build_ranked_overview() -> void:
 	var playlist := game.selected_rl_playlist()
 	var record := game.playlist_record(playlist)
 	page_content.add_child(_rank_profile_card(playlist))
-	page_content.add_child(_rank_stats_card(playlist))
 	page_content.add_child(_mmr_graph_card(playlist))
+	page_content.add_child(_section_title("LETZTE SPIELE", "Die letzten Ranked-Ergebnisse in %s." % playlist))
+	_build_playlist_history(page_content, playlist, 5)
 	page_content.add_child(_circuit_overview_card())
-	page_content.add_child(_ranked_queue_card(playlist))
-	page_content.add_child(_section_title("LETZTE SPIELE", "Ranked-Ergebnisse in %s" % playlist))
-	_build_playlist_history(page_content, playlist, 6)
-	page_content.add_child(_streaming_card())
 	if int(record.get("played", 0)) >= 3:
 		page_content.add_child(_cup_card("Rocket League"))
+	page_content.add_child(_streaming_card())
 
 
 func _circuit_overview_card() -> Control:
@@ -1735,78 +1733,78 @@ func _rank_profile_card(playlist: String) -> Control:
 	var placed := placements >= 10
 	var actual_rank := RankedDataRef.rank_for_mmr(mmr, playlist)
 	var shown_rank := actual_rank if placed else RankedDataRef.unranked_data(mmr)
-	var accent := RankedDataRef.color_for_family(str(shown_rank["family"]))
+	var accent := RankedDataRef.color_for_family(str(shown_rank.get("family", "Unranked")))
+
 	var panel := UI.hero(accent)
+	var art := HeroArtRef.new()
+	art.configure(accent, "ranked")
+	panel.add_child(art)
+
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 13)
+	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 13)
-	header.add_child(_rank_emblem(shown_rank, 100.0))
+
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	top.add_child(_rank_emblem(shown_rank, 96.0))
+
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	identity.add_theme_constant_override("separation", 3)
-	identity.add_child(UI.overline("%s RANKED" % playlist, accent))
-	identity.add_child(UI.heading("UNRANKED" if not placed else str(actual_rank["tier_name"]), 22))
-	var equipped_title := game.equipped_title()
-	if not equipped_title.is_empty():
-		identity.add_child(
-			UI.label(
-				str(equipped_title.get("label", "")),
-				9,
-				TitleDataRef.color_for(equipped_title),
-				800
-			)
-		)
+	identity.add_theme_constant_override("separation", 2)
+	identity.add_child(UI.overline("%s RANKED" % playlist, UI.DIM))
+	identity.add_child(UI.label("UNRANKED" if not placed else str(actual_rank.get("tier_name", "RANKED")), 24, UI.TEXT, 800))
 	identity.add_child(
 		UI.label(
-			"%d / 10 Placements" % placements if not placed else "Division %s" % str(actual_rank["division_roman"]),
-			13,
+			"%d / 10 Placements" % placements
+			if not placed
+			else "Division %s" % str(actual_rank.get("division_roman", "I")),
+			10,
 			UI.MUTED,
 			700
 		)
 	)
-	header.add_child(identity)
+	top.add_child(identity)
+
 	var rating := VBoxContainer.new()
-	var rating_value := UI.label(str(mmr) if placed else "VERBORGEN", 24 if not placed else 28, UI.TEXT, 800)
+	var rating_value := UI.label("—" if not placed else str(mmr), 29, UI.TEXT, 800)
 	rating_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var rating_cap := UI.label("MMR NACH RANG-REVEAL" if not placed else "MMR", 9 if not placed else 10, accent, 800)
+	var rating_cap := UI.label("MMR" if placed else "VERBORGEN", 8, UI.DIM, 800)
 	rating_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rating.add_child(rating_value)
 	rating.add_child(rating_cap)
-	header.add_child(rating)
-	box.add_child(header)
-	box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.28)))
+	top.add_child(rating)
+	box.add_child(top)
+
 	if not placed:
-		var placement_labels := HBoxContainer.new()
-		var left := UI.label("RANG VERDECKT", 12, UI.TEXT, 800)
-		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		placement_labels.add_child(left)
-		placement_labels.add_child(UI.label("NOCH %d SPIELE" % (10 - placements), 11, UI.MUTED, 700))
-		box.add_child(placement_labels)
-		box.add_child(UI.progress(placements, 10, accent, 9))
+		box.add_child(UI.progress(placements, 10, accent, 6))
 	else:
-		var next_rank := RankedDataRef.next_rank_for_mmr(mmr, playlist)
 		var progress := RankedDataRef.progress_for_mmr(mmr, playlist)
-		var progress_labels := HBoxContainer.new()
-		var current := UI.label(str(actual_rank["compact_name"]), 12, UI.TEXT, 800)
-		current.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		progress_labels.add_child(current)
-		var target_text := "MAX. RANG" if str(actual_rank["family"]) == "Supersonic Legend" else "%s  •  %d" % [str(next_rank["compact_name"]), int(actual_rank["next_minimum"])]
-		progress_labels.add_child(UI.label(target_text, 11, UI.MUTED, 700))
-		box.add_child(progress_labels)
-		box.add_child(UI.progress(float(progress["value"]), float(progress["maximum"]), accent, 9))
-	var footer := HBoxContainer.new()
-	footer.add_child(_metric_block("S / N", "%d / %d" % [int(record.get("wins", 0)), int(record.get("losses", 0))], UI.GREEN))
-	footer.add_child(_metric_block("WINRATE", "%.1f%%" % RankedDataRef.win_rate(record), accent))
-	footer.add_child(
-		_metric_block(
-			"GESCH. RANGLISTE",
-			"VERBORGEN" if not placed else "#%s" % GameDataRef.format_number(RankedDataRef.estimated_position(mmr, playlist)),
-			UI.PURPLE
-		)
+		box.add_child(UI.progress(float(progress.get("value", 0)), float(progress.get("maximum", 1)), accent, 6))
+
+	var streak := int(record.get("streak", 0))
+	var metric_row := HBoxContainer.new()
+	metric_row.add_theme_constant_override("separation", 6)
+	metric_row.add_child(_metric_block("S / N", "%d / %d" % [int(record.get("wins", 0)), int(record.get("losses", 0))], UI.GREEN))
+	metric_row.add_child(_metric_block("WINRATE", "%.1f%%" % RankedDataRef.win_rate(record), accent))
+	metric_row.add_child(_metric_block("STREAK", "%s%d" % ["W" if streak > 0 else "L" if streak < 0 else "—", abs(streak)] if streak != 0 else "—", UI.GOLD))
+	box.add_child(metric_row)
+
+	var available := game.can_queue_playlist(playlist)
+	var required := game.playlist_required_players(playlist)
+	var roster_size := game.roster_for("Rocket League").size()
+	var queue_text := "%s RANKED STARTEN" % playlist if available else "NOCH %d SPIELER HOLEN" % maxi(0, required - roster_size)
+	var queue := UI.button(queue_text, accent, available)
+	queue.disabled = not available
+	queue.pressed.connect(_start_match.bind("Rocket League"))
+	box.add_child(queue)
+
+	var model := UI.label(
+		"Placements: ±20–30 MMR" if not placed else "Normales Ranked: ca. ±9–11 MMR  •  Gegner-MMR wird berücksichtigt",
+		9,
+		UI.DIM
 	)
-	box.add_child(footer)
+	model.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(model)
 	return panel
 
 
