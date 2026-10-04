@@ -1,16 +1,16 @@
 class_name TrainingVisualizer
 extends Control
 
-const BG := Color("02050c")
-const FIELD := Color("071827")
-const FIELD_ALT := Color("0a2033")
-const LINE := Color("355879")
+const BG := Color("05080D")
+const FIELD := Color("0A1118")
+const FIELD_ALT := Color("0D151E")
+const LINE := Color("455568")
 const BALL := Color("f3f6ff")
-const BOOST := Color("ffbf69")
-const TARGET := Color("58e39b")
-const DANGER := Color("ff647c")
+const BOOST := Color("E8C17A")
+const TARGET := Color("5DE1A5")
+const DANGER := Color("FF6B7A")
 
-var accent := Color("2de2ff")
+var accent := Color("7FE7FF")
 var fatigue := 0
 var focus_remaining := 3
 var focus_limit := 3
@@ -185,7 +185,7 @@ func _ease(t: float) -> float:
 func _draw() -> void:
 	var arena := Rect2(Vector2(9, 42), Vector2(maxf(1.0, size.x - 18), maxf(1.0, size.y - 52)))
 	draw_rect(Rect2(Vector2.ZERO, size), BG, true)
-	draw_rect(arena.grow(6), Color("0b1020"), true)
+	draw_rect(arena.grow(6), Color("0B0F15"), true)
 	draw_rect(arena, FIELD, true)
 
 	var stripe_w := arena.size.x / 10.0
@@ -209,6 +209,12 @@ func _draw() -> void:
 		var pulse := 0.5 + 0.5 * sin(animation_time * 6.5)
 		draw_rect(arena, Color(accent.r, accent.g, accent.b, 0.025 + pulse * 0.055), true)
 		draw_rect(arena, Color(accent.r, accent.g, accent.b, 0.22 + pulse * 0.18), false, 2.0)
+
+	var footer_font := ThemeDB.fallback_font
+	var intensity_text := "INTENSITÄT %d%%" % int(round(intensity * 100.0))
+	draw_string(footer_font, Vector2(12, size.y - 7), "LIVE-DRILL", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color("647082"))
+	var width := footer_font.get_string_size(intensity_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	draw_string(footer_font, Vector2(size.x - 12 - width, size.y - 7), intensity_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color("98A3B3"))
 
 
 func _draw_focus_header() -> void:
