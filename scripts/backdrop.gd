@@ -1,6 +1,6 @@
 extends Control
 
-var drift := 0.0
+var time_value := 0.0
 
 
 func _ready() -> void:
@@ -8,24 +8,55 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	drift = fmod(drift + delta * 7.0, 120.0)
+	time_value += delta
 	queue_redraw()
 
 
 func _draw() -> void:
-	var size := get_rect().size
-	draw_rect(Rect2(Vector2.ZERO, size), Color("050817"))
-	for i in range(9):
-		var y := fmod(float(i) * 118.0 + drift, size.y + 118.0) - 118.0
-		var alpha := 0.022 + float(i % 3) * 0.008
-		draw_line(Vector2(0.0, y), Vector2(size.x, y - 72.0), Color(0.20, 0.74, 1.0, alpha), 1.0)
-	for i in range(5):
-		var x := float(i) * size.x / 4.0
-		draw_line(Vector2(x, 0.0), Vector2(x - 140.0, size.y), Color(0.55, 0.34, 1.0, 0.025), 1.0)
-	var pulse := (sin(Time.get_ticks_msec() / 1200.0) + 1.0) * 0.5
+	var viewport_size := get_rect().size
+	draw_rect(Rect2(Vector2.ZERO, viewport_size), Color("070A0F"))
+
+	# Large matte light fields instead of obvious neon glows.
+	var pulse := 0.5 + 0.5 * sin(time_value * 0.38)
 	draw_circle(
-		Vector2(size.x * 0.88, size.y * 0.12), 120.0 + pulse * 12.0, Color(0.20, 0.72, 1.0, 0.045)
+		Vector2(viewport_size.x * 0.82, viewport_size.y * 0.08),
+		viewport_size.x * (0.62 + pulse * 0.03),
+		Color(0.11, 0.18, 0.24, 0.11)
 	)
 	draw_circle(
-		Vector2(size.x * 0.06, size.y * 0.72), 155.0 + pulse * 16.0, Color(0.56, 0.30, 1.0, 0.04)
+		Vector2(viewport_size.x * 0.10, viewport_size.y * 0.62),
+		viewport_size.x * (0.54 + (1.0 - pulse) * 0.025),
+		Color(0.12, 0.10, 0.18, 0.065)
 	)
+
+	# Subtle editorial grid.
+	var spacing := 72.0
+	var drift := fmod(time_value * 2.2, spacing)
+	var x := -spacing + drift
+	while x < viewport_size.x + spacing:
+		draw_line(
+			Vector2(x, 0),
+			Vector2(x - viewport_size.y * 0.11, viewport_size.y),
+			Color(0.55, 0.64, 0.73, 0.025),
+			1.0
+		)
+		x += spacing
+
+	var y := -spacing + drift * 0.55
+	while y < viewport_size.y + spacing:
+		draw_line(
+			Vector2(0, y),
+			Vector2(viewport_size.x, y - viewport_size.x * 0.05),
+			Color(0.55, 0.64, 0.73, 0.018),
+			1.0
+		)
+		y += spacing
+
+	# Fine dot field adds texture without reading as FX.
+	for row in range(9):
+		for column in range(5):
+			var dot := Vector2(
+				viewport_size.x * (0.08 + float(column) * 0.21),
+				viewport_size.y * (0.08 + float(row) * 0.115)
+			)
+			draw_circle(dot, 1.0, Color(0.70, 0.78, 0.86, 0.045))
