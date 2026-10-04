@@ -2,6 +2,7 @@ class_name EmpireUI
 extends RefCounted
 
 const BrandSurfaceRef = preload("res://scripts/brand_surface.gd")
+const APP_FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
 const BG := Color("080B10")
 const SURFACE := Color("0D1218")
@@ -52,6 +53,7 @@ static func card(accent: Color = Color.TRANSPARENT) -> PanelContainer:
 static func label(text: String, size: int = 16, color: Color = TEXT, weight: int = 500) -> Label:
 	var node := Label.new()
 	node.text = text
+	node.add_theme_font_override("font", APP_FONT)
 	node.add_theme_font_size_override("font_size", size)
 	node.add_theme_color_override("font_color", color)
 	if weight >= 700:
@@ -84,6 +86,7 @@ static func button(
 	node.mouse_filter = Control.MOUSE_FILTER_PASS
 	node.keep_pressed_outside = false
 	node.custom_minimum_size = Vector2(0.0, 44.0 if compact else 52.0)
+	node.add_theme_font_override("font", APP_FONT)
 	node.add_theme_font_size_override("font_size", 12 if compact else 14)
 	node.add_theme_color_override("font_color", TEXT if filled else Color(0.88,0.91,0.95,0.90))
 	node.add_theme_color_override("font_hover_color", TEXT)
