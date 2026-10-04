@@ -1169,7 +1169,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	top.add_child(ovr)
 
 	var training_readiness := game.training_readiness(player)
-	box.add_child(UI.overline("TRAININGSPLATZ  •  LIVE-ANSICHT", accent))
+	box.add_child(UI.overline("PERFORMANCE LAB  •  AKTIVER DRILL", accent))
 	var training_view := TrainingVisualizerRef.new()
 	training_view.configure(player, training_readiness, accent)
 	box.add_child(training_view)
@@ -2922,7 +2922,8 @@ func _begin_match_playback() -> void:
 	if match_timer == null or not is_instance_valid(match_timer):
 		return
 	_advance_match()
-	if match_event_index < int(match_result.get("events", []).size()):
+	var replay_events: Array = match_result.get("broadcast_events", match_result.get("events", []))
+	if match_event_index < replay_events.size():
 		match_timer.start()
 
 
@@ -2999,7 +3000,7 @@ func _build_match_overlay() -> void:
 		"TSK                    %s" % str(source["opponent"]).to_upper(), 10, accent, 800
 	)
 	team_names.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var progress_max := maxi(1, int(source.get("events", []).size()))
+	var progress_max := maxi(1, int(source.get("broadcast_events", source.get("events", [])).size()))
 	match_progress = UI.progress(0, progress_max, accent, 7)
 	score_box.add_child(match_clock_label)
 	score_box.add_child(match_score_label)
@@ -3020,7 +3021,7 @@ func _build_match_overlay() -> void:
 	layout.add_child(scoreboard)
 	match_visualizer = null
 	if mode == "Rocket League":
-		layout.add_child(UI.overline("LIVE-ARENA  •  TOP-DOWN-AUTO-SIMULATION", UI.CYAN))
+		layout.add_child(UI.overline("LIVE-ARENA  •  BROADCAST-SIMULATION  •  PHYSIK-FX", UI.CYAN))
 		match_visualizer = MatchVisualizerRef.new()
 		match_visualizer.configure(source)
 		layout.add_child(match_visualizer)
@@ -3060,7 +3061,7 @@ func _build_match_overlay() -> void:
 	layout.add_child(match_continue_button)
 
 	match_timer = Timer.new()
-	match_timer.wait_time = 0.82
+	match_timer.wait_time = 0.54
 	match_timer.one_shot = false
 	match_timer.process_callback = Timer.TIMER_PROCESS_IDLE
 	match_timer.timeout.connect(_advance_match)
@@ -3210,19 +3211,20 @@ func _set_match_speed(speed: int) -> void:
 		return
 	match_speed = speed
 	if match_timer != null:
-		match_timer.wait_time = 0.72 / float(speed)
+		match_timer.wait_time = 0.54 / float(speed)
 		match_timer.start()
 
 
 func _advance_match() -> void:
 	if match_finished:
 		return
-	var events: Array = match_result["events"]
+	var events: Array = match_result.get("broadcast_events", match_result.get("events", []))
 	if match_event_index >= events.size():
 		_finish_match_animation()
 		return
 	var event: Dictionary = events[match_event_index]
-	_update_live_match_metrics(event)
+	if bool(event.get("count_stats", true)):
+		_update_live_match_metrics(event)
 	if match_visualizer != null and is_instance_valid(match_visualizer):
 		match_visualizer.play_turn(
 			event,
@@ -3232,7 +3234,15 @@ func _advance_match() -> void:
 		)
 	_append_match_event(event)
 	match_progress.value = match_event_index + 1
-	FX.pulse(match_score_label, 1.025, 0.16)
+	var phase := str(event.get("phase", "reset"))
+	if phase in ["goal_ours", "goal_theirs"]:
+		FX.pulse(match_score_label, 1.12, 0.30)
+		FX.flash(match_score_label, UI.GREEN if phase == "goal_ours" else UI.RED, 0.42)
+		FX.shake(match_overlay, 3.2, 0.18)
+	elif phase in ["chance_ours", "chance_theirs"]:
+		FX.pulse(match_score_label, 1.035, 0.16)
+	else:
+		FX.pulse(match_event_label, 1.012, 0.12)
 
 	var live_chat: Array = match_result.get("live_chat", [])
 	if bool(match_result.get("streaming", false)) and match_event_index < live_chat.size():
@@ -3267,6 +3277,9 @@ func _append_match_event(event: Dictionary, feedback: String = "") -> void:
 	var text := UI.label(str(event["text"]), 11, UI.MUTED)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	feed_row.add_child(text)
+	var phase := str(event.get("phase", ""))
+	if phase in ["buildup", "challenge"]:
+		feed_row.add_child(UI.badge("AUFBAU" if phase == "buildup" else "DUELL", UI.CYAN if phase == "buildup" else UI.GOLD))
 	if not feedback.is_empty():
 		feed_row.add_child(UI.badge(feedback, accent))
 	match_log_box.add_child(feed_row)
@@ -3304,17 +3317,17 @@ func _update_live_match_metrics(event: Dictionary) -> void:
 	var ours_percent := int(round(float(ours_pressure) / float(total_pressure) * 100.0))
 	var theirs_percent := 100 - ours_percent
 	if match_shots_label != null:
-		match_shots_label.text = "SHOTS  %d - %d" % [
+		match_shots_label.text = "SCHÜSSE  %d - %d" % [
 			int(live_match_stats.get("shots_ours", 0)),
 			int(live_match_stats.get("shots_theirs", 0)),
 		]
 	if match_saves_label != null:
-		match_saves_label.text = "SAVES  %d - %d" % [
+		match_saves_label.text = "PARADEN  %d - %d" % [
 			int(live_match_stats.get("saves_ours", 0)),
 			int(live_match_stats.get("saves_theirs", 0)),
 		]
 	if match_pressure_label != null:
-		match_pressure_label.text = "PRESSURE  %d - %d" % [ours_percent, theirs_percent]
+		match_pressure_label.text = "DRUCK  %d - %d" % [ours_percent, theirs_percent]
 
 
 func _scroll_match_feed_to_bottom() -> void:
