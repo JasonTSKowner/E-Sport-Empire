@@ -11,6 +11,7 @@ const CoachingDataRef = preload("res://scripts/coaching_data.gd")
 const CareerDataRef = preload("res://scripts/career_data.gd")
 const DynastyDataRef = preload("res://scripts/dynasty_data.gd")
 const MatchVisualizerRef = preload("res://scripts/match_visualizer.gd")
+const TrainingVisualizerRef = preload("res://scripts/training_visualizer.gd")
 const MainScene = preload("res://scenes/Main.tscn")
 
 var failures: Array[String] = []
@@ -30,7 +31,7 @@ func _run() -> void:
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
-	_check(AppConfigRef.VERSION.begins_with("1.2."), "v1.2 mobile German app version")
+	_check(AppConfigRef.VERSION.begins_with("1.3."), "v1.3 visual rebuild app version")
 	_check(AppConfigRef.NAV_ENTRIES.size() == 5, "five primary navigation destinations")
 	_check(AppConfigRef.navigation_ids().has(AppConfigRef.DEFAULT_PAGE), "default page exists in navigation")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
@@ -65,8 +66,10 @@ func _run() -> void:
 	var one_before := int(state.playlist_record("1v1")["mmr"])
 	var first_match: Dictionary = state.create_match("Rocket League")
 	_check(bool(first_match.get("ok", false)), "1v1 match creation")
-	_check(first_match.get("events", []).size() >= 6 and first_match.get("events", []).size() <= 8, "auto simulation event count")
+	_check(first_match.get("events", []).size() >= 6 and first_match.get("events", []).size() <= 8, "core auto simulation event count")
 	_check(first_match.get("decisions", []).size() == first_match.get("events", []).size(), "simulation telemetry parity")
+	_check(first_match.get("broadcast_events", []).size() == first_match.get("events", []).size() * 3, "broadcast replay expands every core event into three phases")
+	_check(str(first_match.get("broadcast_events", [])[0].get("phase", "")) == "buildup", "broadcast replay starts with buildup phase")
 	_check(abs(int(first_match.get("mmr_delta", 0))) >= 20, "placement delta lower bound")
 	_check(abs(int(first_match.get("mmr_delta", 0))) <= 30, "placement delta upper bound")
 	_check(int(state.playlist_record("1v1")["mmr"]) != one_before, "1v1 mmr changed")
@@ -379,11 +382,26 @@ func _run() -> void:
 
 	var visualizer := MatchVisualizerRef.new()
 	visualizer.configure({"format": "3v3", "momentum": 0})
-	visualizer.play_turn({"type": "good"}, "press", 1, 30)
+	visualizer.play_turn({"type": "good", "phase": "goal_ours"}, "press", 1, 30)
 	var visual_state := visualizer.snapshot_state()
 	_check(int(visual_state.get("cars", 0)) == 6, "visualizer renders 3v3 cars")
 	_check(int(visual_state.get("momentum", 0)) == 30, "visualizer tracks momentum")
+	_check(str(visual_state.get("phase", "")) == "goal_ours", "visualizer tracks broadcast phase")
 	visualizer.free()
+
+	var training_visualizer := TrainingVisualizerRef.new()
+	var training_player: Dictionary = champion_state.data["roster"][0]
+	training_player["training_history"] = [{
+		"kind": "training",
+		"program": "finishing_pack",
+		"label": "Abschluss-Training",
+		"timestamp": int(Time.get_unix_time_from_system()),
+	}]
+	training_visualizer.configure(training_player, {"slots_remaining": 2, "limit": 3}, Color("2de2ff"))
+	var training_visual_state := training_visualizer.snapshot_state()
+	_check(str(training_visual_state.get("drill_id", "")) == "finishing_pack", "training visualizer selects drill from latest session")
+	_check(int(training_visual_state.get("focus_remaining", 0)) == 2, "training visualizer tracks focus slots")
+	training_visualizer.free()
 
 	print("SMOKE 5/7: mobile ranked UI")
 	var main := MainScene.instantiate()
@@ -447,11 +465,12 @@ func _run() -> void:
 	_check(main.match_decision_box == null, "decision UI removed from live match")
 	_check(main.match_visualizer != null, "top-down live arena visualizer mounted")
 	_check(bool(main.match_result.get("ok", false)), "auto-sim result saved")
-	_check(main.match_result.get("events", []).size() >= 6, "auto-sim events recorded")
+	_check(main.match_result.get("events", []).size() >= 6, "core auto-sim events recorded")
+	_check(main.match_result.get("broadcast_events", []).size() >= 18, "broadcast replay events recorded")
 	_check(main.match_result.get("match_stats", {}).has("shots_ours"), "post-match analytics recorded")
 	if main.match_timer != null:
 		main.match_timer.stop()
-	for event_index in range(main.match_result.get("events", []).size() + 1):
+	for event_index in range(main.match_result.get("broadcast_events", []).size() + 1):
 		if main.match_finished:
 			break
 		main._advance_match()
@@ -466,7 +485,7 @@ func _run() -> void:
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v0.6.0 smoke test: PASS")
+		print("E-Sport Empire v1.3 visual rebuild smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:
