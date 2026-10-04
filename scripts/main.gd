@@ -2492,46 +2492,32 @@ func _prep_line(title: String, value: int, accent: Color, status: String) -> Con
 	return box
 
 
-func _build_market_page() -> void:
-	_page_header(
-		"RECRUITMENT",
-		"Scouting",
-		"Finde Talente, vergleiche Potenzial und verstärke gezielt deinen Kader."
-	)
-	_mode_switch()
-	var mode: String = game.selected_mode()
-	var accent: Color = GameDataRef.MODE_COLORS[mode]
+func _build_team_scouting(mode: String, accent: Color) -> void:
 	var info := UI.hero(UI.GREEN)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8)
 	info.add_child(row)
+
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_child(UI.overline("SCOUTING-NETZWERK", UI.GREEN))
-	text.add_child(
-		UI.label("Scouting-Level %d" % game.facility_level("scouting"), 17, UI.TEXT, 800)
-	)
-	text.add_child(UI.label("Höhere Level erhöhen die Qualität deiner Reports.", 11, UI.MUTED))
+	text.add_child(UI.overline("SCOUTING", UI.DIM))
+	text.add_child(UI.label("Netzwerk Level %d" % game.facility_level("scouting"), 16, UI.TEXT, 800))
 	text.add_child(
 		UI.label(
-			"90+ POTENZIAL  •  %s PRO TALENT"
-			% _chance_text(game.scouting_elite_potential_chance()),
-			10,
-			UI.GREEN,
-			800
+			"90+ Potenzial: %s pro Talent" % _chance_text(game.scouting_elite_potential_chance()),
+			9,
+			UI.MUTED,
+			700
 		)
 	)
 	row.add_child(text)
-	var refresh := UI.button("NEUE REPORTS\n€5", UI.GREEN, true, true)
-	refresh.custom_minimum_size.x = 106
+
+	var refresh := UI.button("NEU\n€5", UI.GREEN, true, true)
+	refresh.custom_minimum_size = Vector2(76, 52)
 	refresh.pressed.connect(_refresh_market)
 	row.add_child(refresh)
 	page_content.add_child(info)
-	page_content.add_child(
-		_section_title(
-			"%s TALENTE" % mode.to_upper(), "Eine Neuverpflichtung ersetzt automatisch den schwächsten Starter."
-		)
-	)
+
 	var found := 0
 	for prospect in game.data.get("market", []):
 		if str(prospect.get("mode", "")) == mode:
@@ -2539,12 +2525,15 @@ func _build_market_page() -> void:
 			found += 1
 	if found == 0:
 		var empty := UI.card()
-		empty.add_child(
-			UI.label(
-				"Keine %s-Talente mehr verfügbar. Lade neue Scouting-Reports." % mode, 14, UI.MUTED
-			)
-		)
+		var empty_text := UI.label("Keine Talente verfügbar. Lade neue Reports.", 11, UI.MUTED)
+		empty_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_child(empty_text)
 		page_content.add_child(empty)
+
+
+func _build_market_page() -> void:
+	team_view = "scouting"
+	_build_team_page()
 
 
 func _prospect_card(player: Dictionary, accent: Color) -> Control:
