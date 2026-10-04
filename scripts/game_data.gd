@@ -63,41 +63,41 @@ const RL_RANK_BASES := {
 const FACILITIES := {
 	"hq":
 	{
-		"name": "Team Headquarters",
+		"name": "Team-Hauptquartier",
 		"tag": "HQ",
-		"description": "Raises the club reputation ceiling and sponsor value.",
+		"description": "Erhöht das maximale Vereinsansehen und den Sponsorwert.",
 		"base_cost": 900,
 		"color": "2de2ff",
 	},
 	"coaching":
 	{
-		"name": "Performance Center",
+		"name": "Leistungszentrum",
 		"tag": "CO",
-		"description": "Reduces session prices, improves training breakthroughs and attracts stronger coaches.",
+		"description": "Senkt Trainingskosten, verbessert Durchbrüche und zieht stärkere Coaches an.",
 		"base_cost": 350,
 		"color": "a779ff",
 	},
 	"scouting":
 	{
-		"name": "Global Scouting",
+		"name": "Globales Scouting",
 		"tag": "SC",
-		"description": "Finds younger prospects with higher potential.",
+		"description": "Findet jüngere Talente mit höherem Potenzial.",
 		"base_cost": 250,
 		"color": "58e39b",
 	},
 	"analytics":
 	{
-		"name": "Match Analytics",
+		"name": "Match-Analyse",
 		"tag": "AN",
-		"description": "Improves consistency and your match win chance.",
+		"description": "Verbessert Konstanz und deine Siegchance.",
 		"base_cost": 400,
 		"color": "ffbf69",
 	},
 	"studio":
 	{
-		"name": "Content Studio",
+		"name": "Content-Studio",
 		"tag": "CS",
-		"description": "Generates passive cash and new fans while offline.",
+		"description": "Generiert offline passiv Geld und neue Fans.",
 		"base_cost": 300,
 		"color": "ff5b8d",
 	},
@@ -185,72 +185,72 @@ const EVENT_LINES := {
 	{
 		"good":
 		[
-			"Perfect midfield read creates a clean opening.",
-			"Fast counterattack catches the defense rotating out.",
-			"Backboard pressure forces a double commit.",
-			"A patient fake challenge wins possession.",
-			"Clinical finish after a controlled first touch.",
+			"Perfektes Lesen im Mittelfeld öffnet eine klare Chance.",
+			"Ein schneller Konter erwischt die Defensive in der Rotation.",
+			"Backboard-Druck erzwingt einen Double Commit.",
+			"Eine geduldige Fake-Challenge gewinnt den Ballbesitz.",
+			"Sauberer Abschluss nach kontrolliertem First Touch.",
 		],
 		"bad":
 		[
-			"The opponent punishes an overcommit.",
-			"A lost midfield fifty opens the net.",
-			"Boost control slips during a long defensive phase.",
-			"The rival team converts a quick infield pass.",
+			"Der Gegner bestraft einen Overcommit.",
+			"Ein verlorenes Fifty im Mittelfeld öffnet das Tor.",
+			"Die Boost-Kontrolle bricht in einer langen Defensivphase ein.",
+			"Der Gegner verwandelt einen schnellen Infield-Pass.",
 		],
 		"neutral":
 		[
-			"Both teams slow the play and reset their rotations.",
-			"A tense midfield battle keeps the score unchanged.",
-			"Strong saves at both ends keep the series close.",
+			"Beide Teams verlangsamen das Spiel und resetten ihre Rotation.",
+			"Ein enges Mittelfeldduell hält den Spielstand offen.",
+			"Starke Paraden auf beiden Seiten halten das Spiel eng.",
 		],
 	},
 	"Fortnite":
 	{
 		"good":
 		[
-			"Smart height control secures the next moving zone.",
-			"A clean refresh stabilizes the late game.",
-			"The trio finds a low-risk elimination on the rotate.",
-			"Excellent resource management pays off in endgame.",
-			"A coordinated layer switch gains four placements.",
+			"Gute Height-Control sichert die nächste Zone.",
+			"Ein sauberer Refresh stabilisiert das Late Game.",
+			"Das Trio findet beim Rotate einen sicheren Elim.",
+			"Starkes Ressourcenmanagement zahlt sich im Endgame aus.",
+			"Ein koordinierter Layer-Wechsel bringt vier Placements.",
 		],
 		"bad":
 		[
-			"A difficult zone pull burns too many materials.",
-			"The team is split during a contested rotate.",
-			"An aggressive push costs valuable placement points.",
-			"The lobby pressure forces an early disengage.",
+			"Eine schwierige Zone kostet zu viele Materialien.",
+			"Das Team wird bei einem umkämpften Rotate getrennt.",
+			"Ein aggressiver Push kostet wichtige Placement-Punkte.",
+			"Der Lobby-Druck erzwingt einen frühen Rückzug.",
 		],
 		"neutral":
 		[
-			"The team farms safely and tracks the next zone.",
-			"A quiet midgame keeps every option open.",
-			"Multiple squads rotate past without committing.",
+			"Das Team farmt sicher und beobachtet die nächste Zone.",
+			"Ein ruhiges Midgame hält alle Optionen offen.",
+			"Mehrere Squads rotieren vorbei, ohne zu committen.",
 		],
 	},
 	"Warzone":
 	{
 		"good":
 		[
-			"A coordinated push clears a strong position.",
-			"The squad wins a key rotation into the next circle.",
-			"UAV timing creates a high-value team fight.",
-			"A disciplined reset turns defense into momentum.",
-			"Clean communication secures another elimination.",
+			"Ein koordinierter Push räumt eine starke Position.",
+			"Der Squad gewinnt eine wichtige Rotation in den nächsten Kreis.",
+			"Gutes UAV-Timing erzeugt einen wichtigen Teamfight.",
+			"Ein disziplinierter Reset macht aus Defense Momentum.",
+			"Saubere Kommunikation sichert den nächsten Elim.",
 		],
 		"bad":
 		[
-			"The squad gets pinched while crossing open ground.",
-			"A late rotation gives the opponent better cover.",
-			"The team loses momentum after a risky challenge.",
-			"A rival squad steals the stronger power position.",
+			"Der Squad wird beim Überqueren offenen Geländes eingeklemmt.",
+			"Eine späte Rotation gibt dem Gegner die bessere Deckung.",
+			"Das Team verliert nach einer riskanten Challenge Momentum.",
+			"Ein Gegner-Squad übernimmt die stärkere Position.",
 		],
 		"neutral":
 		[
-			"The circle shifts and every squad repositions.",
-			"The team holds cover while gathering information.",
-			"A careful reset keeps the full squad active.",
+			"Der Kreis verschiebt sich und alle Squads repositionieren.",
+			"Das Team hält Deckung und sammelt Informationen.",
+			"Ein kontrollierter Reset hält den ganzen Squad im Spiel.",
 		],
 	},
 }
