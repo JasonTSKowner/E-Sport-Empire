@@ -15,6 +15,7 @@ const TrainingVisualizerRef = preload("res://scripts/training_visualizer.gd")
 const FX = preload("res://scripts/ui_fx.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 const NavIconRef = preload("res://scripts/nav_icon.gd")
+const PlayerPortraitRef = preload("res://scripts/player_portrait.gd")
 
 var game: EmpireStateRef
 var current_page := AppConfigRef.DEFAULT_PAGE
@@ -32,6 +33,7 @@ var toast_panel: PanelContainer
 var toast_label: Label
 var toast_token := 0
 var ranked_view := "overview"
+var selected_team_player_id := "captain"
 
 var match_overlay: Control
 var match_timer: Timer
@@ -177,22 +179,22 @@ func _build_top_bar() -> Control:
 func _header_chip(caption: String, accent: Color) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := UI.box(Color(0.055, 0.065, 0.082, 0.96), 10, Color(0.55, 0.62, 0.70, 0.08), 1)
-	style.content_margin_left = 8.0
-	style.content_margin_right = 8.0
-	style.content_margin_top = 5.0
-	style.content_margin_bottom = 5.0
-	style.shadow_size = 0
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color.TRANSPARENT
+	style.content_margin_left = 4
+	style.content_margin_right = 4
+	style.content_margin_top = 2
+	style.content_margin_bottom = 2
 	panel.add_theme_stylebox_override("panel", style)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 5)
-	var dot := ColorRect.new()
-	dot.color = accent
-	dot.custom_minimum_size = Vector2(3, 22)
-	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(dot)
+	var marker := ColorRect.new()
+	marker.color = Color(accent.r, accent.g, accent.b, 0.72)
+	marker.custom_minimum_size = Vector2(2, 20)
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(marker)
 	var text_box := VBoxContainer.new()
-	text_box.add_theme_constant_override("separation", -1)
+	text_box.add_theme_constant_override("separation", -2)
 	var cap := UI.label(caption, 7, UI.DIM, 800)
 	var value := UI.label("—", 11, UI.TEXT, 800)
 	text_box.add_child(cap)
@@ -204,20 +206,18 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 
 func _build_bottom_navigation() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 64.0
-	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.995), 0, Color(0.55, 0.64, 0.74, 0.10), 0)
+	outer.custom_minimum_size.y = 60.0
+	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.995), 0, Color(0.72, 0.78, 0.86, 0.08), 0)
 	outer_style.shadow_size = 0
 	outer.add_theme_stylebox_override("panel", outer_style)
-
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_right", 6)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_left", 4)
+	margin.add_theme_constant_override("margin_top", 3)
+	margin.add_theme_constant_override("margin_right", 4)
+	margin.add_theme_constant_override("margin_bottom", 4)
 	outer.add_child(margin)
-
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
+	row.add_theme_constant_override("separation", 1)
 	margin.add_child(row)
 	for entry in AppConfigRef.NAV_ENTRIES:
 		var page_id := str(entry[0])
@@ -227,17 +227,27 @@ func _build_bottom_navigation() -> Control:
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 50
-		button.add_theme_font_size_override("font_size", 9)
+		button.custom_minimum_size.y = 52
+		button.add_theme_font_size_override("font_size", 8)
 		var nav_icon := NavIconRef.new()
 		nav_icon.configure(page_id, UI.MUTED)
 		nav_icon.set_anchors_preset(Control.PRESET_CENTER_TOP)
 		nav_icon.offset_left = -10
 		nav_icon.offset_right = 10
-		nav_icon.offset_top = 5
-		nav_icon.offset_bottom = 25
+		nav_icon.offset_top = 7
+		nav_icon.offset_bottom = 27
 		button.add_child(nav_icon)
 		button.set_meta("nav_icon", nav_icon)
+		var indicator := ColorRect.new()
+		indicator.color = UI.CYAN
+		indicator.anchor_left = 0.22
+		indicator.anchor_right = 0.78
+		indicator.offset_top = 0
+		indicator.offset_bottom = 2
+		indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		indicator.visible = false
+		button.add_child(indicator)
+		button.set_meta("indicator", indicator)
 		button.pressed.connect(_show_page.bind(page_id, true))
 		row.add_child(button)
 		nav_buttons[page_id] = button
@@ -312,13 +322,14 @@ func _refresh_nav() -> void:
 		var nav_icon: Control = button.get_meta("nav_icon", null)
 		if nav_icon != null and nav_icon.has_method("set_accent"):
 			nav_icon.set_accent(UI.CYAN if selected else UI.MUTED)
-		var normal_color := Color(0.09, 0.12, 0.16, 0.96) if selected else Color.TRANSPARENT
-		var normal_border := Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.16) if selected else Color.TRANSPARENT
-		var normal_style := UI.box(normal_color, 11, normal_border, 1 if selected else 0)
-		normal_style.shadow_size = 0
-		button.add_theme_stylebox_override("normal", normal_style)
-		button.add_theme_stylebox_override("hover", UI.box(Color(0.09, 0.11, 0.14, 0.8), 11))
-		button.add_theme_stylebox_override("pressed", UI.box(Color(0.10, 0.14, 0.18, 0.95), 11, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.20), 1))
+		var indicator: ColorRect = button.get_meta("indicator", null)
+		if indicator != null:
+			indicator.visible = selected
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = Color.TRANSPARENT
+		button.add_theme_stylebox_override("normal", normal)
+		button.add_theme_stylebox_override("hover", UI.box(Color(0.08, 0.10, 0.13, 0.42), 4))
+		button.add_theme_stylebox_override("pressed", UI.box(Color(0.10, 0.13, 0.16, 0.65), 4))
 		button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 func _show_page(page: String, animate: bool = true) -> void:
