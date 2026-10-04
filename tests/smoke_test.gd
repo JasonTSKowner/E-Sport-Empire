@@ -30,7 +30,7 @@ func _run() -> void:
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
-	_check(AppConfigRef.VERSION.begins_with("1.1."), "v1.1 UI/FX app version")
+	_check(AppConfigRef.VERSION.begins_with("1.2."), "v1.2 mobile German app version")
 	_check(AppConfigRef.NAV_ENTRIES.size() == 5, "five primary navigation destinations")
 	_check(AppConfigRef.navigation_ids().has(AppConfigRef.DEFAULT_PAGE), "default page exists in navigation")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
@@ -426,7 +426,7 @@ func _run() -> void:
 	main._show_page("team", false)
 	await process_frame
 	_check(main.page_content.get_child_count() >= 8, "development and coaching page content")
-	_check(main.season_label.text.contains("MATCH"), "real-time season header")
+	_check(main.season_label.text.contains("SPIEL"), "German real-time season header")
 	_check(main.reputation_label.text == "0", "reputation replaces energy in header")
 	_check(main._chance_text(0.125) == "13%", "chance formatting")
 	var stat_grid: Control = main._development_stat_grid(main.game.data["roster"][0])
