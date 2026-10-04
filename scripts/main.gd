@@ -14,18 +14,7 @@ const MatchVisualizerRef = preload("res://scripts/match_visualizer.gd")
 const TrainingVisualizerRef = preload("res://scripts/training_visualizer.gd")
 const FX = preload("res://scripts/ui_fx.gd")
 const UI = preload("res://scripts/ui_kit.gd")
-const NAV_HOME = preload("res://assets/ui/nav_home.svg")
-const NAV_TEAM = preload("res://assets/ui/nav_team.svg")
-const NAV_RANKED = preload("res://assets/ui/nav_ranked.svg")
-const NAV_SCOUT = preload("res://assets/ui/nav_scout.svg")
-const NAV_CLUB = preload("res://assets/ui/nav_club.svg")
-const NAV_ICONS := {
-	"home": NAV_HOME,
-	"team": NAV_TEAM,
-	"play": NAV_RANKED,
-	"market": NAV_SCOUT,
-	"empire": NAV_CLUB,
-}
+const NavIconRef = preload("res://scripts/nav_icon.gd")
 
 var game: EmpireStateRef
 var current_page := AppConfigRef.DEFAULT_PAGE
@@ -232,17 +221,22 @@ func _build_bottom_navigation() -> Control:
 	for entry in AppConfigRef.NAV_ENTRIES:
 		var page_id := str(entry[0])
 		var button := Button.new()
-		button.text = str(entry[1])
-		button.icon = NAV_ICONS.get(page_id)
-		button.icon_max_width = 17
-		button.expand_icon = true
+		button.text = "\n" + str(entry[1])
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.custom_minimum_size.y = 50
 		button.add_theme_font_size_override("font_size", 9)
-		button.add_theme_constant_override("icon_max_width", 17)
+		var nav_icon := NavIconRef.new()
+		nav_icon.configure(page_id, UI.MUTED)
+		nav_icon.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		nav_icon.offset_left = -10
+		nav_icon.offset_right = 10
+		nav_icon.offset_top = 5
+		nav_icon.offset_bottom = 25
+		button.add_child(nav_icon)
+		button.set_meta("nav_icon", nav_icon)
 		button.pressed.connect(_show_page.bind(page_id, true))
 		row.add_child(button)
 		nav_buttons[page_id] = button
@@ -314,9 +308,9 @@ func _refresh_nav() -> void:
 		button.add_theme_color_override("font_color", UI.TEXT if selected else UI.DIM)
 		button.add_theme_color_override("font_hover_color", UI.TEXT)
 		button.add_theme_color_override("font_pressed_color", UI.TEXT)
-		button.add_theme_color_override("icon_normal_color", UI.CYAN if selected else UI.MUTED)
-		button.add_theme_color_override("icon_hover_color", UI.TEXT)
-		button.add_theme_color_override("icon_pressed_color", UI.CYAN)
+		var nav_icon: Control = button.get_meta("nav_icon", null)
+		if nav_icon != null and nav_icon.has_method("set_accent"):
+			nav_icon.set_accent(UI.CYAN if selected else UI.MUTED)
 		var normal_color := Color(0.09, 0.12, 0.16, 0.96) if selected else Color.TRANSPARENT
 		var normal_border := Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.16) if selected else Color.TRANSPARENT
 		var normal_style := UI.box(normal_color, 11, normal_border, 1 if selected else 0)
