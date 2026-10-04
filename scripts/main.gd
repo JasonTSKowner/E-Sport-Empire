@@ -106,8 +106,8 @@ func _build_shell() -> void:
 	page_content = VBoxContainer.new()
 	page_content.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page_content.add_theme_constant_override("separation", 10)
-	var page_margin := UI.margin(page_content, 10, 10, 10, 14)
+	page_content.add_theme_constant_override("separation", 8)
+	var page_margin := UI.margin(page_content, 8, 8, 8, 10)
 	page_margin.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_scroll.add_child(page_margin)
@@ -185,7 +185,7 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 
 func _build_bottom_navigation() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 64.0
+	outer.custom_minimum_size.y = 58.0
 	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.995), 0, Color(0.72, 0.78, 0.86, 0.08), 0)
 	outer_style.shadow_size = 0
 	outer.add_theme_stylebox_override("panel", outer_style)
@@ -206,16 +206,16 @@ func _build_bottom_navigation() -> Control:
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 56
+		button.custom_minimum_size.y = 50
 		button.add_theme_font_override("font", AppFontRef)
-		button.add_theme_font_size_override("font_size", 10)
+		button.add_theme_font_size_override("font_size", 9)
 		var nav_icon := NavIconRef.new()
 		nav_icon.configure(page_id, UI.MUTED)
 		nav_icon.set_anchors_preset(Control.PRESET_CENTER_TOP)
 		nav_icon.offset_left = -11
 		nav_icon.offset_right = 11
-		nav_icon.offset_top = 5
-		nav_icon.offset_bottom = 27
+		nav_icon.offset_top = 3
+		nav_icon.offset_bottom = 23
 		button.add_child(nav_icon)
 		button.set_meta("nav_icon", nav_icon)
 		var indicator := ColorRect.new()
@@ -374,14 +374,25 @@ func _apply_scroll_passthrough(node: Node) -> void:
 
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
-	var text_box := VBoxContainer.new()
-	text_box.add_theme_constant_override("separation", 1)
-	text_box.add_child(UI.overline(kicker, UI.DIM))
-	text_box.add_child(UI.heading(title, 22))
-	page_content.add_child(text_box)
-	var sub := UI.label(subtitle, 9, UI.MUTED)
-	sub.custom_minimum_size.y = 18
-	page_content.add_child(sub)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var marker := ColorRect.new()
+	marker.color = UI.CYAN
+	marker.custom_minimum_size = Vector2(2, 34)
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(marker)
+	var text := VBoxContainer.new()
+	text.add_theme_constant_override("separation", -1)
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_child(UI.label(title, 19, UI.TEXT, 800))
+	text.add_child(UI.label(kicker, 7, UI.DIM, 800))
+	row.add_child(text)
+	page_content.add_child(row)
+	if not subtitle.is_empty():
+		var sub := UI.label(subtitle, 8, UI.MUTED)
+		sub.custom_minimum_size.y = 14
+		page_content.add_child(sub)
+
 
 func _mode_switch() -> void:
 	var row := HBoxContainer.new()
@@ -657,13 +668,13 @@ func _origin_card() -> Control:
 
 	var hero_row := HBoxContainer.new()
 	hero_row.add_theme_constant_override("separation", 13)
-	hero_row.add_child(_rank_emblem(shown_rank, 84.0))
+	hero_row.add_child(_rank_emblem(shown_rank, 70.0))
 
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_theme_constant_override("separation", 2)
 	identity.add_child(UI.overline("AKTUELLER RUN  •  %s" % playlist, UI.MUTED))
-	identity.add_child(UI.heading("UNRANKED" if not placed else str(rank_data.get("tier_name", "RANKED")), 23))
+	identity.add_child(UI.heading("UNRANKED" if not placed else str(rank_data.get("tier_name", "RANKED")), 20))
 	identity.add_child(
 		UI.label(
 			"%d / 10 Placements" % placements if not placed else "%d MMR  •  Division %s" % [mmr, str(rank_data.get("division_roman", "I"))],
@@ -675,7 +686,7 @@ func _origin_card() -> Control:
 	hero_row.add_child(identity)
 
 	var status := VBoxContainer.new()
-	var value := UI.label(str(game.team_overall("Rocket League")), 28, UI.TEXT, 800)
+	var value := UI.label(str(game.team_overall("Rocket League")), 23, UI.TEXT, 800)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var cap := UI.label("TEAM-GES", 8, UI.MUTED, 800)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -711,9 +722,9 @@ func _origin_card() -> Control:
 func _contact_card(contact: Dictionary) -> Control:
 	var mode := str(contact.get("mode", "Rocket League"))
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
-	var panel := UI.card(accent)
+	var panel := UI.card()
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8)
 	panel.add_child(row)
 	var portrait := PlayerPortraitRef.new()
 	portrait.configure(str(contact.get("name", "Unknown")), accent)
@@ -1003,7 +1014,7 @@ func _build_team_page() -> void:
 	_page_header(
 		"PERFORMANCE HUB",
 		"Team",
-		"Kader, Entwicklung und Coaching — getrennt und fokussiert."
+		"Kader und Entwicklung auf einen Blick."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
@@ -1019,13 +1030,9 @@ func _build_team_page() -> void:
 	summary_row.add_child(_metric_block("FORM", "%d%%" % _team_average(mode, "form"), UI.GREEN))
 	summary_row.add_child(_metric_block("MÜDIGKEIT", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD))
 	summary_box.add_child(summary_row)
-	var chemistry_row := HBoxContainer.new()
-	chemistry_row.add_theme_constant_override("separation", 6)
 	var chemistry := game.team_chemistry(mode)
 	var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
-	chemistry_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.MUTED))
-	chemistry_row.add_child(_metric_block("SCRIM", "+%d" % scrim_gain, UI.GREEN))
-	summary_box.add_child(chemistry_row)
+	summary_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.MUTED))
 	page_content.add_child(summary)
 
 	_team_view_switch()
@@ -1659,7 +1666,7 @@ func _build_play_page() -> void:
 	_page_header(
 		"COMPETITIVE SYSTEM",
 		"Ranked-Zentrale",
-		"Drei getrennte Ranglisten. Zehn Placements. Jedes Ergebnis zählt."
+		"Ranked, Turniere und Rangfortschritt."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
@@ -2738,7 +2745,7 @@ func _build_empire_page() -> void:
 	_page_header(
 		"FRONT OFFICE",
 		"Verein",
-		"Organisation, Personal und Infrastruktur ohne unnötige UI-Wände."
+		"Staff, Anlagen und Vereinsstatus."
 	)
 	_empire_view_switch()
 	match empire_view:
