@@ -18,6 +18,11 @@
         android:theme="@android:style/Theme.Material.NoActionBar">
         <activity
             android:name=".MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".V7Activity"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>
