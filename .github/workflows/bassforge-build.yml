@@ -1,4 +1,4 @@
-name: Build BassForge EQ V6.1 EXTREME CLEAN Unsigned Release
+name: Build BassForge EQ V7 AURORA FX Unsigned Release
 
 on:
   push:
@@ -49,14 +49,14 @@ jobs:
         run: |
           APK="bassforge/app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$APK"
-          cp "$APK" "BassForge-EQ-v6.1-EXTREME-CLEAN-UNSIGNED.apk"
-          ls -lh "BassForge-EQ-v6.1-EXTREME-CLEAN-UNSIGNED.apk"
+          cp "$APK" "BassForge-EQ-v7-AURORA-FX-UNSIGNED.apk"
+          ls -lh "BassForge-EQ-v7-AURORA-FX-UNSIGNED.apk"
 
       - name: Upload unsigned APK
         uses: actions/upload-artifact@v4
         with:
-          name: BassForge-EQ-v6.1-EXTREME-CLEAN-UNSIGNED-APK
-          path: BassForge-EQ-v6.1-EXTREME-CLEAN-UNSIGNED.apk
+          name: BassForge-EQ-v7-AURORA-FX-UNSIGNED-APK
+          path: BassForge-EQ-v7-AURORA-FX-UNSIGNED.apk
           if-no-files-found: error
           retention-days: 7
 
