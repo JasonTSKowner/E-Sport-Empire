@@ -351,7 +351,26 @@ func _show_page(page: String, animate: bool = true) -> void:
 	_refresh_top_bar()
 	_refresh_nav()
 	if animate:
-		FX.reveal(page_content, Vector2(14, 4), 0.22)
+		call_deferred("_animate_page_sections")
+
+
+func _animate_page_sections() -> void:
+	var visible_index := 0
+	for child in page_content.get_children():
+		if not (child is Control):
+			continue
+		var control := child as Control
+		if visible_index >= 10:
+			break
+		control.modulate.a = 0.0
+		control.scale = Vector2(0.985, 0.985)
+		control.pivot_offset = control.size * 0.5
+		var delay := float(visible_index) * 0.035
+		var tween := create_tween().set_parallel(true)
+		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(control, "modulate:a", 1.0, 0.20).set_delay(delay)
+		tween.tween_property(control, "scale", Vector2.ONE, 0.24).set_delay(delay)
+		visible_index += 1
 
 
 func _apply_scroll_passthrough(node: Node) -> void:
