@@ -96,8 +96,8 @@ func _build_shell() -> void:
 	page_content = VBoxContainer.new()
 	page_content.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page_content.add_theme_constant_override("separation", 14)
-	var page_margin := UI.margin(page_content, 18, 18, 18, 28)
+	page_content.add_theme_constant_override("separation", 11)
+	var page_margin := UI.margin(page_content, 12, 10, 12, 18)
 	page_margin.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_scroll.add_child(page_margin)
@@ -114,29 +114,29 @@ func _build_shell() -> void:
 
 func _build_top_bar() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 132.0
+	outer.custom_minimum_size.y = 104.0
 	outer.add_theme_stylebox_override(
 		"panel", UI.box(Color(0.025, 0.04, 0.105, 0.98), 0, Color(0.18, 0.34, 0.65, 0.18), 0)
 	)
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 8)
 	outer.add_child(margin)
 	var vertical := VBoxContainer.new()
-	vertical.add_theme_constant_override("separation", 12)
+	vertical.add_theme_constant_override("separation", 7)
 	margin.add_child(vertical)
 
 	var brand_row := HBoxContainer.new()
 	brand_row.add_theme_constant_override("separation", 11)
 	vertical.add_child(brand_row)
 	var mark := PanelContainer.new()
-	mark.custom_minimum_size = Vector2(42, 42)
+	mark.custom_minimum_size = Vector2(34, 34)
 	mark.add_theme_stylebox_override(
 		"panel", UI.box(Color(0.18, 0.82, 1.0, 0.12), 13, Color(0.18, 0.88, 1.0, 0.72), 1)
 	)
-	var mark_text := UI.label("EE", 15, UI.CYAN, 800)
+	var mark_text := UI.label("EE", 13, UI.CYAN, 800)
 	mark_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mark_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	mark.add_child(mark_text)
@@ -145,26 +145,26 @@ func _build_top_bar() -> Control:
 	var brand_text := VBoxContainer.new()
 	brand_text.add_theme_constant_override("separation", 0)
 	brand_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title := UI.label(str(game.data.get("club_name", "TSK ESPORTS")), 17, UI.TEXT, 800)
+	var title := UI.label(str(game.data.get("club_name", "TSK ESPORTS")), 15, UI.TEXT, 800)
 	season_label = UI.label("", 11, UI.MUTED)
 	brand_text.add_child(title)
 	brand_text.add_child(season_label)
 	brand_row.add_child(brand_text)
 
 	var version_badge := UI.badge(AppConfigRef.VERSION_BADGE, UI.PURPLE)
-	version_badge.custom_minimum_size.x = 94
+	version_badge.custom_minimum_size.x = 76
 	brand_row.add_child(version_badge)
 
 	var stats := HBoxContainer.new()
-	stats.add_theme_constant_override("separation", 8)
+	stats.add_theme_constant_override("separation", 5)
 	vertical.add_child(stats)
-	var cash_chip := _header_chip("CASH", UI.CYAN)
+	var cash_chip := _header_chip("GELD", UI.CYAN)
 	cash_label = cash_chip.get_meta("value_label")
 	stats.add_child(cash_chip)
 	var fans_chip := _header_chip("FANS", UI.PURPLE)
 	fans_label = fans_chip.get_meta("value_label")
 	stats.add_child(fans_chip)
-	var reputation_chip := _header_chip("REPUTATION", UI.GREEN)
+	var reputation_chip := _header_chip("RUF", UI.GREEN)
 	reputation_label = reputation_chip.get_meta("value_label")
 	stats.add_child(reputation_chip)
 	return outer
@@ -182,8 +182,8 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 	var dot := UI.label("•", 16, accent, 800)
 	var text_box := VBoxContainer.new()
 	text_box.add_theme_constant_override("separation", 0)
-	var cap := UI.label(caption, 9, UI.MUTED, 800)
-	var value := UI.label("—", 13, UI.TEXT, 800)
+	var cap := UI.label(caption, 8, UI.MUTED, 800)
+	var value := UI.label("—", 12, UI.TEXT, 800)
 	text_box.add_child(cap)
 	text_box.add_child(value)
 	row.add_child(dot)
@@ -195,18 +195,18 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 
 func _build_bottom_navigation() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 88.0
+	outer.custom_minimum_size.y = 72.0
 	outer.add_theme_stylebox_override(
 		"panel", UI.box(Color(0.025, 0.04, 0.105, 0.99), 0, Color(0.22, 0.38, 0.72, 0.2), 0)
 	)
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 6)
+	margin.add_theme_constant_override("margin_top", 5)
+	margin.add_theme_constant_override("margin_right", 6)
+	margin.add_theme_constant_override("margin_bottom", 8)
 	outer.add_child(margin)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 5)
+	row.add_theme_constant_override("separation", 3)
 	margin.add_child(row)
 	var entries := AppConfigRef.NAV_ENTRIES
 	for entry in entries:
@@ -215,8 +215,8 @@ func _build_bottom_navigation() -> Control:
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 64
-		button.add_theme_font_size_override("font_size", 11)
+		button.custom_minimum_size.y = 54
+		button.add_theme_font_size_override("font_size", 10)
 		button.pressed.connect(_show_page.bind(entry[0], true))
 		row.add_child(button)
 		nav_buttons[entry[0]] = button
@@ -230,8 +230,8 @@ func _build_toast() -> void:
 	toast_panel.anchor_right = 0.94
 	toast_panel.anchor_top = 1.0
 	toast_panel.anchor_bottom = 1.0
-	toast_panel.offset_top = -164.0
-	toast_panel.offset_bottom = -101.0
+	toast_panel.offset_top = -140.0
+	toast_panel.offset_bottom = -82.0
 	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast_panel.add_theme_stylebox_override(
 		"panel", UI.box(Color(0.06, 0.095, 0.20, 0.98), 17, Color(0.18, 0.86, 1.0, 0.42), 1)
@@ -263,7 +263,7 @@ func _refresh_top_bar() -> void:
 		str(int(game.data.get("reputation", 0))),
 		UI.GREEN
 	)
-	season_label.text = "S%d  •  MATCH %d/%d  •  %s" % [
+	season_label.text = "S%d  •  SPIEL %d/%d  •  %s" % [
 		int(game.data.get("season", 1)),
 		game.season_match_progress(),
 		EmpireStateRef.SEASON_MATCH_LIMIT,
@@ -343,9 +343,9 @@ func _apply_scroll_passthrough(node: Node) -> void:
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
 	page_content.add_child(UI.overline(kicker, UI.CYAN))
-	page_content.add_child(UI.heading(title, 27))
-	var sub := UI.label(subtitle, 14, UI.MUTED)
-	sub.custom_minimum_size.y = 38
+	page_content.add_child(UI.heading(title, 25))
+	var sub := UI.label(subtitle, 12, UI.MUTED)
+	sub.custom_minimum_size.y = 30
 	page_content.add_child(sub)
 
 
@@ -371,24 +371,24 @@ func _select_mode(mode: String) -> void:
 
 func _build_home_page() -> void:
 	_page_header(
-		"Origin Story",
-		"You are the captain",
-		"One player. Zero cash. Zero fans. Earn attention first — the organization comes later."
+		"DEIN START",
+		"Du bist der Captain",
+		"Ein Spieler. Kein Geld. Keine Fans. Erst Leistung zeigen — der Verein wächst danach."
 	)
 	page_content.add_child(_origin_card())
 	page_content.add_child(_career_hub_card())
 	page_content.add_child(_club_hero())
 	if not game.data.get("contacts", []).is_empty():
-		page_content.add_child(_section_title("PEOPLE NOTICING YOU", "Real contacts can become your first teammates."))
+		page_content.add_child(_section_title("SPIELER WERDEN AUFMERKSAM", "Kontakte aus Matches können deine ersten Teamkollegen werden."))
 		for contact in game.data.get("contacts", []):
 			page_content.add_child(_contact_card(contact))
 	page_content.add_child(_sponsor_card())
 	page_content.add_child(_season_objectives_card())
 	page_content.add_child(_rivals_card())
-	page_content.add_child(_section_title("DIVISION STATUS", "Rocket League starts solo. Other divisions need players."))
+	page_content.add_child(_section_title("BEREICHSSTATUS", "Rocket League startet solo. Für andere Bereiche brauchst du weitere Spieler."))
 	for mode in GameDataRef.MODES:
 		page_content.add_child(_division_row(mode))
-	page_content.add_child(_section_title("RECENT FORM", "Your latest organization results."))
+	page_content.add_child(_section_title("LETZTE FORM", "Deine letzten Ergebnisse."))
 	_build_history_list(page_content, 4)
 
 
@@ -405,7 +405,7 @@ func _career_hub_card() -> Control:
 	top.add_theme_constant_override("separation", 10)
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	details.add_child(UI.overline("CAREER PATH", accent))
+	details.add_child(UI.overline("KARRIERE", accent))
 	details.add_child(
 		UI.label(
 			"LEVEL %d  •  %s"
@@ -417,33 +417,33 @@ func _career_hub_card() -> Control:
 	)
 	details.add_child(
 		UI.label(
-			"%d Career XP  •  %d milestone rewards ready"
+			"%d Karriere-XP  •  %d Meilenstein-Belohnungen bereit"
 			% [game.career_xp(), game.claimable_milestone_count()],
 			11,
 			UI.MUTED
 		)
 	)
 	top.add_child(details)
-	top.add_child(UI.badge(str(identity.get("short", "CLUB DNA")), Color(str(identity.get("color", "58e39b")))))
+	top.add_child(UI.badge(str(identity.get("short", "VEREINS-DNA")), Color(str(identity.get("color", "58e39b")))))
 	box.add_child(top)
 	if bool(progress.get("maxed", false)):
 		box.add_child(UI.progress(1, 1, accent, 8))
-		box.add_child(UI.label("MAX CAREER LEVEL REACHED", 10, accent, 800))
+		box.add_child(UI.label("MAXIMALES KARRIERELEVEL ERREICHT", 10, accent, 800))
 	else:
 		box.add_child(UI.progress(float(progress.get("value", 0)), float(progress.get("maximum", 1)), accent, 8))
 		box.add_child(
 			UI.label(
-				"%d XP to %s  •  each level adds +0.15 match strength and 1%% development discount"
+				"%d XP bis %s  •  jedes Level gibt +0,15 Spielstärke und 1%% Trainingsrabatt"
 				% [
 					int(progress.get("remaining", 0)),
-					str(game.next_career_level_data().get("name", "next level")),
+					str(game.next_career_level_data().get("name", "nächstes Level")),
 				],
 				10,
 				UI.MUTED
 			)
 		)
 	box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.24)))
-	box.add_child(UI.overline("NEXT MILESTONES", UI.GOLD))
+	box.add_child(UI.overline("NÄCHSTE MEILENSTEINE", UI.GOLD))
 	var milestones := game.career_milestones()
 	var visible_milestones: Array = []
 	for milestone in milestones:
@@ -481,7 +481,7 @@ func _career_milestone_row(milestone: Dictionary) -> Control:
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_child(UI.label(str(milestone.get("label", "MILESTONE")), 12, UI.TEXT, 800))
-	identity.add_child(UI.label(str(milestone.get("detail", "Career objective")), 10, UI.MUTED))
+	identity.add_child(UI.label(str(milestone.get("detail", "Karriereziel")), 10, UI.MUTED))
 	top.add_child(identity)
 	var button_text := "CLAIM" if complete and not claimed else "CLAIMED" if claimed else "%d/%d" % [int(milestone.get("progress", 0)), int(milestone.get("target", 1))]
 	var claim := UI.button(button_text, accent, complete and not claimed, true)
@@ -500,7 +500,7 @@ func _career_milestone_row(milestone: Dictionary) -> Control:
 	)
 	box.add_child(
 		UI.label(
-			"GUARANTEED  •  %s  •  +%d XP"
+			"GARANTIERT  •  %s  •  +%d XP"
 			% [
 				GameDataRef.format_cash(int(milestone.get("cash", 0))),
 				int(milestone.get("xp", 0)),
@@ -518,13 +518,13 @@ func _rivals_card() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
-	box.add_child(UI.overline("RIVAL WATCH", UI.RED))
+	box.add_child(UI.overline("RIVALEN", UI.RED))
 	var rivals := game.top_rivals(3)
 	if rivals.is_empty():
-		box.add_child(UI.label("No history yet", 17, UI.TEXT, 800))
+		box.add_child(UI.label("Noch keine Historie", 17, UI.TEXT, 800))
 		box.add_child(UI.label("Opponents enter the watchlist after your first meeting. Three meetings create a rivalry; rivalry wins grant guaranteed bonus fans.", 11, UI.MUTED))
 		return panel
-	box.add_child(UI.label("Persistent head-to-head records", 17, UI.TEXT, 800))
+	box.add_child(UI.label("Direkte Duelle werden dauerhaft gespeichert", 17, UI.TEXT, 800))
 	for rival_value in rivals:
 		var rival: Dictionary = rival_value
 		var row := HBoxContainer.new()
@@ -533,7 +533,7 @@ func _rivals_card() -> Control:
 		info.add_child(UI.label(str(rival.get("opponent", "Unknown")), 13, UI.TEXT, 800))
 		info.add_child(
 			UI.label(
-				"%s  •  %s  •  LAST %s"
+				"%s  •  %s  •  ZULETZT %s"
 				% [
 					str(rival.get("format", "1v1")),
 					str(rival.get("tier", "WATCHLIST")),
@@ -559,15 +559,15 @@ func _origin_card() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
-	box.add_child(UI.overline("FROM ZERO", UI.CYAN))
-	box.add_child(UI.label("You are player #1 and the captain.", 19, UI.TEXT, 800))
+	box.add_child(UI.overline("VON NULL", UI.CYAN))
+	box.add_child(UI.label("Du bist Spieler #1 und Captain.", 19, UI.TEXT, 800))
 	box.add_child(UI.label(
-		"Ranked pays €0. Your first job is simple: play, improve and get noticed.",
+		"Ranked zahlt dir nichts. Spiele, werde besser und mach auf dich aufmerksam.",
 		12,
 		UI.MUTED
 	))
 	var row := HBoxContainer.new()
-	row.add_child(_metric_block("CASH", GameDataRef.format_cash(int(game.data.get("cash", 0))), UI.GOLD))
+	row.add_child(_metric_block("GELD", GameDataRef.format_cash(int(game.data.get("cash", 0))), UI.GOLD))
 	row.add_child(_metric_block("ATTENTION", str(int(game.data.get("attention", 0))), UI.PURPLE))
 	row.add_child(_metric_block("FORMAT", game.match_format("Rocket League"), UI.CYAN))
 	box.add_child(row)
@@ -583,7 +583,7 @@ func _contact_card(contact: Dictionary) -> Control:
 	panel.add_child(row)
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_child(UI.overline(str(contact.get("source", "MATCH CONTACT")), accent))
+	info.add_child(UI.overline(str(contact.get("source", "MATCH-KONTAKT")), accent))
 	info.add_child(UI.label(str(contact.get("name", "Unknown")), 17, UI.TEXT, 800))
 	info.add_child(UI.label(
 		"%s  •  OVR %d  •  POT %d"
@@ -631,7 +631,7 @@ func _club_hero() -> Control:
 	var details := VBoxContainer.new()
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.add_theme_constant_override("separation", 3)
-	details.add_child(UI.overline("ACTIVE PLAYLIST" if mode == "Rocket League" else "ACTIVE DIVISION", accent))
+	details.add_child(UI.overline("AKTIVE PLAYLIST" if mode == "Rocket League" else "AKTIVER BEREICH", accent))
 	details.add_child(UI.heading("%s  •  %s" % [mode, game.selected_rl_playlist()] if mode == "Rocket League" else mode, 18 if mode == "Rocket League" else 20))
 	details.add_child(
 		UI.label("OVR %d  •  %s" % [game.team_overall(mode), visible_rank], 13, UI.MUTED, 700)
@@ -669,7 +669,7 @@ func _club_hero() -> Control:
 		current_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		progress_labels.add_child(current_label)
 		var next_label := UI.label(
-			"MAX RANK" if next_min == current_min else "%s  %d" % [next_rank["name"], next_min],
+			"MAX. RANG" if next_min == current_min else "%s  %d" % [next_rank["name"], next_min],
 			11,
 			UI.MUTED
 		)
@@ -678,7 +678,7 @@ func _club_hero() -> Control:
 		box.add_child(progress_labels)
 		box.add_child(UI.progress(progress_value, progress_max, accent, 8))
 
-	var manage := UI.button("MANAGE %s DIVISION" % GameDataRef.MODE_SHORT[mode], accent, true)
+	var manage := UI.button("%s VERWALTEN" % GameDataRef.MODE_SHORT[mode], accent, true)
 	manage.pressed.connect(_show_page.bind("team", true))
 	box.add_child(manage)
 	return panel
@@ -688,14 +688,14 @@ func _sponsor_card() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
-	box.add_child(UI.overline("SPONSOR CONTRACTS", UI.GOLD))
+	box.add_child(UI.overline("SPONSOREN", UI.GOLD))
 	var active := game.active_sponsor_contract()
 	if not active.is_empty():
 		var contract := DynastyDataRef.sponsor_contract(str(active.get("id", "")))
-		box.add_child(UI.label(str(contract.get("brand", "ACTIVE PARTNER")), 19, UI.TEXT, 800))
+		box.add_child(UI.label(str(contract.get("brand", "AKTIVER PARTNER")), 19, UI.TEXT, 800))
 		box.add_child(
 			UI.label(
-				"%s  •  every payout is guaranteed when its listed condition is met"
+				"%s  •  jede Auszahlung ist garantiert, sobald die Bedingung erfüllt ist"
 				% str(contract.get("name", "CONTRACT")),
 				11,
 				UI.MUTED
@@ -711,7 +711,7 @@ func _sponsor_card() -> Control:
 		)
 		progress_row.add_child(
 			_metric_block(
-				"WIN TARGET",
+				"SIEGZIEL",
 				"%d / %d" % [int(active.get("wins", 0)), int(contract.get("win_target", 1))],
 				UI.GREEN
 			)
@@ -735,7 +735,7 @@ func _sponsor_card() -> Control:
 		var multiplier := game.sponsor_income_multiplier()
 		box.add_child(
 			UI.badge(
-				"PER MATCH %s  •  PER WIN %s  •  TARGET BONUS %s"
+				"PRO SPIEL %s  •  PRO SIEG %s  •  ZIELBONUS %s"
 				% [
 					GameDataRef.format_cash(int(round(float(contract.get("per_match", 0)) * multiplier))),
 					GameDataRef.format_cash(int(round(float(contract.get("per_win", 0)) * multiplier))),
@@ -745,13 +745,13 @@ func _sponsor_card() -> Control:
 			)
 		)
 	else:
-		box.add_child(UI.label("Choose the deal that fits your next run.", 18, UI.TEXT, 800))
-		box.add_child(UI.label("No timer and no hidden roll. One contract can be active at a time.", 11, UI.MUTED))
+		box.add_child(UI.label("Wähle den Vertrag, der zu deinem nächsten Run passt.", 18, UI.TEXT, 800))
+		box.add_child(UI.label("Kein Timer und keine versteckte Chance. Es kann immer nur ein Vertrag aktiv sein.", 11, UI.MUTED))
 		for offer_value in game.sponsor_contract_offers():
 			var offer: Dictionary = offer_value
 			var eligible := bool(offer.get("eligible", false))
 			var offer_accent := Color(str(offer.get("color", "ffbf69")))
-			var requirements := "REQ  %d REP  •  %d FANS" % [
+			var requirements := "BRAUCHT  %d RUF  •  %d FANS" % [
 				int(offer.get("min_reputation", 0)), int(offer.get("min_fans", 0))
 			]
 			var sign := UI.button(
@@ -762,7 +762,7 @@ func _sponsor_card() -> Control:
 					int(offer.get("duration", 1)),
 					int(offer.get("win_target", 1)),
 					GameDataRef.format_cash(int(offer.get("upfront", 0))),
-					"SIGN CONTRACT" if eligible else requirements,
+					"VERTRAG ANNEHMEN" if eligible else requirements,
 				],
 				offer_accent,
 				eligible,
@@ -780,9 +780,9 @@ func _season_objectives_card() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 9)
 	panel.add_child(box)
-	box.add_child(UI.overline("SEASON OBJECTIVES", UI.PURPLE))
-	box.add_child(UI.label("Six routes to build the organization", 18, UI.TEXT, 800))
-	box.add_child(UI.label("Completed rewards can be claimed instantly and are auto-settled at season end.", 11, UI.MUTED))
+	box.add_child(UI.overline("SAISONZIELE", UI.PURPLE))
+	box.add_child(UI.label("Sechs Wege, deinen Verein aufzubauen", 18, UI.TEXT, 800))
+	box.add_child(UI.label("Fertige Belohnungen kannst du sofort abholen; am Saisonende werden sie automatisch verrechnet.", 11, UI.MUTED))
 	for objective_value in game.season_objectives():
 		var objective: Dictionary = objective_value
 		var complete := bool(objective.get("complete", false))
@@ -799,7 +799,7 @@ func _season_objectives_card() -> Control:
 		var copy := VBoxContainer.new()
 		copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		copy.add_child(UI.label(str(objective.get("label", "OBJECTIVE")), 12, UI.TEXT, 800))
-		copy.add_child(UI.label(str(objective.get("detail", "Season target")), 9, UI.MUTED))
+		copy.add_child(UI.label(str(objective.get("detail", "Saisonziel")), 9, UI.MUTED))
 		top.add_child(copy)
 		var button_text := "CLAIM" if complete and not claimed else "CLAIMED" if claimed else "%d/%d" % [int(objective.get("progress", 0)), int(objective.get("target", 1))]
 		var claim := UI.button(button_text, accent, complete and not claimed, true)
@@ -809,7 +809,7 @@ func _season_objectives_card() -> Control:
 		top.add_child(claim)
 		row_box.add_child(top)
 		row_box.add_child(UI.progress(float(objective.get("progress", 0)), float(maxi(1, int(objective.get("target", 1)))), accent, 5))
-		row_box.add_child(UI.label("REWARD  •  %s  •  +%d XP" % [GameDataRef.format_cash(int(objective.get("cash", 0))), int(objective.get("xp", 0))], 9, accent, 700))
+		row_box.add_child(UI.label("BELOHNUNG  •  %s  •  +%d XP" % [GameDataRef.format_cash(int(objective.get("cash", 0))), int(objective.get("xp", 0))], 9, accent, 700))
 		box.add_child(row_panel)
 	return panel
 
@@ -871,8 +871,8 @@ func _build_team_page() -> void:
 	game.apply_real_time_fatigue_recovery(false)
 	_page_header(
 		"Performance",
-		"Team Center",
-		"Train instantly, book ranked coaches and build a roster that can survive the climb."
+		"Teamzentrale",
+		"Trainiere gezielt, buche Ranked-Coaches und baue einen Kader für den Aufstieg."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
@@ -882,18 +882,18 @@ func _build_team_page() -> void:
 	summary_box.add_theme_constant_override("separation", 10)
 	summary.add_child(summary_box)
 	var summary_row := HBoxContainer.new()
-	summary_row.add_child(_metric_block("TEAM OVR", str(game.team_overall(mode)), accent))
+	summary_row.add_child(_metric_block("TEAM-GES", str(game.team_overall(mode)), accent))
 	summary_row.add_child(_metric_block("FORM", "%d%%" % _team_average(mode, "form"), UI.GREEN))
 	summary_row.add_child(
-		_metric_block("FATIGUE", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD)
+		_metric_block("MÜDIGKEIT", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD)
 	)
 	summary_box.add_child(summary_row)
 	var chemistry_row := HBoxContainer.new()
 	var chemistry := game.team_chemistry(mode)
 	var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
-	chemistry_row.add_child(_metric_block("CHEMISTRY", "%d%%" % chemistry, UI.PURPLE))
-	chemistry_row.add_child(_metric_block("SCRIM GAIN", "+%d" % scrim_gain, UI.GREEN))
-	chemistry_row.add_child(_metric_block("CAREER XP", "+8", UI.CYAN))
+	chemistry_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.PURPLE))
+	chemistry_row.add_child(_metric_block("SCRIM-BONUS", "+%d" % scrim_gain, UI.GREEN))
+	chemistry_row.add_child(_metric_block("KARRIERE-XP", "+8", UI.CYAN))
 	summary_box.add_child(chemistry_row)
 	var scrim_cost := game.scrim_cost(mode)
 	var scrim_ready := (
@@ -902,13 +902,13 @@ func _build_team_page() -> void:
 		and chemistry < 100
 	)
 	var scrim_text := (
-		"TEAM SCRIM  •  %s  •  +%d CHEM"
+		"TEAM-SCRIM  •  %s  •  +%d CHEMIE"
 		% [GameDataRef.format_cash(scrim_cost), scrim_gain]
 	)
 	if game.roster_for(mode).size() < 2:
-		scrim_text = "TEAM SCRIM  •  NEEDS 2 PLAYERS"
+		scrim_text = "TEAM-SCRIM  •  BRAUCHT 2 SPIELER"
 	elif chemistry >= 100:
-		scrim_text = "TEAM CHEMISTRY MAXED"
+		scrim_text = "TEAMCHEMIE MAXIMAL"
 	var scrim_button := UI.button(scrim_text, UI.PURPLE, scrim_ready)
 	scrim_button.disabled = not scrim_ready
 	scrim_button.pressed.connect(_team_scrim.bind(mode))
@@ -921,7 +921,7 @@ func _build_team_page() -> void:
 	summary_box.add_child(recovery_note)
 	summary_box.add_child(
 		UI.label(
-			"Fund development through community cups, sponsors and occasional virtual stream donations.",
+			"Finanziere Entwicklung durch Cups, Sponsoren und virtuelle Stream-Spenden.",
 			10,
 			UI.DIM
 		)
@@ -929,7 +929,7 @@ func _build_team_page() -> void:
 	page_content.add_child(summary)
 	page_content.add_child(_development_impact_card())
 	page_content.add_child(_coaching_market_card(mode))
-	page_content.add_child(_section_title("STARTING ROSTER", "%s competitive division" % mode))
+	page_content.add_child(_section_title("KADER", "Wettkampfbereich: %s" % mode))
 	for player in game.roster_for(mode):
 		page_content.add_child(_player_card(player, accent))
 
@@ -939,15 +939,15 @@ func _development_impact_card() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 9)
 	panel.add_child(box)
-	box.add_child(UI.overline("WHY EVERY STAT MATTERS", UI.PURPLE))
+	box.add_child(UI.overline("WARUM JEDER WERT ZÄHLT", UI.PURPLE))
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
-	grid.add_child(_development_impact_cell("MECH + SHOT", "Creates stronger attacking chances.", UI.CYAN))
-	grid.add_child(_development_impact_cell("ROT + DEF", "Reduces dangerous opponent chances.", UI.GREEN))
-	grid.add_child(_development_impact_cell("SENSE + BOOST", "Improves calls and starting boost.", UI.PURPLE))
-	grid.add_child(_development_impact_cell("CONS + MENTAL", "Stabilizes form and overtime plays.", UI.GOLD))
+	grid.add_child(_development_impact_cell("MECH + SCHUSS", "Erzeugt stärkere Angriffschancen.", UI.CYAN))
+	grid.add_child(_development_impact_cell("ROT + DEF", "Reduziert gefährliche Chancen des Gegners.", UI.GREEN))
+	grid.add_child(_development_impact_cell("SPIELVERSTAND + BOOST", "Verbessert Entscheidungen und Start-Boost.", UI.PURPLE))
+	grid.add_child(_development_impact_cell("KONSTANZ + MENTAL", "Stabilisiert Form und Overtime-Situationen.", UI.GOLD))
 	box.add_child(grid)
 	return panel
 
@@ -977,8 +977,8 @@ func _coaching_market_card(mode: String) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
-	box.add_child(UI.overline("LIVE COACHING BOARD", UI.PURPLE))
-	box.add_child(UI.label("Ranked coaches with guaranteed gains", 18, UI.TEXT, 800))
+	box.add_child(UI.overline("COACHING-MARKT", UI.PURPLE))
+	box.add_child(UI.label("Ranked-Coaches mit garantierten Verbesserungen", 18, UI.TEXT, 800))
 	box.add_child(
 		UI.label(
 			"Coach rank controls guaranteed stat gain, extra-gain chance and price. Offers disappear after one session; the board refreshes for free only when empty.",
@@ -1007,7 +1007,7 @@ func _coaching_market_card(mode: String) -> Control:
 			)
 		)
 	odds_flow.add_child(
-		UI.badge("FREE OFFER %s" % _chance_text(game.coaching_free_offer_chance()), UI.GREEN)
+		UI.badge("GRATIS-ANGEBOT %s" % _chance_text(game.coaching_free_offer_chance()), UI.GREEN)
 	)
 	box.add_child(odds_flow)
 	for offer_value in game.data.get("coaching_market", []):
@@ -1058,7 +1058,7 @@ func _coach_offer_card(offer: Dictionary, mode: String) -> Control:
 	)
 	identity.add_child(
 		UI.label(
-			"SPECIALTY: %s" % str(offer.get("specialty_label", "Mechanics")).to_upper(),
+			"SPEZIALGEBIET: %s" % str(offer.get("specialty_label", "Mechanics")).to_upper(),
 			10,
 			accent,
 			800
@@ -1070,7 +1070,7 @@ func _coach_offer_card(offer: Dictionary, mode: String) -> Control:
 	box.add_child(top)
 	box.add_child(
 		UI.label(
-			"GUARANTEED +%d  •  %s CHANCE OF +%d EXTRA"
+			"GARANTIERT +%d  •  %s CHANCE AUF +%d EXTRA"
 			% [
 				int(offer.get("guaranteed_gain", 1)),
 				_chance_text(float(offer.get("bonus_chance", 0.1))),
@@ -1087,9 +1087,9 @@ func _coach_offer_card(offer: Dictionary, mode: String) -> Control:
 		var stat_key := str(offer.get("specialty", "mechanics"))
 		var has_room := int(player.get(stat_key, 50)) < int(player.get("potential", 99))
 		var available := int(game.data.get("cash", 0)) >= price and has_room
-		var button_text := "COACH %s  •  %s" % [str(player.get("name", "PLAYER")), price_text]
+		var button_text := "%s COACHEN  •  %s" % [str(player.get("name", "PLAYER")), price_text]
 		if not has_room:
-			button_text = "%s AT POTENTIAL" % str(player.get("name", "PLAYER"))
+			button_text = "%s AM POTENZIAL" % str(player.get("name", "PLAYER"))
 		var book := UI.button(button_text, accent, available, true)
 		book.disabled = not available
 		book.pressed.connect(
@@ -1140,7 +1140,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	identity.add_child(
 		UI.label(
 			(
-				"%s  •  %s  •  AGE %d"
+				"%s  •  %s  •  ALTER %d"
 				% [str(player["role"]).to_upper(), player["region"], int(player["age"])]
 			),
 			11,
@@ -1151,13 +1151,13 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	var archetype := DevelopmentDataRef.player_archetype(player)
 	identity.add_child(
 		UI.label(
-			"%s  •  DYNAMIC PLAYSTYLE" % str(archetype.get("label", "Complete Player")).to_upper(),
+			"%s  •  DYNAMISCHER SPIELSTIL" % str(archetype.get("label", "Complete Player")).to_upper(),
 			10,
 			Color(str(archetype.get("color", "f2efff"))),
 			800
 		)
 	)
-	identity.add_child(UI.label("Potential %d" % int(player["potential"]), 11, accent))
+	identity.add_child(UI.label("Potenzial %d" % int(player["potential"]), 11, accent))
 	top.add_child(identity)
 	var ovr := VBoxContainer.new()
 	var ovr_value := UI.label(str(game.player_overall(player)), 25, UI.TEXT, 800)
@@ -1169,7 +1169,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	top.add_child(ovr)
 
 	var training_readiness := game.training_readiness(player)
-	box.add_child(UI.overline("TRAINING GROUND  •  LIVE SESSION VIEW", accent))
+	box.add_child(UI.overline("TRAININGSPLATZ  •  LIVE-ANSICHT", accent))
 	var training_view := TrainingVisualizerRef.new()
 	training_view.configure(player, training_readiness, accent)
 	box.add_child(training_view)
@@ -1180,13 +1180,13 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	status_row.add_child(UI.badge("FORM %d" % int(player["form"]), UI.GREEN))
 	status_row.add_child(
 		UI.badge(
-			"FATIGUE %d" % int(player["fatigue"]),
+			"MÜDIGKEIT %d" % int(player["fatigue"]),
 			UI.GOLD if int(player["fatigue"]) < 65 else UI.RED
 		)
 	)
 	status_row.add_child(
 		UI.badge(
-			"FOCUS %d/%d"
+			"FOKUS %d/%d"
 			% [
 				int(training_readiness.get("slots_remaining", 0)),
 				int(training_readiness.get("limit", 0)),
@@ -1214,7 +1214,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 			)
 		box.add_child(
 			UI.label(
-				"LAST SESSION  •  %s  •  %s"
+				"LETZTE EINHEIT  •  %s  •  %s"
 				% [latest_label, " / ".join(gain_parts)],
 				10,
 				UI.DIM,
@@ -1223,7 +1223,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 		)
 	box.add_child(
 		UI.overline(
-			"FOCUSED TRAINING  •  %d/%d READY  •  BONUS %s"
+			"FOKUSTRAINING  •  %d/%d BEREIT  •  BONUS %s"
 			% [
 				int(training_readiness.get("slots_remaining", 0)),
 				int(training_readiness.get("limit", 0)),
@@ -1234,7 +1234,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	)
 	box.add_child(
 		UI.label(
-			"Up to 3 sessions per 20 min per player. Slots recover automatically; fatigue 80+ pauses training.",
+			"Bis zu 3 Einheiten pro 20 Min. pro Spieler. Slots laden automatisch; ab 80 Müdigkeit pausiert Training.",
 			9,
 			UI.DIM
 		)
@@ -1270,7 +1270,7 @@ func _mechanics_arsenal(player: Dictionary, accent: Color) -> Control:
 	var unlocked: Array = game.unlocked_mechanics(player)
 	box.add_child(
 		UI.overline(
-			"MECHANICS ARSENAL  •  %d/%d" % [unlocked.size(), DevelopmentDataRef.MECHANIC_ARSENAL.size()],
+			"MECHANIKEN  •  %d/%d" % [unlocked.size(), DevelopmentDataRef.MECHANIC_ARSENAL.size()],
 			accent
 		)
 	)
@@ -1288,7 +1288,7 @@ func _mechanics_arsenal(player: Dictionary, accent: Color) -> Control:
 		var signature: Dictionary = unlocked[unlocked.size() - 1]
 		box.add_child(
 			UI.label(
-				"SIGNATURE: %s  •  %s SHOWCASE CHANCE AFTER YOUR GOAL"
+				"SIGNATURE: %s  •  %s SHOWCASE-CHANCE NACH DEINEM TOR"
 				% [
 					str(signature.get("label", "Mechanic")).to_upper(),
 					_chance_text(game.signature_move_chance(player)),
@@ -1300,12 +1300,12 @@ func _mechanics_arsenal(player: Dictionary, accent: Color) -> Control:
 		)
 	var next_move := game.next_mechanic(player)
 	if next_move.is_empty():
-		box.add_child(UI.label("Complete arsenal mastered.", 10, UI.GREEN, 700))
+		box.add_child(UI.label("Alle Mechaniken gemeistert.", 10, UI.GREEN, 700))
 	else:
 		var progress := DevelopmentDataRef.mechanic_progress(player, next_move)
 		box.add_child(
 			UI.label(
-				"NEXT: %s  •  %s"
+				"NÄCHSTES: %s  •  %s"
 				% [str(next_move.get("label", "")), DevelopmentDataRef.requirement_text(next_move)],
 				10,
 				UI.MUTED,
@@ -1334,7 +1334,7 @@ func _training_program_grid(player: Dictionary) -> Control:
 			"%s\n%s  •  %s  •  BONUS %s"
 			% [
 				str(program.get("short", "TRAIN")),
-				str(program.get("button_detail", "STAT GAINS")),
+				str(program.get("button_detail", "STAT-BONI")),
 				GameDataRef.format_cash(cost),
 				_chance_text(game.training_breakthrough_chance()),
 			],
@@ -1345,12 +1345,12 @@ func _training_program_grid(player: Dictionary) -> Control:
 		button.disabled = not can_train
 		if not focus_ready:
 			if bool(readiness.get("fatigue_blocked", false)):
-				button.tooltip_text = "Training paused: fatigue must drop below %d." % int(readiness.get("fatigue_limit", 80))
+				button.tooltip_text = "Training pausiert: Müdigkeit muss unter %d fallen." % int(readiness.get("fatigue_limit", 80))
 			else:
-				button.tooltip_text = "Next focus session in %s." % _format_duration(int(readiness.get("seconds_until_slot", 0)))
+				button.tooltip_text = "Nächster Fokus-Slot in %s." % _format_duration(int(readiness.get("seconds_until_slot", 0)))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.custom_minimum_size.y = 66
-		button.add_theme_font_size_override("font_size", 11)
+		button.add_theme_font_size_override("font_size", 10)
 		button.pressed.connect(_train_player.bind(str(player.get("id", "")), program_id))
 		grid.add_child(button)
 	return grid
@@ -1373,8 +1373,8 @@ func _mini_stat(caption: String, value: int, accent: Color) -> Control:
 func _build_play_page() -> void:
 	_page_header(
 		"COMPETITIVE",
-		"Ranked Command",
-		"Three independent ladders. Ten placements. Every result matters."
+		"Ranked-Zentrale",
+		"Drei getrennte Ranglisten. Zehn Placements. Jedes Ergebnis zählt."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
@@ -1401,7 +1401,7 @@ func _playlist_switch() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 9)
 	panel.add_child(box)
-	box.add_child(UI.overline("ROCKET LEAGUE PLAYLIST", UI.CYAN))
+	box.add_child(UI.overline("ROCKET-LEAGUE-PLAYLIST", UI.CYAN))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 7)
 	var selected := game.selected_rl_playlist()
@@ -1455,7 +1455,7 @@ func _build_ranked_overview() -> void:
 	page_content.add_child(_mmr_graph_card(playlist))
 	page_content.add_child(_circuit_overview_card())
 	page_content.add_child(_ranked_queue_card(playlist))
-	page_content.add_child(_section_title("RECENT MATCHES", "%s ranked results" % playlist))
+	page_content.add_child(_section_title("LETZTE SPIELE", "Ranked-Ergebnisse in %s" % playlist))
 	_build_playlist_history(page_content, playlist, 6)
 	page_content.add_child(_streaming_card())
 	if int(record.get("played", 0)) >= 3:
@@ -1474,11 +1474,11 @@ func _circuit_overview_card() -> Control:
 	var copy := VBoxContainer.new()
 	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	copy.add_child(UI.overline("PRO CIRCUIT", accent))
-	copy.add_child(UI.label(str(circuit.get("event_name", "Three-match tournament brackets")), 17, UI.TEXT, 800))
+	copy.add_child(UI.label(str(circuit.get("event_name", "Turnierbaum über drei Spiele")), 17, UI.TEXT, 800))
 	copy.add_child(
 		UI.label(
-			"%s  •  tournament results never change ranked MMR"
-			% ("NEXT: %s" % game.circuit_round_name(int(circuit.get("stage", 0))) if active else "QF → SF → GRAND FINAL"),
+			"%s  •  Turnierergebnisse verändern deine Ranked-MMR nie"
+			% ("NÄCHSTES: %s" % game.circuit_round_name(int(circuit.get("stage", 0))) if active else "QF → SF → GRAND FINAL"),
 			10,
 			UI.MUTED
 		)
@@ -1493,7 +1493,7 @@ func _circuit_overview_card() -> Control:
 		var stage := int(circuit.get("stage", 0))
 		var opponents: Array = circuit.get("opponents", [])
 		var opponent: Dictionary = opponents[stage] if stage < opponents.size() else {}
-		box.add_child(UI.badge("LIVE BRACKET  •  vs %s" % str(opponent.get("name", "Opponent")), UI.GREEN))
+		box.add_child(UI.badge("LIVE-TURNIERBAUM  •  vs %s" % str(opponent.get("name", "Opponent")), UI.GREEN))
 	return panel
 
 
@@ -1502,20 +1502,20 @@ func _build_pro_circuit_page() -> void:
 	var hero_box := VBoxContainer.new()
 	hero_box.add_theme_constant_override("separation", 9)
 	hero.add_child(hero_box)
-	hero_box.add_child(UI.overline("TOURNAMENT HUB", UI.PURPLE))
+	hero_box.add_child(UI.overline("TURNIERZENTRALE", UI.PURPLE))
 	hero_box.add_child(UI.heading("Pro Circuit", 24))
 	hero_box.add_child(UI.label("Win three live tactical matches to lift the trophy. No entry fee, no artificial wait and no ranked MMR change.", 12, UI.MUTED))
 	var format_row := HBoxContainer.new()
 	format_row.add_child(_metric_block("FORMAT", game.selected_rl_playlist(), UI.CYAN))
-	format_row.add_child(_metric_block("BRACKET", "8 TEAMS", UI.PURPLE))
-	format_row.add_child(_metric_block("PATH", "3 WINS", UI.GOLD))
+	format_row.add_child(_metric_block("TURNIERBAUM", "8 TEAMS", UI.PURPLE))
+	format_row.add_child(_metric_block("PATH", "3 SIEGE", UI.GOLD))
 	hero_box.add_child(format_row)
 	page_content.add_child(hero)
 
 	var circuit := game.active_pro_circuit()
 	if not circuit.is_empty():
 		page_content.add_child(_circuit_bracket_card(circuit))
-	page_content.add_child(_section_title("EVENT BOARD", "Every gate and reward is visible before you enter."))
+	page_content.add_child(_section_title("EVENTS", "Alle Voraussetzungen und Belohnungen sind vorher sichtbar."))
 	for event_value in game.pro_circuit_events():
 		page_content.add_child(_circuit_event_card(event_value, bool(circuit.get("active", false))))
 
@@ -1529,16 +1529,16 @@ func _circuit_bracket_card(circuit: Dictionary) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 9)
 	panel.add_child(box)
-	box.add_child(UI.overline("ACTIVE BRACKET" if active else "LAST BRACKET", accent))
+	box.add_child(UI.overline("AKTIVER TURNIERBAUM" if active else "LETZTER TURNIERBAUM", accent))
 	box.add_child(UI.label(str(circuit.get("event_name", "PRO CIRCUIT")), 20, UI.TEXT, 800))
-	var state_text := "CHAMPIONS" if champion else "ELIMINATED" if eliminated else "%s READY" % game.circuit_round_name(int(circuit.get("stage", 0)))
+	var state_text := "CHAMPIONS" if champion else "ELIMINATED" if eliminated else "%s BEREIT" % game.circuit_round_name(int(circuit.get("stage", 0)))
 	box.add_child(UI.badge(state_text, accent))
 	var opponents: Array = circuit.get("opponents", [])
 	var results: Array = circuit.get("results", [])
 	for stage in range(3):
 		var opponent: Dictionary = opponents[stage] if stage < opponents.size() else {}
 		var result: Dictionary = results[stage] if stage < results.size() else {}
-		var state := "UP NEXT" if active and stage == int(circuit.get("stage", 0)) else "LOCKED"
+		var state := "ALS NÄCHSTES" if active and stage == int(circuit.get("stage", 0)) else "LOCKED"
 		var row_accent := UI.CYAN
 		if not result.is_empty():
 			state = "WIN" if bool(result.get("won", false)) else "LOSS"
@@ -1556,12 +1556,12 @@ func _circuit_bracket_card(circuit: Dictionary) -> Control:
 		var details := VBoxContainer.new()
 		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		details.add_child(UI.label(game.circuit_round_name(stage), 11, UI.TEXT, 800))
-		details.add_child(UI.label("vs %s  •  seed #%d" % [str(opponent.get("name", "TBD")), int(opponent.get("seed", stage + 1))], 9, UI.MUTED))
+		details.add_child(UI.label("vs %s  •  Seed #%d" % [str(opponent.get("name", "TBD")), int(opponent.get("seed", stage + 1))], 9, UI.MUTED))
 		round_row.add_child(details)
 		round_row.add_child(UI.badge(state, row_accent))
 		box.add_child(round_panel)
 	if active:
-		var play := UI.button("PLAY %s  •  LIVE ARENA" % game.circuit_round_name(int(circuit.get("stage", 0))), UI.GOLD, true)
+		var play := UI.button("%s SPIELEN  •  LIVE-ARENA" % game.circuit_round_name(int(circuit.get("stage", 0))), UI.GOLD, true)
 		play.custom_minimum_size.y = 58
 		play.pressed.connect(_start_pro_circuit_match)
 		box.add_child(play)
@@ -1580,17 +1580,17 @@ func _circuit_event_card(event: Dictionary, bracket_active: bool) -> Control:
 	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	copy.add_child(UI.overline(str(event.get("tier", "OPEN")), accent))
 	copy.add_child(UI.label(str(event.get("name", "EVENT")), 18, UI.TEXT, 800))
-	copy.add_child(UI.label(str(event.get("detail", "Tournament bracket")), 10, UI.MUTED))
+	copy.add_child(UI.label(str(event.get("detail", "Turnierbaum")), 10, UI.MUTED))
 	top.add_child(copy)
-	top.add_child(UI.badge("FREE ENTRY", UI.GREEN))
+	top.add_child(UI.badge("GRATIS-TEILNAHME", UI.GREEN))
 	box.add_child(top)
 	var reward_row := HBoxContainer.new()
 	reward_row.add_child(_metric_block("PRIZE", GameDataRef.format_cash(int(event.get("prize", 0))), UI.GOLD))
 	reward_row.add_child(_metric_block("FANS", "+%d" % int(event.get("fans", 0)), UI.PURPLE))
-	reward_row.add_child(_metric_block("CAREER XP", "+%d" % int(event.get("xp", 0)), UI.CYAN))
+	reward_row.add_child(_metric_block("KARRIERE-XP", "+%d" % int(event.get("xp", 0)), UI.CYAN))
 	box.add_child(reward_row)
-	box.add_child(UI.label("ENTRY GATES  •  %d ranked matches  •  Career LV %d  •  %d reputation" % [int(event.get("min_matches", 0)), int(event.get("min_level", 1)), int(event.get("min_reputation", 0))], 9, UI.MUTED, 700))
-	var button_text := "BRACKET ALREADY ACTIVE" if bracket_active else "ENTER %s" % str(event.get("name", "EVENT")) if eligible else "EVENT LOCKED"
+	box.add_child(UI.label("VORAUSSETZUNGEN  •  %d Ranked-Spiele  •  Karriere-LV %d  •  %d Ruf" % [int(event.get("min_matches", 0)), int(event.get("min_level", 1)), int(event.get("min_reputation", 0))], 9, UI.MUTED, 700))
+	var button_text := "TURNIERBAUM BEREITS AKTIV" if bracket_active else "%s BEITRETEN" % str(event.get("name", "EVENT")) if eligible else "EVENT GESPERRT"
 	var enter := UI.button(button_text, accent, eligible and not bracket_active)
 	enter.disabled = not eligible or bracket_active
 	enter.pressed.connect(_start_pro_circuit.bind(str(event.get("id", ""))))
@@ -1630,7 +1630,7 @@ func _rank_profile_card(playlist: String) -> Control:
 		)
 	identity.add_child(
 		UI.label(
-			"%d / 10 placements" % placements if not placed else "Division %s" % str(actual_rank["division_roman"]),
+			"%d / 10 Placements" % placements if not placed else "Division %s" % str(actual_rank["division_roman"]),
 			13,
 			UI.MUTED,
 			700
@@ -1640,7 +1640,7 @@ func _rank_profile_card(playlist: String) -> Control:
 	var rating := VBoxContainer.new()
 	var rating_value := UI.label(str(mmr) if placed else "HIDDEN", 24 if not placed else 28, UI.TEXT, 800)
 	rating_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var rating_cap := UI.label("MMR AFTER REVEAL" if not placed else "MMR", 9 if not placed else 10, accent, 800)
+	var rating_cap := UI.label("MMR NACH RANG-REVEAL" if not placed else "MMR", 9 if not placed else 10, accent, 800)
 	rating_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rating.add_child(rating_value)
 	rating.add_child(rating_cap)
@@ -1649,10 +1649,10 @@ func _rank_profile_card(playlist: String) -> Control:
 	box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.28)))
 	if not placed:
 		var placement_labels := HBoxContainer.new()
-		var left := UI.label("RANK HIDDEN", 12, UI.TEXT, 800)
+		var left := UI.label("RANG VERDECKT", 12, UI.TEXT, 800)
 		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		placement_labels.add_child(left)
-		placement_labels.add_child(UI.label("%d MATCHES LEFT" % (10 - placements), 11, UI.MUTED, 700))
+		placement_labels.add_child(UI.label("NOCH %d SPIELE" % (10 - placements), 11, UI.MUTED, 700))
 		box.add_child(placement_labels)
 		box.add_child(UI.progress(placements, 10, accent, 9))
 	else:
@@ -1662,16 +1662,16 @@ func _rank_profile_card(playlist: String) -> Control:
 		var current := UI.label(str(actual_rank["compact_name"]), 12, UI.TEXT, 800)
 		current.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		progress_labels.add_child(current)
-		var target_text := "MAX RANK" if str(actual_rank["family"]) == "Supersonic Legend" else "%s  •  %d" % [str(next_rank["compact_name"]), int(actual_rank["next_minimum"])]
+		var target_text := "MAX. RANG" if str(actual_rank["family"]) == "Supersonic Legend" else "%s  •  %d" % [str(next_rank["compact_name"]), int(actual_rank["next_minimum"])]
 		progress_labels.add_child(UI.label(target_text, 11, UI.MUTED, 700))
 		box.add_child(progress_labels)
 		box.add_child(UI.progress(float(progress["value"]), float(progress["maximum"]), accent, 9))
 	var footer := HBoxContainer.new()
-	footer.add_child(_metric_block("W / L", "%d / %d" % [int(record.get("wins", 0)), int(record.get("losses", 0))], UI.GREEN))
+	footer.add_child(_metric_block("S / N", "%d / %d" % [int(record.get("wins", 0)), int(record.get("losses", 0))], UI.GREEN))
 	footer.add_child(_metric_block("WINRATE", "%.1f%%" % RankedDataRef.win_rate(record), accent))
 	footer.add_child(
 		_metric_block(
-			"EST. LADDER",
+			"GESCH. RANGLISTE",
 			"HIDDEN" if not placed else "#%s" % GameDataRef.format_number(RankedDataRef.estimated_position(mmr, playlist)),
 			UI.PURPLE
 		)
@@ -1686,7 +1686,7 @@ func _rank_stats_card(playlist: String) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 11)
 	panel.add_child(box)
-	box.add_child(UI.overline("SEASON PERFORMANCE", UI.PURPLE))
+	box.add_child(UI.overline("SAISONLEISTUNG", UI.PURPLE))
 	var row_one := HBoxContainer.new()
 	row_one.add_child(_metric_block("SEASON", "%d-%d" % [int(record.get("season_wins", 0)), int(record.get("season_losses", 0))], UI.TEXT))
 	row_one.add_child(_metric_block("WINRATE", "%.1f%%" % RankedDataRef.win_rate(record, true), UI.GREEN))
@@ -1695,16 +1695,16 @@ func _rank_stats_card(playlist: String) -> Control:
 	box.add_child(row_one)
 	var row_two := HBoxContainer.new()
 	var placements_complete := int(record.get("placements", 0)) >= 10
-	row_two.add_child(_metric_block("PEAK MMR", str(int(record.get("peak_mmr", 100))) if placements_complete else "HIDDEN", UI.CYAN))
-	row_two.add_child(_metric_block("SEASON PEAK", str(int(record.get("season_peak_mmr", 100))) if placements_complete else "HIDDEN", UI.PURPLE))
+	row_two.add_child(_metric_block("PEAK-MMR", str(int(record.get("peak_mmr", 100))) if placements_complete else "HIDDEN", UI.CYAN))
+	row_two.add_child(_metric_block("SAISON-PEAK", str(int(record.get("season_peak_mmr", 100))) if placements_complete else "HIDDEN", UI.PURPLE))
 	row_two.add_child(_metric_block("PLAYLIST", playlist, UI.TEXT))
 	box.add_child(row_two)
 	var last_results: Array = record.get("last_results", [])
-	var last_text := "NO MATCHES YET" if last_results.is_empty() else "  ".join(last_results)
+	var last_text := "NOCH KEINE SPIELE" if last_results.is_empty() else "  ".join(last_results)
 	var last := UI.label(last_text, 13, UI.MUTED, 800)
 	last.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	last.custom_minimum_size.y = 30
-	box.add_child(UI.overline("LAST 10", UI.MUTED))
+	box.add_child(UI.overline("LETZTE 10", UI.MUTED))
 	box.add_child(last)
 	return panel
 
@@ -1717,7 +1717,7 @@ func _mmr_graph_card(playlist: String) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	panel.add_child(box)
-	box.add_child(UI.overline("MMR TREND  •  LAST 30", accent))
+	box.add_child(UI.overline("MMR-VERLAUF  •  LETZTE 30", accent))
 	box.add_child(MMRGraphRef.new().configure(record.get("mmr_history", []), accent))
 	return panel
 
@@ -1737,9 +1737,9 @@ func _ranked_queue_card(playlist: String) -> Control:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_child(UI.overline("MATCHMAKING", accent))
 	text.add_child(UI.heading("%s Competitive" % playlist, 20))
-	text.add_child(UI.label("Close-MMR opponent  •  Ranked reward €0", 12, UI.MUTED))
+	text.add_child(UI.label("Gegner mit ähnlicher MMR  •  Ranked zahlt €0", 12, UI.MUTED))
 	top.add_child(text)
-	top.add_child(UI.badge("READY" if available else "%d/%d PLAYERS" % [roster_size, required], UI.GREEN if available else UI.GOLD))
+	top.add_child(UI.badge("READY" if available else "%d/%d SPIELER" % [roster_size, required], UI.GREEN if available else UI.GOLD))
 	box.add_child(top)
 	var placement_mode := int(record.get("placements", 0)) < 10
 	box.add_child(
@@ -1756,8 +1756,8 @@ func _ranked_queue_card(playlist: String) -> Control:
 			"%s %s"
 			% [str(odds.get("label", "NORMAL")), _chance_text(float(odds.get("chance", 0.0)))]
 		)
-	box.add_child(UI.label("LOBBY ODDS  •  %s" % "  /  ".join(lobby_odds), 9, UI.DIM, 700))
-	var queue := UI.button("QUEUE %s RANKED" % playlist if available else "RECRUIT %d MORE PLAYER%s" % [required - roster_size, "S" if required - roster_size != 1 else ""], accent, available)
+	box.add_child(UI.label("LOBBY-CHANCE  •  %s" % "  /  ".join(lobby_odds), 9, UI.DIM, 700))
+	var queue := UI.button("%s RANKED STARTEN" % playlist if available else "NOCH %d SPIELER%s HOLEN" % [required - roster_size, "S" if required - roster_size != 1 else ""], accent, available)
 	queue.disabled = not available
 	queue.pressed.connect(_start_match.bind("Rocket League"))
 	box.add_child(queue)
@@ -1768,18 +1768,18 @@ func _build_ranked_ladder() -> void:
 	var playlist := game.selected_rl_playlist()
 	var record := game.playlist_record(playlist)
 	page_content.add_child(_rank_profile_card(playlist))
-	page_content.add_child(_section_title("GLOBAL TOP 12", "%s simulated competitive ladder" % playlist))
+	page_content.add_child(_section_title("GLOBALE TOP 12", "Simulierte %s-Rangliste" % playlist))
 	for entry in RankedDataRef.top_ladder(playlist):
 		page_content.add_child(_ladder_row(entry))
 	if int(record.get("placements", 0)) < 10:
-		page_content.add_child(_section_title("AROUND YOU", "Your position unlocks with the rank reveal after placement 10."))
+		page_content.add_child(_section_title("DEINE UMGEBUNG", "Deine Position wird nach dem 10. Placement mit dem Rang freigeschaltet."))
 		var locked := UI.card(UI.GOLD)
 		var locked_text := UI.label("UNRANKED  •  %d / 10 PLACEMENTS" % int(record.get("placements", 0)), 14, UI.GOLD, 800)
 		locked_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		locked.add_child(locked_text)
 		page_content.add_child(locked)
 	else:
-		page_content.add_child(_section_title("AROUND YOU", "Your estimated position updates with every MMR change."))
+		page_content.add_child(_section_title("DEINE UMGEBUNG", "Deine geschätzte Position aktualisiert sich bei jeder MMR-Änderung."))
 		for entry in RankedDataRef.around_player(int(record.get("mmr", 100)), playlist):
 			page_content.add_child(_ladder_row(entry))
 
@@ -1832,8 +1832,8 @@ func _build_all_ranks() -> void:
 	var intro_box := VBoxContainer.new()
 	intro_box.add_theme_constant_override("separation", 8)
 	intro.add_child(intro_box)
-	intro_box.add_child(UI.overline("ALL RANKS  •  %s" % playlist, UI.GOLD))
-	intro_box.add_child(UI.heading("MMR Table", 22))
+	intro_box.add_child(UI.overline("ALLE RÄNGE  •  %s" % playlist, UI.GOLD))
+	intro_box.add_child(UI.heading("MMR-Tabelle", 22))
 	intro_box.add_child(UI.label("Approximate playlist thresholds. Every tier has Divisions I–IV; SSL begins at the final open-ended threshold.", 12, UI.MUTED))
 	page_content.add_child(intro)
 	for tier_data in RankedDataRef.tier_rows(playlist):
@@ -1848,10 +1848,10 @@ func _build_title_locker() -> void:
 	var intro_box := VBoxContainer.new()
 	intro_box.add_theme_constant_override("separation", 9)
 	intro.add_child(intro_box)
-	intro_box.add_child(UI.overline("PLAYER IDENTITY  •  TITLE LOCKER", UI.GOLD))
+	intro_box.add_child(UI.overline("SPIELERIDENTITÄT  •  TITEL", UI.GOLD))
 	intro_box.add_child(UI.heading("KESHI", 25))
 	if equipped.is_empty():
-		intro_box.add_child(UI.label("NO TITLE EQUIPPED", 13, UI.MUTED, 800))
+		intro_box.add_child(UI.label("KEIN TITEL AUSGERÜSTET", 13, UI.MUTED, 800))
 		intro_box.add_child(
 			UI.label(
 				"Every real rank from Bronze through SSL has a season title. Higher leaderboard finishes add rarer credentials.",
@@ -2422,7 +2422,7 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 	identity.add_child(
 		UI.label(
 			(
-				"%s  •  %s  •  AGE %d"
+				"%s  •  %s  •  ALTER %d"
 				% [str(player["role"]).to_upper(), player["region"], int(player["age"])]
 			),
 			11,
@@ -2492,7 +2492,7 @@ func _club_identity_card() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
-	box.add_child(UI.overline("CLUB DNA", active_accent))
+	box.add_child(UI.overline("VEREINS-DNA", active_accent))
 	box.add_child(UI.label(str(active.get("name", "Counter Culture")), 19, UI.TEXT, 800))
 	box.add_child(UI.label(str(active.get("detail", "Choose how the club wants to play.")), 11, UI.MUTED))
 	box.add_child(
@@ -2939,9 +2939,9 @@ func _build_match_overlay() -> void:
 	match_overlay.add_child(dim)
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_left", 12)
 	margin.add_theme_constant_override("margin_top", 28)
-	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_right", 12)
 	margin.add_theme_constant_override("margin_bottom", 24)
 	match_overlay.add_child(margin)
 	match_log_scroll = ScrollContainer.new()
@@ -2969,7 +2969,7 @@ func _build_match_overlay() -> void:
 	header_row.add_child(head_spacer)
 	header_row.add_child(
 		UI.badge(
-			str(circuit_data.get("round", "PRO CIRCUIT")) if is_circuit else ("%d VIEWERS" % int(source.get("stream_viewers", 0))) if bool(source.get("streaming", false)) else "AUTO SIM",
+			str(circuit_data.get("round", "PRO CIRCUIT")) if is_circuit else ("%d VIEWERS" % int(source.get("stream_viewers", 0))) if bool(source.get("streaming", false)) else "AUTO-SIM",
 			accent
 		)
 	)
@@ -2978,7 +2978,7 @@ func _build_match_overlay() -> void:
 	var opponent_profile: Dictionary = source.get("opponent_profile", {})
 	layout.add_child(
 		UI.badge(
-			"SCOUT MODEL %s  •  %s"
+			"SCOUT-MODELL %s  •  %s"
 			% [
 				_chance_text(float(source.get("estimated_win_chance", 0.5))),
 				str(opponent_profile.get("label", "NORMAL MATCH")),
@@ -2991,7 +2991,7 @@ func _build_match_overlay() -> void:
 	var score_box := VBoxContainer.new()
 	score_box.add_theme_constant_override("separation", 9)
 	scoreboard.add_child(score_box)
-	match_clock_label = UI.overline("CONNECTING", UI.MUTED)
+	match_clock_label = UI.overline("VERBINDUNG", UI.MUTED)
 	match_clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	match_score_label = UI.label("0 - 0", 43, UI.TEXT, 800)
 	match_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -3007,11 +3007,11 @@ func _build_match_overlay() -> void:
 	score_box.add_child(match_progress)
 	var live_stats_row := HBoxContainer.new()
 	live_stats_row.add_theme_constant_override("separation", 7)
-	match_shots_label = UI.label("SHOTS  0 - 0", 10, UI.CYAN, 800)
+	match_shots_label = UI.label("SCHÜSSE  0 - 0", 10, UI.CYAN, 800)
 	match_shots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	match_saves_label = UI.label("SAVES  0 - 0", 10, UI.GREEN, 800)
+	match_saves_label = UI.label("PARADEN  0 - 0", 10, UI.GREEN, 800)
 	match_saves_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	match_pressure_label = UI.label("PRESSURE  50 - 50", 10, UI.GOLD, 800)
+	match_pressure_label = UI.label("DRUCK  50 - 50", 10, UI.GOLD, 800)
 	match_pressure_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	live_stats_row.add_child(match_shots_label)
 	live_stats_row.add_child(match_saves_label)
@@ -3020,14 +3020,14 @@ func _build_match_overlay() -> void:
 	layout.add_child(scoreboard)
 	match_visualizer = null
 	if mode == "Rocket League":
-		layout.add_child(UI.overline("LIVE ARENA  •  TOP-DOWN AUTO SIMULATION", UI.CYAN))
+		layout.add_child(UI.overline("LIVE-ARENA  •  TOP-DOWN-AUTO-SIMULATION", UI.CYAN))
 		match_visualizer = MatchVisualizerRef.new()
 		match_visualizer.configure(source)
 		layout.add_child(match_visualizer)
 
 	var event_panel := UI.card()
 	event_panel.custom_minimum_size.y = 94
-	match_event_label = UI.label("The teams are entering the server...", 15, UI.TEXT, 700)
+	match_event_label = UI.label("Die Teams betreten den Server...", 15, UI.TEXT, 700)
 	match_event_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	event_panel.add_child(match_event_label)
 	layout.add_child(event_panel)
@@ -3041,7 +3041,7 @@ func _build_match_overlay() -> void:
 		speed_button.pressed.connect(_set_match_speed.bind(speed))
 		speed_row.add_child(speed_button)
 	layout.add_child(speed_row)
-	layout.add_child(UI.overline("MATCH FEED", UI.MUTED))
+	layout.add_child(UI.overline("SPIELVERLAUF", UI.MUTED))
 	var feed_panel := UI.card()
 	match_log_box = VBoxContainer.new()
 	match_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -3054,7 +3054,7 @@ func _build_match_overlay() -> void:
 	match_result_box.add_theme_constant_override("separation", 8)
 	match_result_box.visible = false
 	layout.add_child(match_result_box)
-	match_continue_button = UI.button("CONTINUE", accent, true)
+	match_continue_button = UI.button("WEITER", accent, true)
 	match_continue_button.visible = false
 	match_continue_button.pressed.connect(_close_match)
 	layout.add_child(match_continue_button)
@@ -3108,7 +3108,7 @@ func _present_match_decision() -> void:
 		UI.badge(
 			"%s  •  %s +4pp"
 			% [
-				str(match_identity.get("short", "CLUB DNA")),
+				str(match_identity.get("short", "VEREINS-DNA")),
 				str(match_identity.get("action_label", "FAST COUNTER")),
 			],
 			match_identity_accent
@@ -3348,36 +3348,36 @@ func _finish_match_animation() -> void:
 	result_panel.add_child(result_box)
 	result_box.add_child(
 		UI.badge(
-			"PLACEMENT COMPLETE  •  RANK REVEAL" if rank_reveal else "%s  •  MATCH COMPLETE" % str(match_result.get("circuit", {}).get("round", "PRO CIRCUIT")) if is_circuit else "MATCH COMPLETE",
+			"PLACEMENT FERTIG  •  RANG-REVEAL" if rank_reveal else "%s  •  MATCH COMPLETE" % str(match_result.get("circuit", {}).get("round", "PRO CIRCUIT")) if is_circuit else "SPIEL BEENDET",
 			UI.GOLD if rank_reveal else accent
 		)
 	)
-	result_box.add_child(UI.heading("CIRCUIT VICTORY" if is_circuit and won else "CIRCUIT DEFEAT" if is_circuit else "VICTORY" if won else "DEFEAT", 28))
+	result_box.add_child(UI.heading("CIRCUIT VICTORY" if is_circuit and won else "CIRCUIT DEFEAT" if is_circuit else "SIEG" if won else "NIEDERLAGE", 28))
 	var is_rocket_league := str(match_result.get("mode", "")) == "Rocket League"
 	var placement_complete := int(match_result.get("placements_after", 0)) >= 10
 	var show_rating := is_ranked and (not is_rocket_league or placement_complete)
 	var result_row := HBoxContainer.new()
 	if is_circuit:
 		var circuit_result: Dictionary = match_result.get("circuit", {})
-		result_row.add_child(_metric_block("COMPETITION", "PRO CIRCUIT", UI.PURPLE))
-		result_row.add_child(_metric_block("RANKED MMR", "UNCHANGED", UI.GREEN))
-		result_row.add_child(_metric_block("BRACKET", "ADVANCE" if bool(circuit_result.get("active", false)) else "CHAMPION" if bool(circuit_result.get("champion", false)) else "OUT", accent))
+		result_row.add_child(_metric_block("WETTBEWERB", "PRO CIRCUIT", UI.PURPLE))
+		result_row.add_child(_metric_block("RANKED-MMR", "UNVERÄNDERT", UI.GREEN))
+		result_row.add_child(_metric_block("TURNIERBAUM", "WEITER" if bool(circuit_result.get("active", false)) else "CHAMPION" if bool(circuit_result.get("champion", false)) else "OUT", accent))
 	else:
-		result_row.add_child(_metric_block("BEFORE", str(int(match_result.get("mmr_before", 0))) if show_rating else "HIDDEN", UI.MUTED))
-		result_row.add_child(_metric_block("CHANGE", "%+d" % int(match_result["mmr_delta"]) if show_rating else "PLACEMENT", accent))
-		result_row.add_child(_metric_block("AFTER", str(int(match_result.get("mmr_after", 0))) if show_rating else "HIDDEN", UI.TEXT))
+		result_row.add_child(_metric_block("VORHER", str(int(match_result.get("mmr_before", 0))) if show_rating else "HIDDEN", UI.MUTED))
+		result_row.add_child(_metric_block("ÄNDERUNG", "%+d" % int(match_result["mmr_delta"]) if show_rating else "PLACEMENT", accent))
+		result_row.add_child(_metric_block("NACHHER", str(int(match_result.get("mmr_after", 0))) if show_rating else "HIDDEN", UI.TEXT))
 	result_box.add_child(result_row)
 	var opponent_row := HBoxContainer.new()
-	opponent_row.add_child(_metric_block("OPPONENT", str(match_result.get("opponent", "Unknown")), UI.PURPLE))
-	opponent_row.add_child(_metric_block("OPP MMR", "EVENT SEED" if is_circuit else str(int(match_result.get("opponent_mmr", 0))) if show_rating else "HIDDEN", UI.PURPLE))
+	opponent_row.add_child(_metric_block("GEGNER", str(match_result.get("opponent", "Unknown")), UI.PURPLE))
+	opponent_row.add_child(_metric_block("GEGNER-MMR", "EVENT SEED" if is_circuit else str(int(match_result.get("opponent_mmr", 0))) if show_rating else "HIDDEN", UI.PURPLE))
 	result_box.add_child(opponent_row)
 	var career_row := HBoxContainer.new()
 	career_row.add_child(
-		_metric_block("CAREER XP", "+%d" % int(match_result.get("career_xp", 0)), UI.GOLD)
+		_metric_block("KARRIERE-XP", "+%d" % int(match_result.get("career_xp", 0)), UI.GOLD)
 	)
 	career_row.add_child(
 		_metric_block(
-			"CHEMISTRY",
+			"CHEMIE",
 			"SOLO" if is_rocket_league and str(match_result.get("format", "1v1")) == "1v1" else "%+d  →  %d%%" % [int(match_result.get("chemistry_gain", 0)), int(match_result.get("team_chemistry", 0))],
 			UI.PURPLE
 		)
@@ -3420,7 +3420,7 @@ func _finish_match_animation() -> void:
 			var title_box := VBoxContainer.new()
 			title_box.add_theme_constant_override("separation", 5)
 			title_panel.add_child(title_box)
-			title_box.add_child(UI.overline("TITLE UNLOCKED", title_accent))
+			title_box.add_child(UI.overline("TITEL FREIGESCHALTET", title_accent))
 			var title_name := UI.label(str(title.get("label", "NEW TITLE")), 18, title_accent, 800)
 			title_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			title_box.add_child(title_name)
@@ -3433,16 +3433,16 @@ func _finish_match_animation() -> void:
 		var circuit_box := VBoxContainer.new()
 		circuit_box.add_theme_constant_override("separation", 7)
 		circuit_panel.add_child(circuit_box)
-		circuit_box.add_child(UI.overline("BRACKET UPDATE", UI.GOLD if bool(circuit_result.get("champion", false)) else accent))
+		circuit_box.add_child(UI.overline("TURNIER-UPDATE", UI.GOLD if bool(circuit_result.get("champion", false)) else accent))
 		if bool(circuit_result.get("champion", false)):
 			var reward: Dictionary = circuit_result.get("reward", {})
-			circuit_box.add_child(UI.heading("TROPHY LIFTED", 23))
+			circuit_box.add_child(UI.heading("POKAL GEHOLT", 23))
 			circuit_box.add_child(UI.badge("CHAMPIONS  •  +%s  •  +%d FANS  •  +%d XP" % [GameDataRef.format_cash(int(reward.get("cash", 0))), int(reward.get("fans", 0)), int(reward.get("xp", 0))], UI.GOLD))
 		elif bool(circuit_result.get("active", false)):
-			circuit_box.add_child(UI.heading("ADVANCING", 21))
+			circuit_box.add_child(UI.heading("WEITER", 21))
 			circuit_box.add_child(UI.label("Next stop: %s. The next match is available immediately." % str(circuit_result.get("next_round", "NEXT ROUND")), 11, UI.MUTED))
 		else:
-			circuit_box.add_child(UI.heading("RUN COMPLETE", 21))
+			circuit_box.add_child(UI.heading("RUN BEENDET", 21))
 			circuit_box.add_child(UI.label("The bracket ends here. Another event can be entered immediately.", 11, UI.MUTED))
 		match_result_box.add_child(circuit_panel)
 
@@ -3452,7 +3452,7 @@ func _finish_match_animation() -> void:
 		var sponsor_box := VBoxContainer.new()
 		sponsor_box.add_theme_constant_override("separation", 6)
 		sponsor_panel.add_child(sponsor_box)
-		sponsor_box.add_child(UI.overline("SPONSOR PAYOUT", UI.GOLD))
+		sponsor_box.add_child(UI.overline("SPONSOR-AUSZAHLUNG", UI.GOLD))
 		sponsor_box.add_child(UI.label("%s  •  +%s this match" % [str(sponsor_progress.get("brand", "Partner")), GameDataRef.format_cash(int(sponsor_progress.get("payout", 0)))], 16, UI.TEXT, 800))
 		sponsor_box.add_child(UI.label("MATCHES %d/%d  •  WINS %d/%d" % [int(sponsor_progress.get("matches", 0)), int(sponsor_progress.get("duration", 1)), int(sponsor_progress.get("wins", 0)), int(sponsor_progress.get("win_target", 1))], 10, UI.MUTED, 700))
 		if bool(sponsor_progress.get("ended", false)):
@@ -3484,13 +3484,13 @@ func _finish_match_animation() -> void:
 			)
 		)
 		var audience_row := HBoxContainer.new()
-		audience_row.add_child(_metric_block("VIEWERS", str(int(match_result.get("stream_viewers", 0))), UI.PURPLE))
-		audience_row.add_child(_metric_block("NEW FOLLOWS", "+%d" % int(match_result.get("stream_followers", 0)), UI.GREEN))
+		audience_row.add_child(_metric_block("ZUSCHAUER", str(int(match_result.get("stream_viewers", 0))), UI.PURPLE))
+		audience_row.add_child(_metric_block("NEUE FOLLOWS", "+%d" % int(match_result.get("stream_followers", 0)), UI.GREEN))
 		match_result_box.add_child(audience_row)
 		var stream_money_row := HBoxContainer.new()
 		stream_money_row.add_child(
 			_metric_block(
-				"DONATIONS",
+				"SPENDEN",
 				"+%s" % GameDataRef.format_cash(int(match_result.get("stream_donation_cash", 0))),
 				UI.GOLD
 			)
@@ -3499,7 +3499,7 @@ func _finish_match_animation() -> void:
 		match_result_box.add_child(stream_money_row)
 		var donations: Array = match_result.get("stream_donations", [])
 		if not donations.is_empty():
-			match_result_box.add_child(UI.overline("STREAM SUPPORT", UI.GOLD))
+			match_result_box.add_child(UI.overline("STREAM-SUPPORT", UI.GOLD))
 			for donation in donations:
 				match_result_box.add_child(
 					UI.label(
