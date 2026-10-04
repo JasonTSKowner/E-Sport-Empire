@@ -106,8 +106,8 @@ func _build_shell() -> void:
 	page_content = VBoxContainer.new()
 	page_content.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page_content.add_theme_constant_override("separation", 12)
-	var page_margin := UI.margin(page_content, 12, 12, 12, 16)
+	page_content.add_theme_constant_override("separation", 10)
+	var page_margin := UI.margin(page_content, 10, 10, 10, 14)
 	page_margin.mouse_filter = Control.MOUSE_FILTER_PASS
 	page_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page_scroll.add_child(page_margin)
@@ -124,7 +124,7 @@ func _build_shell() -> void:
 
 func _build_top_bar() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 60.0
+	outer.custom_minimum_size.y = 54.0
 	var outer_style := UI.box(Color(0.032,0.039,0.050,0.995), 0, Color(0.72,0.78,0.86,0.07), 0)
 	outer_style.shadow_size = 0
 	outer.add_theme_stylebox_override("panel", outer_style)
@@ -141,7 +141,7 @@ func _build_top_bar() -> Control:
 	margin.add_child(row)
 
 	var brand_mark := BrandMarkRef.new()
-	brand_mark.custom_minimum_size = Vector2(36,36)
+	brand_mark.custom_minimum_size = Vector2(32,32)
 	row.add_child(brand_mark)
 
 	var brand_text := VBoxContainer.new()
@@ -153,10 +153,15 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	row.add_child(brand_text)
 
-	var status := UI.label("ONLINE", 7, UI.DIM, 800)
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(status)
+	var economy := VBoxContainer.new()
+	economy.add_theme_constant_override("separation", -1)
+	var economy_cap := UI.label("GELD", 7, UI.DIM, 800)
+	economy_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cash_label = UI.label("€0", 11, UI.TEXT, 800)
+	cash_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	economy.add_child(economy_cap)
+	economy.add_child(cash_label)
+	row.add_child(economy)
 	return outer
 
 func _header_chip(caption: String, accent: Color) -> PanelContainer:
@@ -180,7 +185,7 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 
 func _build_bottom_navigation() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 60.0
+	outer.custom_minimum_size.y = 64.0
 	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.995), 0, Color(0.72, 0.78, 0.86, 0.08), 0)
 	outer_style.shadow_size = 0
 	outer.add_theme_stylebox_override("panel", outer_style)
@@ -201,9 +206,9 @@ func _build_bottom_navigation() -> Control:
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 52
+		button.custom_minimum_size.y = 56
 		button.add_theme_font_override("font", AppFontRef)
-		button.add_theme_font_size_override("font_size", 8)
+		button.add_theme_font_size_override("font_size", 9)
 		var nav_icon := NavIconRef.new()
 		nav_icon.configure(page_id, UI.MUTED)
 		nav_icon.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -310,6 +315,9 @@ func _refresh_nav() -> void:
 func _show_page(page: String, animate: bool = true) -> void:
 	if match_overlay != null and is_instance_valid(match_overlay):
 		return
+	if page == "market":
+		team_view = "scouting"
+		page = "team"
 	current_page = page
 	for child in page_content.get_children():
 		page_content.remove_child(child)
@@ -412,13 +420,14 @@ func _build_home_page() -> void:
 			page_content.add_child(_origin_card())
 			if not game.data.get("contacts", []).is_empty():
 				page_content.add_child(_section_title("NEUE KONTAKTE", "Spieler, die nach deinen Matches auf dich aufmerksam wurden."))
-				for contact in game.data.get("contacts", []):
-					page_content.add_child(_contact_card(contact))
+				var contacts: Array = game.data.get("contacts", [])
+				for index in range(mini(2, contacts.size())):
+					page_content.add_child(_contact_card(contacts[index]))
 			page_content.add_child(_section_title("BEREICHE", "Fortschritt in deinen aktiven E-Sport-Bereichen."))
 			for mode in GameDataRef.MODES:
 				page_content.add_child(_division_row(mode))
 			page_content.add_child(_section_title("LETZTE ERGEBNISSE", "Deine jüngsten Wettkampfspiele."))
-			_build_history_list(page_content, 4)
+			_build_history_list(page_content, 2)
 
 
 func _home_view_switch() -> void:
@@ -991,6 +1000,8 @@ func _build_team_page() -> void:
 		"coaching":
 			page_content.add_child(_development_impact_card())
 			page_content.add_child(_coaching_market_card(mode))
+		"scouting":
+			_build_team_scouting(mode, accent)
 		_:
 			page_content.add_child(_section_title("KADER", "Wähle einen Spieler für Analyse und Training."))
 			page_content.add_child(_team_roster_selector(mode, accent))
@@ -1024,7 +1035,7 @@ func _build_team_page() -> void:
 func _team_view_switch() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
-	for entry in [["roster", "KADER & TRAINING"], ["coaching", "COACHING"]]:
+	for entry in [["roster", "KADER"], ["coaching", "COACHING"], ["scouting", "SCOUTING"]]:
 		var active := team_view == str(entry[0])
 		var button := UI.tab(str(entry[1]), active, UI.CYAN)
 		button.pressed.connect(_select_team_view.bind(str(entry[0])))
@@ -1032,7 +1043,7 @@ func _team_view_switch() -> void:
 	page_content.add_child(row)
 
 func _select_team_view(view: String) -> void:
-	team_view = view if view in ["roster", "coaching"] else "roster"
+	team_view = view if view in ["roster", "coaching", "scouting"] else "roster"
 	_show_page("team", false)
 
 
