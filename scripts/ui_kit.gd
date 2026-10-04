@@ -1,18 +1,20 @@
 class_name EmpireUI
 extends RefCounted
 
-const BG := Color("070A0F")
-const SURFACE := Color("0F141C")
-const SURFACE_2 := Color("141B25")
-const SURFACE_3 := Color("1B2430")
-const TEXT := Color("F5F7FA")
-const MUTED := Color("98A3B3")
-const DIM := Color("647082")
-const CYAN := Color("7FE7FF")
-const PURPLE := Color("B59CFF")
+const BrandSurfaceRef = preload("res://scripts/brand_surface.gd")
+
+const BG := Color("080B10")
+const SURFACE := Color("0D1218")
+const SURFACE_2 := Color("121820")
+const SURFACE_3 := Color("18202A")
+const TEXT := Color("F1F4F7")
+const MUTED := Color("929CAA")
+const DIM := Color("5D6672")
+const CYAN := Color("74DFF7")
+const PURPLE := Color("9DA8B7")
 const GREEN := Color("5DE1A5")
 const RED := Color("FF6B7A")
-const GOLD := Color("E8C17A")
+const GOLD := Color("D6B16B")
 
 
 static func box(
@@ -41,20 +43,11 @@ static func box(
 
 
 static func card(accent: Color = Color.TRANSPARENT) -> PanelContainer:
-	var panel := PanelContainer.new()
-	var border := Color(0.55, 0.63, 0.72, 0.12)
-	if accent.a > 0.0:
-		border = Color(accent.r, accent.g, accent.b, 0.18)
-	var style := box(Color(0.055, 0.071, 0.094, 0.98), 16, border, 1)
-	style.content_margin_left = 16.0
-	style.content_margin_right = 16.0
-	style.content_margin_top = 15.0
-	style.content_margin_bottom = 15.0
-	panel.add_theme_stylebox_override("panel", style)
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.mouse_filter = Control.MOUSE_FILTER_PASS
-	return panel
-
+	var surface := BrandSurfaceRef.new()
+	var use_accent := accent if accent.a > 0.0 else Color(0.72, 0.78, 0.86, 0.18)
+	surface.configure(use_accent, "card")
+	surface.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return surface
 
 static func label(text: String, size: int = 16, color: Color = TEXT, weight: int = 500) -> Label:
 	var node := Label.new()
@@ -90,30 +83,31 @@ static func button(
 	node.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	node.mouse_filter = Control.MOUSE_FILTER_PASS
 	node.keep_pressed_outside = false
-	node.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	node.custom_minimum_size = Vector2(0.0, 54.0 if compact else 64.0)
-	node.add_theme_font_size_override("font_size", 15 if compact else 17)
-	node.add_theme_color_override("font_color", TEXT if filled else accent)
+	node.custom_minimum_size = Vector2(0.0, 44.0 if compact else 52.0)
+	node.add_theme_font_size_override("font_size", 12 if compact else 14)
+	node.add_theme_color_override("font_color", TEXT if filled else Color(0.88,0.91,0.95,0.90))
 	node.add_theme_color_override("font_hover_color", TEXT)
 	node.add_theme_color_override("font_pressed_color", TEXT)
-	node.add_theme_color_override("font_disabled_color", Color(MUTED.r, MUTED.g, MUTED.b, 0.45))
-	var normal_color := Color(accent.r, accent.g, accent.b, 0.16 if filled else 0.035)
-	var normal_border := Color(accent.r, accent.g, accent.b, 0.44 if filled else 0.16)
-	var normal := box(normal_color, 13, normal_border, 1)
-	normal.content_margin_left = 16.0
-	normal.content_margin_right = 16.0
-	var hover := box(Color(accent.r, accent.g, accent.b, 0.12), 13, Color(accent.r, accent.g, accent.b, 0.34), 1)
-	var pressed := box(Color(accent.r, accent.g, accent.b, 0.20), 12, Color(accent.r, accent.g, accent.b, 0.54), 1)
-	pressed.content_margin_top = 15.0
-	pressed.content_margin_bottom = 13.0
-	var disabled := box(Color(0.16, 0.18, 0.22, 0.38), 13, Color(0.35, 0.38, 0.44, 0.10), 1)
+	node.add_theme_color_override("font_disabled_color", Color(MUTED.r, MUTED.g, MUTED.b, 0.34))
+
+	var normal_bg := Color(accent.r, accent.g, accent.b, 0.16) if filled else Color(0.055,0.070,0.090,0.94)
+	var normal_border := Color(accent.r, accent.g, accent.b, 0.32) if filled else Color(0.72,0.78,0.86,0.08)
+	var normal := box(normal_bg, 6, normal_border, 1)
+	normal.shadow_size = 0
+	normal.content_margin_left = 14
+	normal.content_margin_right = 14
+	var hover := box(Color(accent.r, accent.g, accent.b, 0.18 if filled else 0.075), 6, Color(accent.r,accent.g,accent.b,0.28), 1)
+	hover.shadow_size = 0
+	var pressed := box(Color(accent.r, accent.g, accent.b, 0.24), 5, Color(accent.r,accent.g,accent.b,0.42), 1)
+	pressed.shadow_size = 0
+	var disabled := box(Color(0.055,0.064,0.076,0.70), 6, Color(0.72,0.78,0.86,0.05), 1)
+	disabled.shadow_size = 0
 	node.add_theme_stylebox_override("normal", normal)
 	node.add_theme_stylebox_override("hover", hover)
 	node.add_theme_stylebox_override("pressed", pressed)
-	node.add_theme_stylebox_override("focus", hover)
+	node.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	node.add_theme_stylebox_override("disabled", disabled)
 	return node
-
 
 static func progress(
 	value: float, max_value: float, accent: Color = CYAN, height: float = 8.0
@@ -141,39 +135,25 @@ static func progress(
 
 
 static func hero(accent: Color = CYAN) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := box(Color(0.062, 0.078, 0.102, 0.99), 20, Color(accent.r, accent.g, accent.b, 0.20), 1)
-	style.content_margin_left = 18.0
-	style.content_margin_right = 18.0
-	style.content_margin_top = 18.0
-	style.content_margin_bottom = 18.0
-	style.shadow_size = 7
-	style.shadow_color = Color(0, 0, 0, 0.24)
-	panel.add_theme_stylebox_override("panel", style)
-	return panel
-
+	var surface := BrandSurfaceRef.new()
+	surface.configure(accent, "hero")
+	surface.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return surface
 
 static func metric_tile(caption: String, value: String, accent: Color = CYAN) -> PanelContainer:
-	var panel := PanelContainer.new()
+	var panel := BrandSurfaceRef.new()
+	panel.configure(accent, "metric")
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := box(Color(0.075, 0.09, 0.115, 0.96), 12, Color(0.55, 0.62, 0.72, 0.10), 1)
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 9.0
-	style.content_margin_bottom = 9.0
-	panel.add_theme_stylebox_override("panel", style)
 	var box_node := VBoxContainer.new()
-	box_node.add_theme_constant_override("separation", 2)
-	var value_label := label(value, 15 if value.length() < 10 else 12, TEXT, 800)
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var caption_label := label(caption.to_upper(), 8, Color(accent.r, accent.g, accent.b, 0.88), 800)
-	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box_node.add_child(value_label)
+	box_node.add_theme_constant_override("separation", 1)
+	var value_label := label(value, 15 if value.length() < 10 else 11, TEXT, 800)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var caption_label := label(caption.to_upper(), 7, DIM, 800)
+	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	box_node.add_child(caption_label)
+	box_node.add_child(value_label)
 	panel.add_child(box_node)
 	return panel
-
 
 static func separator(color: Color = Color(0.28, 0.38, 0.62, 0.2)) -> HSeparator:
 	var line := HSeparator.new()
@@ -233,16 +213,21 @@ static func stat_chip(caption: String, value: String, accent: Color = CYAN) -> P
 static func badge(text: String, accent: Color = CYAN) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override(
-		"panel",
-		box(
-			Color(accent.r, accent.g, accent.b, 0.08),
-			8,
-			Color(accent.r, accent.g, accent.b, 0.16),
-			1
-		)
-	)
-	var tag := label(text.to_upper(), 9, accent, 800)
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	panel.add_child(tag)
+	var style := box(Color(0.045,0.055,0.068,0.96), 4, Color(accent.r,accent.g,accent.b,0.18), 1)
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	style.shadow_size = 0
+	panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	var marker := ColorRect.new()
+	marker.color = accent
+	marker.custom_minimum_size = Vector2(3, 12)
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(marker)
+	var tag := label(text.to_upper(), 8, Color(0.86,0.89,0.93,0.88), 800)
+	row.add_child(tag)
+	panel.add_child(row)
 	return panel
