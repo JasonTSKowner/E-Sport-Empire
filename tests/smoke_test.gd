@@ -31,7 +31,7 @@ func _run() -> void:
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
-	_check(AppConfigRef.VERSION.begins_with("1.3."), "v1.3 visual rebuild app version")
+	_check(AppConfigRef.VERSION.begins_with("1.4."), "v1.4 premium rebuild app version")
 	_check(AppConfigRef.NAV_ENTRIES.size() == 5, "five primary navigation destinations")
 	_check(AppConfigRef.navigation_ids().has(AppConfigRef.DEFAULT_PAGE), "default page exists in navigation")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
@@ -413,7 +413,7 @@ func _run() -> void:
 	main.game.set_selected_rl_playlist("1v1")
 	main._show_page("home", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 10, "career home content")
+	_check(main.page_content.get_child_count() >= 9, "premium home content")
 	main._show_page("empire", false)
 	await process_frame
 	_check(main.page_content.get_child_count() >= 8, "club DNA empire content")
@@ -485,7 +485,7 @@ func _run() -> void:
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v1.3 visual rebuild smoke test: PASS")
+		print("E-Sport Empire v1.4 premium rebuild smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:
