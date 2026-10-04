@@ -584,7 +584,7 @@ func _rivals_card() -> Control:
 				"%s  •  %s  •  ZULETZT %s"
 				% [
 					str(rival.get("format", "1v1")),
-					str(rival.get("tier", "WATCHLIST")),
+					str(rival.get("tier", "BEOBACHTUNG")),
 					str(rival.get("last_result", "—")),
 				],
 				9,
@@ -953,7 +953,7 @@ func _division_row(mode: String) -> Control:
 	row.add_child(center)
 	var rating := VBoxContainer.new()
 	var rating_hidden := mode == "Rocket League" and int(record.get("placements", 0)) < 10
-	var rating_value := UI.label("HIDDEN" if rating_hidden else str(record["mmr"]), 15 if rating_hidden else 19, UI.TEXT, 800)
+	var rating_value := UI.label("VERBORGEN" if rating_hidden else str(record["mmr"]), 15 if rating_hidden else 19, UI.TEXT, 800)
 	rating_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var rating_cap := UI.label("PLACEMENTS" if rating_hidden else "MMR", 9 if rating_hidden else 10, accent, 800)
 	rating_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -1589,7 +1589,7 @@ func _circuit_overview_card() -> Control:
 		var stage := int(circuit.get("stage", 0))
 		var opponents: Array = circuit.get("opponents", [])
 		var opponent: Dictionary = opponents[stage] if stage < opponents.size() else {}
-		box.add_child(UI.badge("LIVE-TURNIERBAUM  •  vs %s" % str(opponent.get("name", "Opponent")), UI.GREEN))
+		box.add_child(UI.badge("LIVE-TURNIERBAUM  •  vs %s" % str(opponent.get("name", "Gegner")), UI.GREEN))
 	return panel
 
 
@@ -1734,7 +1734,7 @@ func _rank_profile_card(playlist: String) -> Control:
 	)
 	header.add_child(identity)
 	var rating := VBoxContainer.new()
-	var rating_value := UI.label(str(mmr) if placed else "HIDDEN", 24 if not placed else 28, UI.TEXT, 800)
+	var rating_value := UI.label(str(mmr) if placed else "VERBORGEN", 24 if not placed else 28, UI.TEXT, 800)
 	rating_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var rating_cap := UI.label("MMR NACH RANG-REVEAL" if not placed else "MMR", 9 if not placed else 10, accent, 800)
 	rating_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -1768,7 +1768,7 @@ func _rank_profile_card(playlist: String) -> Control:
 	footer.add_child(
 		_metric_block(
 			"GESCH. RANGLISTE",
-			"HIDDEN" if not placed else "#%s" % GameDataRef.format_number(RankedDataRef.estimated_position(mmr, playlist)),
+			"VERBORGEN" if not placed else "#%s" % GameDataRef.format_number(RankedDataRef.estimated_position(mmr, playlist)),
 			UI.PURPLE
 		)
 	)
@@ -1791,8 +1791,8 @@ func _rank_stats_card(playlist: String) -> Control:
 	box.add_child(row_one)
 	var row_two := HBoxContainer.new()
 	var placements_complete := int(record.get("placements", 0)) >= 10
-	row_two.add_child(_metric_block("PEAK-MMR", str(int(record.get("peak_mmr", 100))) if placements_complete else "HIDDEN", UI.CYAN))
-	row_two.add_child(_metric_block("SAISON-PEAK", str(int(record.get("season_peak_mmr", 100))) if placements_complete else "HIDDEN", UI.PURPLE))
+	row_two.add_child(_metric_block("PEAK-MMR", str(int(record.get("peak_mmr", 100))) if placements_complete else "VERBORGEN", UI.CYAN))
+	row_two.add_child(_metric_block("SAISON-PEAK", str(int(record.get("season_peak_mmr", 100))) if placements_complete else "VERBORGEN", UI.PURPLE))
 	row_two.add_child(_metric_block("PLAYLIST", playlist, UI.TEXT))
 	box.add_child(row_two)
 	var last_results: Array = record.get("last_results", [])
@@ -3511,14 +3511,14 @@ func _finish_match_animation() -> void:
 	var rank_reveal := bool(match_result.get("rank_revealed", false))
 	var is_ranked := bool(match_result.get("ranked", true))
 	var is_circuit := str(match_result.get("competition", "ranked")) == "pro_circuit"
-	match_event_label.text = "PLACEMENT ABGESCHLOSSEN — DEIN RANG IST BEREIT" if rank_reveal else "Circuit victory recorded. The bracket advances." if is_circuit and won else "Tournament run complete." if is_circuit else "Victory recorded. Rating updated." if won else "Defeat recorded. Rating updated."
+	match_event_label.text = "PLACEMENT ABGESCHLOSSEN — DEIN RANG IST BEREIT" if rank_reveal else "Turniersieg gespeichert. Du ziehst in die nächste Runde ein." if is_circuit and won else "Turnierlauf beendet." if is_circuit else "Sieg gespeichert. Deine Wertung wurde aktualisiert." if won else "Niederlage gespeichert. Deine Wertung wurde aktualisiert."
 	match_result_box.visible = true
 	for child in match_result_box.get_children():
 		match_result_box.remove_child(child)
 		child.queue_free()
 	match_result_box.add_child(UI.separator(Color(accent.r, accent.g, accent.b, 0.35)))
 
-	var result_panel := UI.card(UI.GOLD if rank_reveal else accent)
+	var result_panel := UI.hero(UI.GOLD if rank_reveal else accent)
 	var result_box := VBoxContainer.new()
 	result_box.add_theme_constant_override("separation", 10)
 	result_panel.add_child(result_box)
@@ -3528,7 +3528,7 @@ func _finish_match_animation() -> void:
 			UI.GOLD if rank_reveal else accent
 		)
 	)
-	result_box.add_child(UI.heading("CIRCUIT VICTORY" if is_circuit and won else "CIRCUIT DEFEAT" if is_circuit else "SIEG" if won else "NIEDERLAGE", 28))
+	result_box.add_child(UI.heading(("%s  •  %s" % ["TURNIERSIEG" if is_circuit and won else "TURNIER-NIEDERLAGE" if is_circuit else "SIEG" if won else "NIEDERLAGE", str(match_result.get("score", "0 - 0")).replace(" - ", " : ")]), 27))
 	var is_rocket_league := str(match_result.get("mode", "")) == "Rocket League"
 	var placement_complete := int(match_result.get("placements_after", 0)) >= 10
 	var show_rating := is_ranked and (not is_rocket_league or placement_complete)
@@ -3539,13 +3539,13 @@ func _finish_match_animation() -> void:
 		result_row.add_child(_metric_block("RANKED-MMR", "UNVERÄNDERT", UI.GREEN))
 		result_row.add_child(_metric_block("TURNIERBAUM", "WEITER" if bool(circuit_result.get("active", false)) else "CHAMPION" if bool(circuit_result.get("champion", false)) else "OUT", accent))
 	else:
-		result_row.add_child(_metric_block("VORHER", str(int(match_result.get("mmr_before", 0))) if show_rating else "HIDDEN", UI.MUTED))
+		result_row.add_child(_metric_block("VORHER", str(int(match_result.get("mmr_before", 0))) if show_rating else "VERBORGEN", UI.MUTED))
 		result_row.add_child(_metric_block("ÄNDERUNG", "%+d" % int(match_result["mmr_delta"]) if show_rating else "PLACEMENT", accent))
-		result_row.add_child(_metric_block("NACHHER", str(int(match_result.get("mmr_after", 0))) if show_rating else "HIDDEN", UI.TEXT))
+		result_row.add_child(_metric_block("NACHHER", str(int(match_result.get("mmr_after", 0))) if show_rating else "VERBORGEN", UI.TEXT))
 	result_box.add_child(result_row)
 	var opponent_row := HBoxContainer.new()
 	opponent_row.add_child(_metric_block("GEGNER", str(match_result.get("opponent", "Unknown")), UI.PURPLE))
-	opponent_row.add_child(_metric_block("GEGNER-MMR", "EVENT-SEED" if is_circuit else str(int(match_result.get("opponent_mmr", 0))) if show_rating else "HIDDEN", UI.PURPLE))
+	opponent_row.add_child(_metric_block("GEGNER-MMR", "EVENT-SEED" if is_circuit else str(int(match_result.get("opponent_mmr", 0))) if show_rating else "VERBORGEN", UI.PURPLE))
 	result_box.add_child(opponent_row)
 	var career_row := HBoxContainer.new()
 	career_row.add_child(
@@ -3565,7 +3565,7 @@ func _finish_match_animation() -> void:
 				"KARRIERE-LEVEL-UP  •  LV %d %s"
 				% [
 					int(match_result.get("career_level", 1)),
-					str(match_result.get("career_level_name", "NEW LEVEL")).to_upper(),
+					str(match_result.get("career_level_name", "NEUES LEVEL")).to_upper(),
 				],
 				UI.GOLD
 			)
@@ -3573,8 +3573,8 @@ func _finish_match_animation() -> void:
 	var rival: Dictionary = match_result.get("rival", {})
 	if not rival.is_empty():
 		var rivalry_text := "%s  •  %s  •  %dW–%dL" % [
-			str(rival.get("tier", "WATCHLIST")),
-			str(rival.get("opponent", "Opponent")),
+			str(rival.get("tier", "BEOBACHTUNG")),
+			str(rival.get("opponent", "Gegner")),
 			int(rival.get("wins", 0)),
 			int(rival.get("losses", 0)),
 		]
@@ -3600,7 +3600,7 @@ func _finish_match_animation() -> void:
 			var title_name := UI.label(str(title.get("label", "NEUER TITEL")), 18, title_accent, 800)
 			title_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			title_box.add_child(title_name)
-			title_box.add_child(UI.label(str(title.get("source", "Elite achievement")), 10, UI.MUTED))
+			title_box.add_child(UI.label(str(title.get("source", "Elite-Auszeichnung")), 10, UI.MUTED))
 			match_result_box.add_child(title_panel)
 
 	if is_circuit:
@@ -3632,19 +3632,19 @@ func _finish_match_animation() -> void:
 		sponsor_box.add_child(UI.label("%s  •  +%s in diesem Spiel" % [str(sponsor_progress.get("brand", "Partner")), GameDataRef.format_cash(int(sponsor_progress.get("payout", 0)))], 16, UI.TEXT, 800))
 		sponsor_box.add_child(UI.label("SPIELE %d/%d  •  SIEGE %d/%d" % [int(sponsor_progress.get("matches", 0)), int(sponsor_progress.get("duration", 1)), int(sponsor_progress.get("wins", 0)), int(sponsor_progress.get("win_target", 1))], 10, UI.MUTED, 700))
 		if bool(sponsor_progress.get("ended", false)):
-			sponsor_box.add_child(UI.badge("CONTRACT COMPLETE  •  BONUS +%s" % GameDataRef.format_cash(int(sponsor_progress.get("completion_bonus", 0))) if bool(sponsor_progress.get("completed", false)) else "CONTRACT ENDED  •  WIN TARGET MISSED", UI.GREEN if bool(sponsor_progress.get("completed", false)) else UI.RED))
+			sponsor_box.add_child(UI.badge("VERTRAG ERFÜLLT  •  BONUS +%s" % GameDataRef.format_cash(int(sponsor_progress.get("completion_bonus", 0))) if bool(sponsor_progress.get("completed", false)) else "VERTRAG BEENDET  •  SIEGZIEL VERFEHLT", UI.GREEN if bool(sponsor_progress.get("completed", false)) else UI.RED))
 		match_result_box.add_child(sponsor_panel)
 
 	var profile: Dictionary = match_result.get("opponent_profile", {})
-	var profile_badge := UI.badge("LOBBY READ  •  %s" % str(profile.get("label", "NORMALES SPIEL")), UI.PURPLE)
+	var profile_badge := UI.badge("LOBBY-ANALYSE  •  %s" % str(profile.get("label", "NORMALES SPIEL")), UI.PURPLE)
 	profile_badge.custom_minimum_size.y = 38
 	match_result_box.add_child(profile_badge)
 
 	var attention: Dictionary = match_result.get("attention", {})
-	var attention_text := str(attention.get("text", "No unusual attention after this match."))
+	var attention_text := str(attention.get("text", "Nach diesem Spiel gibt es keine besondere Aufmerksamkeit."))
 	match_result_box.add_child(
 		UI.label(
-			"ATTENTION ROLL %s  •  %s"
+			"AUFMERKSAMKEIT %s  •  %s"
 			% [_chance_text(float(match_result.get("attention_chance", 0.0))), attention_text],
 			11,
 			UI.MUTED
@@ -3654,7 +3654,7 @@ func _finish_match_animation() -> void:
 	if bool(match_result.get("streaming", false)):
 		match_result_box.add_child(
 			UI.badge(
-				"STREAM DONATION ROLL  •  %s"
+				"STREAM-SPENDENCHANCE  •  %s"
 				% _chance_text(float(match_result.get("stream_donation_chance", 0.0))),
 				UI.GOLD
 			)
@@ -3692,7 +3692,7 @@ func _finish_match_animation() -> void:
 				)
 		var comments: Array = match_result.get("comments", [])
 		if not comments.is_empty():
-			match_result_box.add_child(UI.overline("POST-STREAM COMMENTS", UI.MUTED))
+			match_result_box.add_child(UI.overline("STREAM-KOMMENTARE", UI.MUTED))
 			for comment in comments:
 				match_result_box.add_child(UI.label(
 					"@%s  %s" % [str(comment.get("user", "user")), str(comment.get("text", ""))],
@@ -3701,7 +3701,7 @@ func _finish_match_animation() -> void:
 				))
 
 	match_continue_button.visible = true
-	match_continue_button.text = "CONTINUE TO CIRCUIT" if is_circuit else "WEITER ZU RANKED"
+	match_continue_button.text = "WEITER IM TURNIER" if is_circuit else "WEITER ZU RANKED"
 	_apply_scroll_passthrough(match_result_box)
 	var tween := create_tween().set_parallel(true)
 	match_result_box.modulate.a = 0.0
@@ -3724,16 +3724,16 @@ func _post_match_stats_card() -> Control:
 	panel.add_child(box)
 	box.add_child(UI.overline("SPIELANALYSE", UI.CYAN))
 	var row_one := HBoxContainer.new()
-	row_one.add_child(_metric_block("TSK SHOTS", str(int(stats.get("shots_ours", 0))), UI.CYAN))
-	row_one.add_child(_metric_block("TSK SAVES", str(int(stats.get("saves_ours", 0))), UI.GREEN))
-	row_one.add_child(_metric_block("PERFECT READS", str(int(match_result.get("perfect_reads", 0))), UI.GOLD))
+	row_one.add_child(_metric_block("TSK SCHÜSSE", str(int(stats.get("shots_ours", 0))), UI.CYAN))
+	row_one.add_child(_metric_block("TSK PARADEN", str(int(stats.get("saves_ours", 0))), UI.GREEN))
+	row_one.add_child(_metric_block("PERFEKTE READS", str(int(match_result.get("perfect_reads", 0))), UI.GOLD))
 	box.add_child(row_one)
 	var row_two := HBoxContainer.new()
-	row_two.add_child(_metric_block("OPP SHOTS", str(int(stats.get("shots_theirs", 0))), UI.RED))
-	row_two.add_child(_metric_block("OPP SAVES", str(int(stats.get("saves_theirs", 0))), UI.PURPLE))
-	row_two.add_child(_metric_block("FINAL MOMENTUM", "%+d" % int(match_result.get("momentum", 0)), UI.CYAN))
+	row_two.add_child(_metric_block("GEGNER SCHÜSSE", str(int(stats.get("shots_theirs", 0))), UI.RED))
+	row_two.add_child(_metric_block("GEGNER PARADEN", str(int(stats.get("saves_theirs", 0))), UI.PURPLE))
+	row_two.add_child(_metric_block("FINALES MOMENTUM", "%+d" % int(match_result.get("momentum", 0)), UI.CYAN))
 	box.add_child(row_two)
-	box.add_child(UI.label("POSSESSION  •  TSK %d%%  —  %d%% OPPONENT" % [our_percent, their_percent], 10, UI.MUTED, 800))
+	box.add_child(UI.label("BALLBESITZ  •  TSK %d%%  —  %d%% GEGNER" % [our_percent, their_percent], 10, UI.MUTED, 800))
 	box.add_child(UI.progress(our_percent, 100, UI.CYAN, 7))
 	return panel
 
@@ -3744,12 +3744,12 @@ func _post_match_rank_card() -> Control:
 	var actual_rank: Dictionary = match_result.get("new_rank_data", RankedDataRef.unranked_data())
 	var shown_rank := actual_rank if placed else RankedDataRef.unranked_data(int(match_result.get("mmr_after", 100)))
 	var accent := RankedDataRef.color_for_family(str(shown_rank.get("family", "Unranked")))
-	var panel := UI.card(UI.GOLD if bool(match_result.get("rank_revealed", false)) else accent)
+	var panel := UI.hero(UI.GOLD if bool(match_result.get("rank_revealed", false)) else accent)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 11)
 	panel.add_child(box)
 	var transition := "UNRANKED  →  %s" % str(match_result.get("new_rank", "UNRANKED")) if bool(match_result.get("rank_revealed", false)) else "%s  →  %s" % [str(match_result.get("old_rank", "UNRANKED")), str(match_result.get("new_rank", "UNRANKED"))]
-	box.add_child(UI.overline("RANK REVEAL" if bool(match_result.get("rank_revealed", false)) else "RATING UPDATE", UI.GOLD if bool(match_result.get("rank_revealed", false)) else accent))
+	box.add_child(UI.overline("RANG-REVEAL" if bool(match_result.get("rank_revealed", false)) else "WERTUNGS-UPDATE", UI.GOLD if bool(match_result.get("rank_revealed", false)) else accent))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 13)
 	row.add_child(_rank_emblem(shown_rank, 94.0))
@@ -3765,7 +3765,7 @@ func _post_match_rank_card() -> Control:
 	box.add_child(transition_label)
 	if not placed:
 		box.add_child(UI.progress(placements_after, 10, accent, 9))
-		box.add_child(UI.label("%d placement%s remaining" % [10 - placements_after, "s" if 10 - placements_after != 1 else ""], 11, UI.MUTED))
+		box.add_child(UI.label("Noch %d Placement%s" % [10 - placements_after, "s" if 10 - placements_after != 1 else ""], 11, UI.MUTED))
 	else:
 		var progress: Dictionary = match_result.get("division_progress", {"value": 1, "maximum": 1})
 		box.add_child(UI.progress(float(progress.get("value", 0)), float(progress.get("maximum", 1)), accent, 9))
