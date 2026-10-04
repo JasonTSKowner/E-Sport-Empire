@@ -4,13 +4,13 @@ extends RefCounted
 const BrandSurfaceRef = preload("res://scripts/brand_surface.gd")
 const APP_FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
-const BG := Color("080B10")
-const SURFACE := Color("0D1218")
-const SURFACE_2 := Color("121820")
-const SURFACE_3 := Color("18202A")
+const BG := Color("090C11")
+const SURFACE := Color("10151C")
+const SURFACE_2 := Color("151B23")
+const SURFACE_3 := Color("1C242E")
 const TEXT := Color("F1F4F7")
-const MUTED := Color("929CAA")
-const DIM := Color("5D6672")
+const MUTED := Color("A0A9B5")
+const DIM := Color("707A87")
 const CYAN := Color("74DFF7")
 const PURPLE := Color("9DA8B7")
 const GREEN := Color("5DE1A5")
@@ -88,20 +88,21 @@ static func button(
 	node.custom_minimum_size = Vector2(0.0, 44.0 if compact else 52.0)
 	node.add_theme_font_override("font", APP_FONT)
 	node.add_theme_font_size_override("font_size", 12 if compact else 14)
-	node.add_theme_color_override("font_color", TEXT if filled else Color(0.88,0.91,0.95,0.90))
-	node.add_theme_color_override("font_hover_color", TEXT)
-	node.add_theme_color_override("font_pressed_color", TEXT)
+	node.add_theme_color_override("font_color", Color("071018") if filled else Color(0.90,0.93,0.96,0.94))
+	node.add_theme_color_override("font_hover_color", Color("071018") if filled else TEXT)
+	node.add_theme_color_override("font_pressed_color", Color("071018") if filled else TEXT)
 	node.add_theme_color_override("font_disabled_color", Color(MUTED.r, MUTED.g, MUTED.b, 0.34))
 
-	var normal_bg := Color(accent.r, accent.g, accent.b, 0.16) if filled else Color(0.055,0.070,0.090,0.94)
-	var normal_border := Color(accent.r, accent.g, accent.b, 0.32) if filled else Color(0.72,0.78,0.86,0.08)
-	var normal := box(normal_bg, 6, normal_border, 1)
-	normal.shadow_size = 0
+	var normal_bg := Color(accent.r, accent.g, accent.b, 0.88) if filled else Color(0.075,0.092,0.115,0.98)
+	var normal_border := Color(accent.r, accent.g, accent.b, 0.24) if filled else Color(0.75,0.80,0.86,0.10)
+	var normal := box(normal_bg, 9, normal_border, 1)
+	normal.shadow_size = 2 if filled else 0
+	normal.shadow_color = Color(0,0,0,0.20)
 	normal.content_margin_left = 14
 	normal.content_margin_right = 14
-	var hover := box(Color(accent.r, accent.g, accent.b, 0.18 if filled else 0.075), 6, Color(accent.r,accent.g,accent.b,0.28), 1)
+	var hover := box(Color(accent.r, accent.g, accent.b, 0.96) if filled else Color(0.095,0.115,0.14,1.0), 9, Color(accent.r,accent.g,accent.b,0.34), 1)
 	hover.shadow_size = 0
-	var pressed := box(Color(accent.r, accent.g, accent.b, 0.24), 5, Color(accent.r,accent.g,accent.b,0.42), 1)
+	var pressed := box(Color(accent.r, accent.g, accent.b, 0.74) if filled else Color(0.11,0.13,0.16,1.0), 8, Color(accent.r,accent.g,accent.b,0.40), 1)
 	pressed.shadow_size = 0
 	var disabled := box(Color(0.055,0.064,0.076,0.70), 6, Color(0.72,0.78,0.86,0.05), 1)
 	disabled.shadow_size = 0
@@ -177,7 +178,7 @@ static func tab(text: String, selected: bool, accent: Color = CYAN) -> Button:
 	node.focus_mode = Control.FOCUS_NONE
 	node.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 	node.mouse_filter = Control.MOUSE_FILTER_PASS
-	node.custom_minimum_size.y = 38
+	node.custom_minimum_size.y = 40
 	node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	node.add_theme_font_override("font", APP_FONT)
 	node.add_theme_font_size_override("font_size", 10)
@@ -185,31 +186,27 @@ static func tab(text: String, selected: bool, accent: Color = CYAN) -> Button:
 	node.add_theme_color_override("font_hover_color", TEXT)
 	node.add_theme_color_override("font_pressed_color", TEXT)
 
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color.TRANSPARENT
+	var normal := box(
+		Color(0.10,0.125,0.155,0.98) if selected else Color(0.055,0.067,0.084,0.70),
+		8,
+		Color(accent.r,accent.g,accent.b,0.22) if selected else Color(0.75,0.80,0.86,0.055),
+		1
+	)
+	normal.shadow_size = 0
 	normal.content_margin_top = 7
 	normal.content_margin_bottom = 7
-	normal.border_width_bottom = 2 if selected else 0
-	normal.border_color = accent
 	node.add_theme_stylebox_override("normal", normal)
 
-	var hover := StyleBoxFlat.new()
-	hover.bg_color = Color(0.10,0.12,0.15,0.32)
-	hover.content_margin_top = 7
-	hover.content_margin_bottom = 7
-	hover.border_width_bottom = 2 if selected else 1
-	hover.border_color = Color(accent.r,accent.g,accent.b,0.55 if selected else 0.18)
+	var hover := box(Color(0.11,0.135,0.165,0.96), 8, Color(accent.r,accent.g,accent.b,0.18), 1)
+	hover.shadow_size = 0
 	node.add_theme_stylebox_override("hover", hover)
 
-	var pressed := StyleBoxFlat.new()
-	pressed.bg_color = Color(0.10,0.13,0.16,0.52)
-	pressed.content_margin_top = 7
-	pressed.content_margin_bottom = 7
-	pressed.border_width_bottom = 2
-	pressed.border_color = accent
+	var pressed := box(Color(0.12,0.15,0.18,1.0), 8, Color(accent.r,accent.g,accent.b,0.34), 1)
+	pressed.shadow_size = 0
 	node.add_theme_stylebox_override("pressed", pressed)
 	node.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	return node
+
 
 static func separator(color: Color = Color(0.72, 0.78, 0.86, 0.08)) -> HSeparator:
 	var line := HSeparator.new()
