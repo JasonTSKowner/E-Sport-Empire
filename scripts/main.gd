@@ -17,6 +17,7 @@ const UI = preload("res://scripts/ui_kit.gd")
 const NavIconRef = preload("res://scripts/nav_icon.gd")
 const PlayerPortraitRef = preload("res://scripts/player_portrait.gd")
 const BrandMarkRef = preload("res://scripts/brand_mark.gd")
+const AppFontRef = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
 var game: EmpireStateRef
 var current_page := AppConfigRef.DEFAULT_PAGE
@@ -210,7 +211,7 @@ func _build_bottom_navigation() -> Control:
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.custom_minimum_size.y = 52
-		button.add_theme_font_override("font", UI.APP_FONT)
+		button.add_theme_font_override("font", AppFontRef)
 		button.add_theme_font_size_override("font_size", 8)
 		var nav_icon := NavIconRef.new()
 		nav_icon.configure(page_id, UI.MUTED)
