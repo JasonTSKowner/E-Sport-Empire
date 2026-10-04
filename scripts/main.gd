@@ -95,7 +95,7 @@ func _build_shell() -> void:
 	page_scroll = ScrollContainer.new()
 	page_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	page_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	page_scroll.scroll_deadzone = 8
 	page_scroll.scroll_vertical_custom_step = 72.0
 	page_scroll.follow_focus = false
@@ -175,15 +175,13 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 	style.content_margin_top = 0
 	style.content_margin_bottom = 0
 	panel.add_theme_stylebox_override("panel", style)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", -2)
-	var value := UI.label("—", 10, UI.TEXT, 800)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 3)
 	var cap := UI.label(caption, 7, accent, 800)
-	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	box.add_child(value)
-	box.add_child(cap)
-	panel.add_child(box)
+	var value := UI.label("—", 10, UI.TEXT, 800)
+	row.add_child(cap)
+	row.add_child(value)
+	panel.add_child(row)
 	panel.set_meta("value_label", value)
 	return panel
 
@@ -375,38 +373,28 @@ func _apply_scroll_passthrough(node: Node) -> void:
 
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
-	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 8)
 	var text_box := VBoxContainer.new()
-	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_box.add_theme_constant_override("separation", 0)
 	text_box.add_child(UI.overline(kicker, UI.DIM))
 	text_box.add_child(UI.heading(title, 26))
-	top.add_child(text_box)
-	var mark := BrandMarkRef.new()
-	mark.custom_minimum_size = Vector2(30,30)
-	mark.modulate.a = 0.52
-	top.add_child(mark)
-	page_content.add_child(top)
+	page_content.add_child(text_box)
 	var sub := UI.label(subtitle, 10, UI.MUTED)
 	sub.custom_minimum_size.y = 22
 	page_content.add_child(sub)
-	page_content.add_child(UI.separator(Color(0.72,0.78,0.86,0.07)))
+	page_content.add_child(UI.separator(Color(0.72,0.78,0.86,0.065)))
 
 func _mode_switch() -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 7)
+	row.add_theme_constant_override("separation", 2)
 	var selected: String = game.selected_mode()
 	for mode in GameDataRef.MODES:
 		var active: bool = str(mode) == selected
 		var accent: Color = GameDataRef.MODE_COLORS[mode]
-		var button := UI.button(GameDataRef.MODE_SHORT[mode], accent, active, true)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var button := UI.tab(GameDataRef.MODE_SHORT[mode], active, accent)
 		button.tooltip_text = mode
 		button.pressed.connect(_select_mode.bind(mode))
 		row.add_child(button)
 	page_content.add_child(row)
-
 
 func _select_mode(mode: String) -> void:
 	game.set_selected_mode(mode)
@@ -442,15 +430,13 @@ func _build_home_page() -> void:
 
 func _home_view_switch() -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+	row.add_theme_constant_override("separation", 2)
 	for entry in [["dashboard", "ÜBERSICHT"], ["career", "KARRIERE"], ["season", "SAISON"]]:
 		var active := home_view == str(entry[0])
-		var button := UI.button(str(entry[1]), UI.CYAN, active, true)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var button := UI.tab(str(entry[1]), active, UI.CYAN)
 		button.pressed.connect(_select_home_view.bind(str(entry[0])))
 		row.add_child(button)
 	page_content.add_child(row)
-
 
 func _select_home_view(view: String) -> void:
 	home_view = view if view in ["dashboard", "career", "season"] else "dashboard"
@@ -1051,15 +1037,13 @@ func _build_team_page() -> void:
 
 func _team_view_switch() -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+	row.add_theme_constant_override("separation", 2)
 	for entry in [["roster", "KADER & TRAINING"], ["coaching", "COACHING"]]:
 		var active := team_view == str(entry[0])
-		var button := UI.button(str(entry[1]), UI.CYAN, active, true)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var button := UI.tab(str(entry[1]), active, UI.CYAN)
 		button.pressed.connect(_select_team_view.bind(str(entry[0])))
 		row.add_child(button)
 	page_content.add_child(row)
-
 
 func _select_team_view(view: String) -> void:
 	team_view = view if view in ["roster", "coaching"] else "roster"
@@ -1551,29 +1535,17 @@ func _build_play_page() -> void:
 
 
 func _playlist_switch() -> void:
-	var panel := UI.card(UI.CYAN)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 9)
-	panel.add_child(box)
-	box.add_child(UI.overline("ROCKET-LEAGUE-PLAYLIST", UI.CYAN))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 7)
+	row.add_theme_constant_override("separation", 2)
 	var selected := game.selected_rl_playlist()
 	var roster_size := game.roster_for("Rocket League").size()
 	for playlist in RankedDataRef.PLAYLISTS:
 		var required := game.playlist_required_players(playlist)
-		var button := UI.button(
-			"%s\n%d/%d SPIELER" % [playlist, mini(roster_size, required), required],
-			UI.CYAN,
-			str(playlist) == selected,
-			true
-		)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var label := "%s  %d/%d" % [playlist, mini(roster_size, required), required]
+		var button := UI.tab(label, str(playlist) == selected, UI.CYAN)
 		button.pressed.connect(_select_rl_playlist.bind(str(playlist)))
 		row.add_child(button)
-	box.add_child(row)
-	page_content.add_child(panel)
-
+	page_content.add_child(row)
 
 func _select_rl_playlist(playlist: String) -> void:
 	game.set_selected_rl_playlist(playlist)
@@ -1582,19 +1554,17 @@ func _select_rl_playlist(playlist: String) -> void:
 
 func _ranked_view_switch() -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 7)
+	row.add_theme_constant_override("separation", 1)
 	for entry in [
 		["overview", "ÜBERSICHT"], ["circuit", "TURNIER"], ["ladder", "RANGLISTE"],
 		["ranks", "RÄNGE"], ["titles", "TITEL"]
 	]:
 		var active := ranked_view == str(entry[0])
-		var button := UI.button(str(entry[1]), UI.PURPLE, active, true)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_font_size_override("font_size", 9)
+		var button := UI.tab(str(entry[1]), active, UI.CYAN)
+		button.add_theme_font_size_override("font_size", 8)
 		button.pressed.connect(_select_ranked_view.bind(str(entry[0])))
 		row.add_child(button)
 	page_content.add_child(row)
-
 
 func _select_ranked_view(view: String) -> void:
 	ranked_view = view if view in ["overview", "circuit", "ladder", "ranks", "titles"] else "overview"
@@ -2645,15 +2615,13 @@ func _build_empire_page() -> void:
 
 func _empire_view_switch() -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 4)
+	row.add_theme_constant_override("separation", 2)
 	for entry in [["overview", "ÜBERSICHT"], ["staff", "STAFF"], ["facilities", "ANLAGEN"]]:
 		var active := empire_view == str(entry[0])
-		var button := UI.button(str(entry[1]), UI.CYAN, active, true)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var button := UI.tab(str(entry[1]), active, UI.CYAN)
 		button.pressed.connect(_select_empire_view.bind(str(entry[0])))
 		row.add_child(button)
 	page_content.add_child(row)
-
 
 func _select_empire_view(view: String) -> void:
 	empire_view = view if view in ["overview", "staff", "facilities"] else "overview"
@@ -2820,17 +2788,16 @@ func _facility_card(key: String) -> Control:
 
 func _section_title(title: String, subtitle: String) -> Control:
 	var wrapper := VBoxContainer.new()
-	wrapper.add_theme_constant_override("separation", 6)
+	wrapper.add_theme_constant_override("separation", 4)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	var title_label := UI.label(title, 11, UI.TEXT, 800)
+	var title_label := UI.label(title, 10, UI.TEXT, 800)
 	row.add_child(title_label)
-	var line := HSeparator.new()
+	var line := UI.separator(Color(0.72,0.78,0.86,0.07))
 	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.add_theme_stylebox_override("separator", UI.box(Color(0.55, 0.62, 0.70, 0.10), 0))
 	row.add_child(line)
 	wrapper.add_child(row)
-	wrapper.add_child(UI.label(subtitle, 10, UI.DIM))
+	wrapper.add_child(UI.label(subtitle, 9, UI.DIM))
 	return wrapper
 
 func _metric_block(caption: String, value: String, accent: Color) -> Control:
@@ -3125,7 +3092,7 @@ func _build_match_overlay() -> void:
 	match_log_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	match_log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	match_log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	match_log_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	match_log_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	match_log_scroll.scroll_deadzone = 8
 	match_log_scroll.scroll_vertical_custom_step = 64.0
 	match_log_scroll.follow_focus = false
@@ -3279,7 +3246,7 @@ func _build_match_overlay() -> void:
 
 	match_feed_scroll = ScrollContainer.new()
 	match_feed_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	match_feed_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	match_feed_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	match_feed_scroll.custom_minimum_size.y = 96
 	match_feed_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	feed_panel.add_child(match_feed_scroll)
