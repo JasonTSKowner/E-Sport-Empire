@@ -2941,9 +2941,9 @@ func _build_match_overlay() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_top", 10)
 	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_bottom", 12)
 	match_overlay.add_child(margin)
 	match_log_scroll = ScrollContainer.new()
 	match_log_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2994,17 +2994,35 @@ func _build_match_overlay() -> void:
 	scoreboard.add_child(score_box)
 	match_clock_label = UI.overline("VERBINDUNG", UI.MUTED)
 	match_clock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	match_score_label = UI.label("0 - 0", 43, UI.TEXT, 800)
+	score_box.add_child(match_clock_label)
+
+	var score_row := HBoxContainer.new()
+	score_row.add_theme_constant_override("separation", 8)
+	var our_team := PanelContainer.new()
+	our_team.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	our_team.add_theme_stylebox_override("panel", UI.box(Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.10), 12, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.32), 1))
+	var our_name := UI.label("TSK", 12, UI.CYAN, 800)
+	our_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	our_team.add_child(our_name)
+	score_row.add_child(our_team)
+
+	match_score_label = UI.label("0 - 0", 37, UI.TEXT, 800)
+	match_score_label.custom_minimum_size.x = 112
 	match_score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var team_names := UI.label(
-		"TSK                    %s" % str(source["opponent"]).to_upper(), 10, accent, 800
-	)
-	team_names.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	match_score_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	score_row.add_child(match_score_label)
+
+	var opponent_team := PanelContainer.new()
+	opponent_team.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opponent_team.add_theme_stylebox_override("panel", UI.box(Color(UI.RED.r, UI.RED.g, UI.RED.b, 0.10), 12, Color(UI.RED.r, UI.RED.g, UI.RED.b, 0.32), 1))
+	var opponent_name := UI.label(str(source["opponent"]).to_upper(), 10, UI.RED, 800)
+	opponent_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	opponent_team.add_child(opponent_name)
+	score_row.add_child(opponent_team)
+	score_box.add_child(score_row)
+
 	var progress_max := maxi(1, int(source.get("broadcast_events", source.get("events", [])).size()))
 	match_progress = UI.progress(0, progress_max, accent, 7)
-	score_box.add_child(match_clock_label)
-	score_box.add_child(match_score_label)
-	score_box.add_child(team_names)
 	score_box.add_child(match_progress)
 	var live_stats_row := HBoxContainer.new()
 	live_stats_row.add_theme_constant_override("separation", 7)
@@ -3026,8 +3044,8 @@ func _build_match_overlay() -> void:
 		match_visualizer.configure(source)
 		layout.add_child(match_visualizer)
 
-	var event_panel := UI.card()
-	event_panel.custom_minimum_size.y = 94
+	var event_panel := UI.card(accent)
+	event_panel.custom_minimum_size.y = 82
 	match_event_label = UI.label("Die Teams betreten den Server...", 15, UI.TEXT, 700)
 	match_event_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	event_panel.add_child(match_event_label)
