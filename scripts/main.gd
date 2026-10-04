@@ -1039,10 +1039,52 @@ func _build_team_page() -> void:
 	)
 	page_content.add_child(summary)
 	page_content.add_child(_development_impact_card())
+	page_content.add_child(_section_title("KADER", "Wähle einen Spieler für Analyse und Training."))
+	page_content.add_child(_team_roster_selector(mode, accent))
+	var roster := game.roster_for(mode)
+	if not roster.is_empty():
+		var selected_player: Dictionary = roster[0]
+		for roster_player in roster:
+			if str(roster_player.get("id", "")) == selected_team_player_id:
+				selected_player = roster_player
+				break
+		selected_team_player_id = str(selected_player.get("id", "captain"))
+		page_content.add_child(_player_card(selected_player, accent))
 	page_content.add_child(_coaching_market_card(mode))
-	page_content.add_child(_section_title("KADER", "Wettkampfbereich: %s" % mode))
+
+
+func _team_roster_selector(mode: String, accent: Color) -> Control:
+	var panel := UI.card()
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 5)
+	panel.add_child(row)
 	for player in game.roster_for(mode):
-		page_content.add_child(_player_card(player, accent))
+		var player_id := str(player.get("id", ""))
+		var active := player_id == selected_team_player_id
+		var button := UI.button(
+			"%s\nOVR %d" % [str(player.get("name", "PLAYER")).to_upper(), game.player_overall(player)],
+			accent,
+			active,
+			true
+		)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size.y = 48
+		button.add_theme_font_size_override("font_size", 9)
+		button.pressed.connect(_select_team_player.bind(player_id))
+		row.add_child(button)
+	return panel
+
+
+func _select_team_player(player_id: String) -> void:
+	selected_team_player_id = player_id
+	_show_page("team", false)
+
+
+func _show_ranked_stream_tools() -> void:
+	page_content.add_child(_streaming_card())
+	_apply_scroll_passthrough(page_content)
+	var bottom := page_scroll.get_v_scroll_bar()
+	page_scroll.scroll_vertical = int(bottom.max_value)
 
 
 func _development_impact_card() -> Control:
@@ -1550,15 +1592,22 @@ func _build_ranked_overview() -> void:
 	var playlist := game.selected_rl_playlist()
 	var record := game.playlist_record(playlist)
 	page_content.add_child(_rank_profile_card(playlist))
-	page_content.add_child(_rank_stats_card(playlist))
-	page_content.add_child(_mmr_graph_card(playlist))
-	page_content.add_child(_circuit_overview_card())
 	page_content.add_child(_ranked_queue_card(playlist))
+	page_content.add_child(_mmr_graph_card(playlist))
 	page_content.add_child(_section_title("LETZTE SPIELE", "Ranked-Ergebnisse in %s" % playlist))
-	_build_playlist_history(page_content, playlist, 6)
-	page_content.add_child(_streaming_card())
+	_build_playlist_history(page_content, playlist, 5)
 	if int(record.get("played", 0)) >= 3:
-		page_content.add_child(_cup_card("Rocket League"))
+		var tools_row := HBoxContainer.new()
+		tools_row.add_theme_constant_override("separation", 7)
+		var circuit_button := UI.button("PRO CIRCUIT", UI.GOLD, false, true)
+		circuit_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		circuit_button.pressed.connect(_select_ranked_view.bind("circuit"))
+		tools_row.add_child(circuit_button)
+		var stream_button := UI.button("STREAMING", UI.CYAN, false, true)
+		stream_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		stream_button.pressed.connect(_show_ranked_stream_tools)
+		tools_row.add_child(stream_button)
+		page_content.add_child(tools_row)
 
 
 func _circuit_overview_card() -> Control:
