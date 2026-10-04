@@ -31,7 +31,7 @@ func _run() -> void:
 	var state: EmpireStateRef = EmpireStateRef.new()
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
-	_check(AppConfigRef.VERSION.begins_with("1.4."), "v1.4 premium rebuild app version")
+	_check(AppConfigRef.VERSION.begins_with("2.0."), "v2.0 full UI rebuild app version")
 	_check(AppConfigRef.NAV_ENTRIES.size() == 5, "five primary navigation destinations")
 	_check(AppConfigRef.navigation_ids().has(AppConfigRef.DEFAULT_PAGE), "default page exists in navigation")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
@@ -413,14 +413,14 @@ func _run() -> void:
 	main.game.set_selected_rl_playlist("1v1")
 	main._show_page("home", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 9, "premium home content")
+	_check(main.page_content.get_child_count() >= 7, "v2 command center content")
 	main._show_page("empire", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 8, "club DNA empire content")
+	_check(main.page_content.get_child_count() >= 6, "v2 front office content")
 	main.ranked_view = "overview"
 	main._show_page("play", false)
 	await process_frame
-	_check(main.page_content.get_child_count() > 10, "ranked overview content")
+	_check(main.page_content.get_child_count() >= 8, "v2 ranked overview content")
 	_check(main.page_scroll.scroll_deadzone <= 8, "mobile scroll deadzone")
 	_check(main.page_scroll.scroll_vertical_custom_step >= 64.0, "mobile scroll step")
 
@@ -443,7 +443,7 @@ func _run() -> void:
 	main.game.data["cash"] = 500
 	main._show_page("team", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 8, "development and coaching page content")
+	_check(main.page_content.get_child_count() >= 7, "v2 focused team page content")
 	_check(main.season_label.text.contains("SPIEL"), "German real-time season header")
 	_check(main.reputation_label.text == "0", "reputation replaces energy in header")
 	_check(main._chance_text(0.125) == "13%", "chance formatting")
@@ -485,7 +485,7 @@ func _run() -> void:
 	main.queue_free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v1.4 premium rebuild smoke test: PASS")
+		print("E-Sport Empire v2.0 full UI rebuild smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:
