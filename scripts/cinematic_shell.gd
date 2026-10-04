@@ -4,11 +4,43 @@ const ShellUI = preload("res://scripts/ui_kit.gd")
 const ShellSurface = preload("res://scripts/cinematic_surface.gd")
 const ShellGameData = preload("res://scripts/game_data.gd")
 const ShellPlayerPortrait = preload("res://scripts/player_portrait.gd")
+const ShellDevelopment = preload("res://scripts/development_data.gd")
 
 
 func _show_page(page: String, animate: bool = true) -> void:
 	super._show_page(page, animate)
 	_pad_legacy_layout_checks()
+	_localize_visible_copy(self)
+
+
+func _localize_visible_copy(node: Node) -> void:
+	if node is Label:
+		var label := node as Label
+		label.text = _localized_text(label.text)
+	elif node is Button:
+		var button := node as Button
+		button.text = _localized_text(button.text)
+	for child in node.get_children():
+		_localize_visible_copy(child)
+
+
+func _localized_text(text: String) -> String:
+	var replacements := {
+		"CLUB FUNDS": "GUTHABEN",
+		"COMMAND CENTER": "ZENTRALE",
+		"MATCHMAKING": "SPIELSUCHE",
+		"READY": "BEREIT",
+		"SCOUTING / REPORT": "SCOUTING-BERICHT",
+		"CLUB STATUS": "VEREINSSTATUS",
+		"FRONT OFFICE": "VEREINSZENTRALE",
+		"OVERALL": "GESAMT",
+		"PLAYER": "SPIELER",
+		"POTENTIAL": "POTENZIAL",
+	}
+	var result := text
+	for source in replacements:
+		result = result.replace(str(source), str(replacements[source]))
+	return result
 
 
 func _pad_legacy_layout_checks() -> void:
@@ -89,6 +121,48 @@ func _build_team_page() -> void:
 				page_content.add_child(hint)
 
 
+func _player_profile_panel(player: Dictionary, accent: Color) -> Control:
+	var panel := ShellSurface.new().configure(accent, "player", 0.95)
+	panel.custom_minimum_size.y = 216
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var portrait := ShellPlayerPortrait.new().configure(str(player.get("name", "SPIELER")), accent)
+	portrait.custom_minimum_size = Vector2(104, 118)
+	row.add_child(portrait)
+
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_theme_constant_override("separation", 1)
+	identity.add_child(ShellUI.label(str(player.get("name", "SPIELER")).to_upper(), 23, ShellUI.TEXT, 800))
+	identity.add_child(ShellUI.label("%s  /  %s  /  %d J." % [str(player.get("role", "SPIELER")).to_upper(), str(player.get("region", "EU")), int(player.get("age", 16))], 8, ShellUI.MUTED, 700))
+	var archetype := ShellDevelopment.player_archetype(player)
+	identity.add_child(ShellUI.label(str(archetype.get("label", "Kompletter Spieler")).to_upper(), 8, Color(str(archetype.get("color", "F5F7FA"))), 800))
+	identity.add_child(ShellUI.v_space(8))
+	identity.add_child(
+		ShellUI.label(
+			"%d OVR   ·   %d POT" % [game.player_overall(player), int(player.get("potential", 99))],
+			20,
+			ShellUI.TEXT,
+			800
+		)
+	)
+	row.add_child(identity)
+	box.add_child(row)
+
+	var stats := HBoxContainer.new()
+	stats.add_theme_constant_override("separation", 4)
+	stats.add_child(_metric_block("MECH", str(int(player.get("mechanics", 50))), ShellUI.CYAN))
+	stats.add_child(_metric_block("SCHUSS", str(int(player.get("shooting", 50))), ShellUI.GOLD))
+	stats.add_child(_metric_block("DEF", str(int(player.get("defense", 50))), ShellUI.GREEN))
+	stats.add_child(_metric_block("SENSE", str(int(player.get("game_sense", 50))), ShellUI.PURPLE))
+	box.add_child(stats)
+	return panel
+
+
 func _training_program_grid(player: Dictionary) -> Control:
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -131,16 +205,16 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 10)
-	var portrait := ShellPlayerPortrait.new().configure(str(player.get("name", "PLAYER")), accent)
+	var portrait := ShellPlayerPortrait.new().configure(str(player.get("name", "SPIELER")), accent)
 	portrait.custom_minimum_size = Vector2(82, 98)
 	top.add_child(portrait)
 
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	identity.add_theme_constant_override("separation", 1)
-	identity.add_child(ShellUI.label("SCOUTING / REPORT", 7, Color(accent.r, accent.g, accent.b, 0.90), 800))
-	identity.add_child(ShellUI.label(str(player.get("name", "PLAYER")), 21, ShellUI.TEXT, 800))
-	identity.add_child(ShellUI.label("%s  /  %s  /  %d J." % [str(player.get("role", "PLAYER")).to_upper(), str(player.get("region", "EU")), int(player.get("age", 16))], 8, ShellUI.MUTED, 700))
+	identity.add_child(ShellUI.label("SCOUTING-BERICHT", 7, Color(accent.r, accent.g, accent.b, 0.90), 800))
+	identity.add_child(ShellUI.label(str(player.get("name", "SPIELER")), 21, ShellUI.TEXT, 800))
+	identity.add_child(ShellUI.label("%s  /  %s  /  %d J." % [str(player.get("role", "SPIELER")).to_upper(), str(player.get("region", "EU")), int(player.get("age", 16))], 8, ShellUI.MUTED, 700))
 	top.add_child(identity)
 
 	var rating := VBoxContainer.new()
@@ -170,7 +244,7 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 
 
 func _build_empire_page() -> void:
-	_page_header("FRONT OFFICE", "Verein", "")
+	_page_header("VEREINSZENTRALE", "Verein", "")
 	_empire_view_switch()
 	match empire_view:
 		"staff":
@@ -184,7 +258,7 @@ func _build_empire_page() -> void:
 			var box := VBoxContainer.new()
 			box.add_theme_constant_override("separation", 7)
 			panel.add_child(box)
-			box.add_child(ShellUI.label("CLUB STATUS", 7, ShellUI.DIM, 800))
+			box.add_child(ShellUI.label("VEREINSSTATUS", 7, ShellUI.DIM, 800))
 			box.add_child(ShellUI.label(str(game.data.get("club_name", "TSK ESPORTS")), 24, ShellUI.TEXT, 800))
 			var status := HBoxContainer.new()
 			status.add_theme_constant_override("separation", 5)
