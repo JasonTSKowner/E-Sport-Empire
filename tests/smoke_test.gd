@@ -445,7 +445,7 @@ func _run() -> void:
 	await process_frame
 	_check(main.page_content.get_child_count() >= 8, "development and coaching page content")
 	_check(main.season_label.text.contains("SPIEL"), "German real-time season header")
-	_check(main.reputation_label.text == "0", "reputation replaces energy in header")
+	_check(main.cash_label != null and main.fans_label == null and main.reputation_label == null, "compact mobile header keeps only cash visible")
 	_check(main._chance_text(0.125) == "13%", "chance formatting")
 	var stat_grid: Control = main._development_stat_grid(main.game.data["roster"][0])
 	_check(stat_grid.get_child_count() == 2, "development stat grid rows")
