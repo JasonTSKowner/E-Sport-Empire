@@ -208,13 +208,13 @@ func _build_bottom_navigation() -> Control:
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.custom_minimum_size.y = 56
 		button.add_theme_font_override("font", AppFontRef)
-		button.add_theme_font_size_override("font_size", 9)
+		button.add_theme_font_size_override("font_size", 10)
 		var nav_icon := NavIconRef.new()
 		nav_icon.configure(page_id, UI.MUTED)
 		nav_icon.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		nav_icon.offset_left = -10
-		nav_icon.offset_right = 10
-		nav_icon.offset_top = 7
+		nav_icon.offset_left = -11
+		nav_icon.offset_right = 11
+		nav_icon.offset_top = 5
 		nav_icon.offset_bottom = 27
 		button.add_child(nav_icon)
 		button.set_meta("nav_icon", nav_icon)
@@ -375,14 +375,13 @@ func _apply_scroll_passthrough(node: Node) -> void:
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
 	var text_box := VBoxContainer.new()
-	text_box.add_theme_constant_override("separation", 0)
+	text_box.add_theme_constant_override("separation", 1)
 	text_box.add_child(UI.overline(kicker, UI.DIM))
-	text_box.add_child(UI.heading(title, 26))
+	text_box.add_child(UI.heading(title, 22))
 	page_content.add_child(text_box)
-	var sub := UI.label(subtitle, 10, UI.MUTED)
-	sub.custom_minimum_size.y = 22
+	var sub := UI.label(subtitle, 9, UI.MUTED)
+	sub.custom_minimum_size.y = 18
 	page_content.add_child(sub)
-	page_content.add_child(UI.separator(Color(0.72,0.78,0.86,0.065)))
 
 func _mode_switch() -> void:
 	var row := HBoxContainer.new()
