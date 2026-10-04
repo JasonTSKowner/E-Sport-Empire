@@ -1,14 +1,14 @@
 class_name MatchVisualizer
 extends Control
 
-const FIELD := Color("061522")
-const FIELD_ALT := Color("082033")
-const BOARD := Color("3a5d7e")
-const OUR_COLOR := Color("2de2ff")
-const THEIR_COLOR := Color("ff647c")
+const FIELD := Color("0A1118")
+const FIELD_ALT := Color("0D151E")
+const BOARD := Color("455568")
+const OUR_COLOR := Color("7FE7FF")
+const THEIR_COLOR := Color("FF6B7A")
 const BALL_COLOR := Color("f5f7ff")
-const BOOST_COLOR := Color("ffbf69")
-const WHITE_DIM := Color("9eb3c9")
+const BOOST_COLOR := Color("E8C17A")
+const WHITE_DIM := Color("98A3B3")
 
 var format := "1v1"
 var our_positions: Array[Vector2] = []
@@ -242,11 +242,11 @@ func _arena_rect() -> Rect2:
 
 func _draw() -> void:
 	var arena := _arena_rect()
-	draw_rect(Rect2(Vector2.ZERO, size), Color("02050c"), true)
+	draw_rect(Rect2(Vector2.ZERO, size), Color("05080D"), true)
 
 	# broadcast frame / stadium depth
-	draw_rect(arena.grow(8.0), Color("0a1020"), true)
-	draw_rect(arena.grow(5.0), Color("111b30"), false, 2.0)
+	draw_rect(arena.grow(8.0), Color("0B0F15"), true)
+	draw_rect(arena.grow(5.0), Color("202A36"), false, 1.4)
 	draw_rect(arena, FIELD, true)
 
 	var stripe_width := arena.size.x / 12.0
