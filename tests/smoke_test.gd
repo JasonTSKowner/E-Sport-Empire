@@ -32,7 +32,7 @@ func _run() -> void:
 	state.reset_game()
 	_check(state.data.get("version") == GameDataRef.VERSION, "save version")
 	_check(AppConfigRef.VERSION.begins_with("2.0."), "v2.0 art direction app version")
-	_check(AppConfigRef.NAV_ENTRIES.size() == 5, "five primary navigation destinations")
+	_check(AppConfigRef.NAV_ENTRIES.size() == 4, "four focused mobile navigation destinations")
 	_check(AppConfigRef.navigation_ids().has(AppConfigRef.DEFAULT_PAGE), "default page exists in navigation")
 	_check(state.data.get("roster", []).size() == 1, "from-zero captain roster")
 	_check(state.data.get("market", []).size() == 6, "market generation")
