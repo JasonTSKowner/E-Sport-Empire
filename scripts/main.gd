@@ -15,6 +15,9 @@ const TrainingVisualizerRef = preload("res://scripts/training_visualizer.gd")
 const FX = preload("res://scripts/ui_fx.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 const NavIconRef = preload("res://scripts/nav_icon.gd")
+const OVRRingRef = preload("res://scripts/ovr_ring.gd")
+const StatRadarRef = preload("res://scripts/stat_radar.gd")
+const HeroArtRef = preload("res://scripts/hero_art.gd")
 
 var game: EmpireStateRef
 var current_page := AppConfigRef.DEFAULT_PAGE
@@ -32,6 +35,7 @@ var toast_panel: PanelContainer
 var toast_label: Label
 var toast_token := 0
 var ranked_view := "overview"
+var selected_player_id := ""
 
 var match_overlay: Control
 var match_timer: Timer
@@ -116,62 +120,72 @@ func _build_shell() -> void:
 
 func _build_top_bar() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 88.0
-	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.985), 0, Color(0.55, 0.64, 0.74, 0.10), 0)
-	outer_style.shadow_size = 0
-	outer.add_theme_stylebox_override("panel", outer_style)
+	outer.custom_minimum_size.y = 58.0
+	var style := UI.box(Color(0.025, 0.030, 0.038, 0.995), 0, Color(0.55, 0.62, 0.70, 0.08), 0)
+	style.shadow_size = 0
+	outer.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_left", 14)
 	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 7)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 8)
 	outer.add_child(margin)
 
-	var vertical := VBoxContainer.new()
-	vertical.add_theme_constant_override("separation", 6)
-	margin.add_child(vertical)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	margin.add_child(row)
 
-	var brand_row := HBoxContainer.new()
-	brand_row.add_theme_constant_override("separation", 10)
-	vertical.add_child(brand_row)
-
-	var brand_mark := PanelContainer.new()
-	brand_mark.custom_minimum_size = Vector2(34, 34)
-	var mark_style := UI.box(Color(0.09, 0.12, 0.16, 1.0), 10, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.18), 1)
+	var mark := PanelContainer.new()
+	mark.custom_minimum_size = Vector2(38, 38)
+	var mark_style := UI.box(Color(0.075, 0.090, 0.115, 1.0), 10, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.18), 1)
 	mark_style.shadow_size = 0
-	brand_mark.add_theme_stylebox_override("panel", mark_style)
+	mark.add_theme_stylebox_override("panel", mark_style)
 	var mark_text := UI.label("EE", 11, UI.TEXT, 800)
 	mark_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mark_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	brand_mark.add_child(mark_text)
-	brand_row.add_child(brand_mark)
+	mark.add_child(mark_text)
+	row.add_child(mark)
 
-	var brand_text := VBoxContainer.new()
-	brand_text.add_theme_constant_override("separation", 0)
-	brand_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var club := VBoxContainer.new()
+	club.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	club.add_theme_constant_override("separation", -1)
 	var title := UI.label(str(game.data.get("club_name", "TSK ESPORTS")), 14, UI.TEXT, 800)
-	season_label = UI.label("", 9, UI.MUTED, 700)
-	brand_text.add_child(title)
-	brand_text.add_child(season_label)
-	brand_row.add_child(brand_text)
+	season_label = UI.label("", 8, UI.DIM, 700)
+	club.add_child(title)
+	club.add_child(season_label)
+	row.add_child(club)
 
-	var version_badge := UI.badge(AppConfigRef.VERSION_BADGE, UI.MUTED)
-	version_badge.custom_minimum_size.x = 66
-	brand_row.add_child(version_badge)
+	var values := HBoxContainer.new()
+	values.add_theme_constant_override("separation", 10)
+	row.add_child(values)
 
-	var stats := HBoxContainer.new()
-	stats.add_theme_constant_override("separation", 5)
-	vertical.add_child(stats)
-	var cash_chip := _header_chip("GELD", UI.CYAN)
-	cash_label = cash_chip.get_meta("value_label")
-	stats.add_child(cash_chip)
-	var fans_chip := _header_chip("FANS", UI.PURPLE)
-	fans_label = fans_chip.get_meta("value_label")
-	stats.add_child(fans_chip)
-	var reputation_chip := _header_chip("RUF", UI.GREEN)
-	reputation_label = reputation_chip.get_meta("value_label")
-	stats.add_child(reputation_chip)
+	var cash_box := VBoxContainer.new()
+	var cash_cap := UI.label("GELD", 7, UI.DIM, 800)
+	cash_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cash_label = UI.label("—", 11, UI.TEXT, 800)
+	cash_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cash_box.add_child(cash_cap)
+	cash_box.add_child(cash_label)
+	values.add_child(cash_box)
+
+	var fans_box := VBoxContainer.new()
+	var fans_cap := UI.label("FANS", 7, UI.DIM, 800)
+	fans_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fans_label = UI.label("—", 11, UI.TEXT, 800)
+	fans_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	fans_box.add_child(fans_cap)
+	fans_box.add_child(fans_label)
+	values.add_child(fans_box)
+
+	var rep_box := VBoxContainer.new()
+	var rep_cap := UI.label("RUF", 7, UI.DIM, 800)
+	rep_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	reputation_label = UI.label("—", 11, UI.TEXT, 800)
+	reputation_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	rep_box.add_child(rep_cap)
+	rep_box.add_child(reputation_label)
+	values.add_child(rep_box)
 	return outer
 
 func _header_chip(caption: String, accent: Color) -> PanelContainer:
@@ -204,42 +218,65 @@ func _header_chip(caption: String, accent: Color) -> PanelContainer:
 
 func _build_bottom_navigation() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 64.0
-	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.995), 0, Color(0.55, 0.64, 0.74, 0.10), 0)
-	outer_style.shadow_size = 0
-	outer.add_theme_stylebox_override("panel", outer_style)
+	outer.custom_minimum_size.y = 70.0
+	var style := UI.box(Color(0.022, 0.027, 0.034, 0.998), 0, Color(0.55, 0.62, 0.70, 0.09), 0)
+	style.shadow_size = 0
+	outer.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 6)
-	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_top", 5)
 	margin.add_theme_constant_override("margin_right", 6)
-	margin.add_theme_constant_override("margin_bottom", 6)
+	margin.add_theme_constant_override("margin_bottom", 7)
 	outer.add_child(margin)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
+	row.add_theme_constant_override("separation", 0)
 	margin.add_child(row)
+
 	for entry in AppConfigRef.NAV_ENTRIES:
 		var page_id := str(entry[0])
+		var cell := VBoxContainer.new()
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.add_theme_constant_override("separation", 1)
+
 		var button := Button.new()
-		button.text = "\n" + str(entry[1])
-		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.text = ""
 		button.focus_mode = Control.FOCUS_NONE
 		button.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 50
-		button.add_theme_font_size_override("font_size", 9)
+		button.custom_minimum_size.y = 34
+		button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+		button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+		button.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+		button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
 		var nav_icon := NavIconRef.new()
 		nav_icon.configure(page_id, UI.MUTED)
-		nav_icon.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		nav_icon.set_anchors_preset(Control.PRESET_CENTER)
 		nav_icon.offset_left = -10
 		nav_icon.offset_right = 10
-		nav_icon.offset_top = 5
-		nav_icon.offset_bottom = 25
+		nav_icon.offset_top = -10
+		nav_icon.offset_bottom = 10
 		button.add_child(nav_icon)
 		button.set_meta("nav_icon", nav_icon)
 		button.pressed.connect(_show_page.bind(page_id, true))
-		row.add_child(button)
+		cell.add_child(button)
+
+		var label := UI.label(str(entry[1]), 8, UI.DIM, 800)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.custom_minimum_size.y = 12
+		cell.add_child(label)
+
+		var indicator := ColorRect.new()
+		indicator.color = Color.TRANSPARENT
+		indicator.custom_minimum_size.y = 2
+		indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(indicator)
+
+		button.set_meta("nav_label", label)
+		button.set_meta("nav_indicator", indicator)
+		row.add_child(cell)
 		nav_buttons[page_id] = button
 	return outer
 
@@ -305,21 +342,16 @@ func _set_header_value(key: String, label: Label, value: String, accent: Color) 
 func _refresh_nav() -> void:
 	for key in nav_buttons:
 		var button: Button = nav_buttons[key]
-		var selected: bool = str(key) == current_page
-		button.add_theme_color_override("font_color", UI.TEXT if selected else UI.DIM)
-		button.add_theme_color_override("font_hover_color", UI.TEXT)
-		button.add_theme_color_override("font_pressed_color", UI.TEXT)
+		var selected := str(key) == current_page
 		var nav_icon: Control = button.get_meta("nav_icon", null)
 		if nav_icon != null and nav_icon.has_method("set_accent"):
-			nav_icon.set_accent(UI.CYAN if selected else UI.MUTED)
-		var normal_color := Color(0.09, 0.12, 0.16, 0.96) if selected else Color.TRANSPARENT
-		var normal_border := Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.16) if selected else Color.TRANSPARENT
-		var normal_style := UI.box(normal_color, 11, normal_border, 1 if selected else 0)
-		normal_style.shadow_size = 0
-		button.add_theme_stylebox_override("normal", normal_style)
-		button.add_theme_stylebox_override("hover", UI.box(Color(0.09, 0.11, 0.14, 0.8), 11))
-		button.add_theme_stylebox_override("pressed", UI.box(Color(0.10, 0.14, 0.18, 0.95), 11, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.20), 1))
-		button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+			nav_icon.set_accent(UI.TEXT if selected else UI.DIM)
+		var nav_label: Label = button.get_meta("nav_label", null)
+		if nav_label != null:
+			nav_label.add_theme_color_override("font_color", UI.TEXT if selected else UI.DIM)
+		var indicator: ColorRect = button.get_meta("nav_indicator", null)
+		if indicator != null:
+			indicator.color = UI.CYAN if selected else Color.TRANSPARENT
 
 func _show_page(page: String, animate: bool = true) -> void:
 	if match_overlay != null and is_instance_valid(match_overlay):
@@ -380,23 +412,17 @@ func _apply_scroll_passthrough(node: Node) -> void:
 
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 9)
-	var bar := ColorRect.new()
-	bar.color = UI.CYAN
-	bar.custom_minimum_size = Vector2(3, 42)
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(bar)
-	var text_box := VBoxContainer.new()
-	text_box.add_theme_constant_override("separation", 1)
-	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text_box.add_child(UI.overline(kicker, UI.MUTED))
-	text_box.add_child(UI.heading(title, 24))
-	row.add_child(text_box)
-	page_content.add_child(row)
-	var sub := UI.label(subtitle, 11, UI.MUTED)
-	sub.custom_minimum_size.y = 26
-	page_content.add_child(sub)
+	var header := VBoxContainer.new()
+	header.add_theme_constant_override("separation", 2)
+	var kicker_label := UI.label(kicker.to_upper(), 9, UI.DIM, 800)
+	header.add_child(kicker_label)
+	var title_label := UI.label(title, 29, UI.TEXT, 800)
+	header.add_child(title_label)
+	if not subtitle.is_empty():
+		var sub := UI.label(subtitle, 11, UI.MUTED)
+		sub.custom_minimum_size.y = 24
+		header.add_child(sub)
+	page_content.add_child(header)
 
 func _mode_switch() -> void:
 	var row := HBoxContainer.new()
