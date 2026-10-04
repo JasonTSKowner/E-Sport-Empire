@@ -1019,6 +1019,8 @@ func _build_team_page() -> void:
 	_mode_switch()
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
+	var chemistry := game.team_chemistry(mode)
+	var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
 
 	if team_view == "roster":
 		var summary := UI.hero(accent)
@@ -1031,8 +1033,6 @@ func _build_team_page() -> void:
 		summary_row.add_child(_metric_block("FORM", "%d%%" % _team_average(mode, "form"), UI.GREEN))
 		summary_row.add_child(_metric_block("MÜDIGKEIT", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD))
 		summary_box.add_child(summary_row)
-		var chemistry := game.team_chemistry(mode)
-		var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
 		summary_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.MUTED))
 		page_content.add_child(summary)
 
