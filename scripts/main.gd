@@ -2646,37 +2646,44 @@ func _build_empire_page() -> void:
 	_page_header(
 		"FRONT OFFICE",
 		"Verein",
-		"Baue Staff, Infrastruktur und Einnahmen zu einer echten E-Sport-Organisation aus."
+		"Infrastruktur, Staff und Einnahmen – kompakt statt Menüwand."
 	)
-	page_content.add_child(_club_identity_card())
-	page_content.add_child(_staff_hq_card())
+
 	var economy := UI.hero(UI.GOLD)
 	var economy_box := VBoxContainer.new()
-	economy_box.add_theme_constant_override("separation", 11)
+	economy_box.add_theme_constant_override("separation", 10)
 	economy.add_child(economy_box)
-	economy_box.add_child(UI.overline("PASSIVE EINNAHMEN", UI.GOLD))
+	var economy_top := HBoxContainer.new()
+	var economy_copy := VBoxContainer.new()
+	economy_copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	economy_copy.add_child(UI.overline("ORGANISATION", UI.DIM))
+	economy_copy.add_child(UI.label("Front Office", 22, UI.TEXT, 800))
+	economy_copy.add_child(UI.label("Passive Entwicklung deiner Organisation", 10, UI.MUTED, 700))
+	economy_top.add_child(economy_copy)
+	economy_top.add_child(UI.badge("8H OFFLINE", UI.GOLD))
+	economy_box.add_child(economy_top)
+
 	var economy_row := HBoxContainer.new()
-	economy_row.add_child(
-		_metric_block(
-			"EINNAHMEN / H", GameDataRef.format_cash(game.passive_income_per_hour()), UI.GOLD
-		)
-	)
-	economy_row.add_child(
-		_metric_block(
-			"FANS / H", "+%s" % GameDataRef.format_number(game.passive_fans_per_hour()), UI.PURPLE
-		)
-	)
-	economy_row.add_child(_metric_block("OFFLINE-LIMIT", "8 STUNDEN", UI.CYAN))
+	economy_row.add_theme_constant_override("separation", 6)
+	economy_row.add_child(_metric_block("EINNAHMEN / H", GameDataRef.format_cash(game.passive_income_per_hour()), UI.GOLD))
+	economy_row.add_child(_metric_block("FANS / H", "+%s" % GameDataRef.format_number(game.passive_fans_per_hour()), UI.PURPLE))
+	economy_row.add_child(_metric_block("STAFF", str(int(game.data.get("staff_hires", 0))), UI.CYAN))
 	economy_box.add_child(economy_row)
-	economy_box.add_child(
-		UI.label("Offline-Erträge werden bei deiner Rückkehr automatisch gutgeschrieben.", 12, UI.MUTED)
-	)
 	page_content.add_child(economy)
-	page_content.add_child(
-		_section_title("EINRICHTUNGEN", "Dauerhafte Upgrades für deine gesamte Organisation.")
-	)
+
+	page_content.add_child(_club_identity_card())
+
+	page_content.add_child(_section_title("EINRICHTUNGEN", "Dauerhafte Upgrades für deinen Verein."))
+	var facility_grid := GridContainer.new()
+	facility_grid.columns = 2
+	facility_grid.add_theme_constant_override("h_separation", 8)
+	facility_grid.add_theme_constant_override("v_separation", 8)
 	for key in GameDataRef.FACILITIES:
-		page_content.add_child(_facility_card(key))
+		facility_grid.add_child(_facility_card(key))
+	page_content.add_child(facility_grid)
+
+	page_content.add_child(_section_title("STAFF", "Spezialisten für die nächste Entwicklungsstufe."))
+	page_content.add_child(_staff_hq_card())
 
 
 func _club_identity_card() -> Control:
@@ -2793,45 +2800,38 @@ func _staff_hq_card() -> Control:
 
 func _facility_card(key: String) -> Control:
 	var definition: Dictionary = GameDataRef.FACILITIES[key]
-	var accent := Color(str(definition["color"]))
-	var level: int = game.facility_level(key)
-	var cost: int = game.facility_cost(key)
-	var panel := UI.card()
+	var accent := Color(str(definition.get("color", "7FE7FF")))
+	var level := game.facility_level(key)
+	var cost := game.facility_cost(key)
+
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := UI.box(Color(0.048, 0.056, 0.067, 0.99), 9, Color(0.55, 0.62, 0.70, 0.08), 1)
+	style.shadow_size = 0
+	panel.add_theme_stylebox_override("panel", style)
+
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 11)
+	box.add_theme_constant_override("separation", 7)
 	panel.add_child(box)
+
 	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 11)
-	box.add_child(top)
-	var mark := PanelContainer.new()
-	mark.custom_minimum_size = Vector2(50, 50)
-	mark.add_theme_stylebox_override(
-		"panel",
-		UI.box(
-			Color(accent.r, accent.g, accent.b, 0.13),
-			16,
-			Color(accent.r, accent.g, accent.b, 0.35),
-			1
-		)
-	)
-	var mark_label := UI.label(str(definition["tag"]), 14, accent, 800)
-	mark_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mark_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	mark.add_child(mark_label)
-	top.add_child(mark)
-	var identity := VBoxContainer.new()
-	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	identity.add_child(UI.label(str(definition["name"]), 17, UI.TEXT, 800))
-	identity.add_child(UI.label(str(definition["description"]), 12, UI.MUTED))
-	top.add_child(identity)
+	var tag := UI.label(str(definition.get("tag", "HQ")), 11, accent, 800)
+	tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(tag)
 	top.add_child(UI.badge("LV %d" % level, accent))
-	box.add_child(UI.progress(level, 10, accent, 6))
+	box.add_child(top)
+
+	box.add_child(UI.label(str(definition.get("name", "Facility")), 13, UI.TEXT, 800))
+	box.add_child(UI.progress(level, 10, accent, 4))
+
 	var upgrade := UI.button(
-		"MAX. LEVEL" if level >= 10 else "UPGRADE  •  %s" % GameDataRef.format_cash(cost),
+		"MAX" if level >= 10 else GameDataRef.format_cash(cost),
 		accent,
-		level < 10
+		level < 10,
+		true
 	)
-	upgrade.disabled = level >= 10 or int(game.data["cash"]) < cost
+	upgrade.custom_minimum_size.y = 40
+	upgrade.disabled = level >= 10 or int(game.data.get("cash", 0)) < cost
 	upgrade.pressed.connect(_upgrade_facility.bind(key))
 	box.add_child(upgrade)
 	return panel
