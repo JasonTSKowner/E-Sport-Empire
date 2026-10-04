@@ -144,21 +144,74 @@ static func hero(accent: Color = CYAN) -> PanelContainer:
 	return surface
 
 static func metric_tile(caption: String, value: String, accent: Color = CYAN) -> PanelContainer:
-	var panel := BrandSurfaceRef.new()
-	panel.configure(accent, "metric")
+	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color.TRANSPARENT
+	style.content_margin_left = 8
+	style.content_margin_right = 8
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	var marker := ColorRect.new()
+	marker.color = Color(accent.r, accent.g, accent.b, 0.72)
+	marker.custom_minimum_size = Vector2(2, 28)
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(marker)
 	var box_node := VBoxContainer.new()
-	box_node.add_theme_constant_override("separation", 1)
-	var value_label := label(value, 15 if value.length() < 10 else 11, TEXT, 800)
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	box_node.add_theme_constant_override("separation", -1)
 	var caption_label := label(caption.to_upper(), 7, DIM, 800)
-	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var value_label := label(value, 15 if value.length() < 10 else 11, TEXT, 800)
 	box_node.add_child(caption_label)
 	box_node.add_child(value_label)
-	panel.add_child(box_node)
+	row.add_child(box_node)
+	panel.add_child(row)
 	return panel
 
-static func separator(color: Color = Color(0.28, 0.38, 0.62, 0.2)) -> HSeparator:
+
+static func tab(text: String, selected: bool, accent: Color = CYAN) -> Button:
+	var node := Button.new()
+	node.text = text
+	node.focus_mode = Control.FOCUS_NONE
+	node.action_mode = BaseButton.ACTION_MODE_BUTTON_RELEASE
+	node.mouse_filter = Control.MOUSE_FILTER_PASS
+	node.custom_minimum_size.y = 38
+	node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	node.add_theme_font_override("font", APP_FONT)
+	node.add_theme_font_size_override("font_size", 10)
+	node.add_theme_color_override("font_color", TEXT if selected else MUTED)
+	node.add_theme_color_override("font_hover_color", TEXT)
+	node.add_theme_color_override("font_pressed_color", TEXT)
+
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color.TRANSPARENT
+	normal.content_margin_top = 7
+	normal.content_margin_bottom = 7
+	normal.border_width_bottom = 2 if selected else 0
+	normal.border_color = accent
+	node.add_theme_stylebox_override("normal", normal)
+
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color(0.10,0.12,0.15,0.32)
+	hover.content_margin_top = 7
+	hover.content_margin_bottom = 7
+	hover.border_width_bottom = 2 if selected else 1
+	hover.border_color = Color(accent.r,accent.g,accent.b,0.55 if selected else 0.18)
+	node.add_theme_stylebox_override("hover", hover)
+
+	var pressed := StyleBoxFlat.new()
+	pressed.bg_color = Color(0.10,0.13,0.16,0.52)
+	pressed.content_margin_top = 7
+	pressed.content_margin_bottom = 7
+	pressed.border_width_bottom = 2
+	pressed.border_color = accent
+	node.add_theme_stylebox_override("pressed", pressed)
+	node.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	return node
+
+static func separator(color: Color = Color(0.72, 0.78, 0.86, 0.08)) -> HSeparator:
 	var line := HSeparator.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
@@ -167,7 +220,6 @@ static func separator(color: Color = Color(0.28, 0.38, 0.62, 0.2)) -> HSeparator
 	line.add_theme_stylebox_override("separator", style)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return line
-
 
 static func h_space(width: float) -> Control:
 	var spacer := Control.new()
