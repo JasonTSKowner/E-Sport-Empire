@@ -36,6 +36,7 @@ var toast_label: Label
 var toast_token := 0
 var ranked_view := "overview"
 var selected_player_id := ""
+var selected_prospect_id := ""
 
 var match_overlay: Control
 var match_timer: Timer
@@ -2485,96 +2486,163 @@ func _build_market_page() -> void:
 	_page_header(
 		"RECRUITMENT",
 		"Scouting",
-		"Finde Talente, vergleiche Potenzial und verstärke gezielt deinen Kader."
+		"Finde gezielt Spieler, statt durch endlose Karten zu scrollen."
 	)
 	_mode_switch()
-	var mode: String = game.selected_mode()
+
+	var mode := game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
-	var info := UI.hero(UI.GREEN)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	info.add_child(row)
-	var text := VBoxContainer.new()
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_child(UI.overline("SCOUTING-NETZWERK", UI.GREEN))
-	text.add_child(
-		UI.label("Scouting-Level %d" % game.facility_level("scouting"), 17, UI.TEXT, 800)
-	)
-	text.add_child(UI.label("Höhere Level erhöhen die Qualität deiner Reports.", 11, UI.MUTED))
-	text.add_child(
-		UI.label(
-			"90+ POTENZIAL  •  %s PRO TALENT"
-			% _chance_text(game.scouting_elite_potential_chance()),
-			10,
-			UI.GREEN,
-			800
-		)
-	)
-	row.add_child(text)
-	var refresh := UI.button("NEUE REPORTS\n€5", UI.GREEN, true, true)
-	refresh.custom_minimum_size.x = 106
-	refresh.pressed.connect(_refresh_market)
-	row.add_child(refresh)
-	page_content.add_child(info)
-	page_content.add_child(
-		_section_title(
-			"%s TALENTE" % mode.to_upper(), "Eine Neuverpflichtung ersetzt automatisch den schwächsten Starter."
-		)
-	)
-	var found := 0
-	for prospect in game.data.get("market", []):
+	var prospects: Array = []
+	for prospect_value in game.data.get("market", []):
+		var prospect: Dictionary = prospect_value
 		if str(prospect.get("mode", "")) == mode:
-			page_content.add_child(_prospect_card(prospect, accent))
-			found += 1
-	if found == 0:
+			prospects.append(prospect)
+
+	var hero := UI.hero(UI.GREEN)
+	var art := HeroArtRef.new()
+	art.configure(UI.GREEN, "scout")
+	hero.add_child(art)
+	var hero_box := VBoxContainer.new()
+	hero_box.add_theme_constant_override("separation", 10)
+	hero.add_child(hero_box)
+	var hero_top := HBoxContainer.new()
+	var hero_copy := VBoxContainer.new()
+	hero_copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero_copy.add_child(UI.overline("SCOUTING-NETZWERK", UI.DIM))
+	hero_copy.add_child(UI.label("Globales Netzwerk", 22, UI.TEXT, 800))
+	hero_copy.add_child(UI.label("Level %d  •  %d Reports verfügbar" % [game.facility_level("scouting"), prospects.size()], 10, UI.MUTED, 700))
+	hero_top.add_child(hero_copy)
+	hero_top.add_child(UI.badge("90+ POT  %s" % _chance_text(game.scouting_elite_potential_chance()), UI.GREEN))
+	hero_box.add_child(hero_top)
+	var refresh := UI.button("NEUE REPORTS  •  €5", UI.GREEN, true)
+	refresh.pressed.connect(_refresh_market)
+	hero_box.add_child(refresh)
+	page_content.add_child(hero)
+
+	if prospects.is_empty():
 		var empty := UI.card()
-		empty.add_child(
-			UI.label(
-				"Keine %s-Talente mehr verfügbar. Lade neue Scouting-Reports." % mode, 14, UI.MUTED
-			)
-		)
+		var empty_text := UI.label("Keine Talente mehr verfügbar. Lade neue Reports.", 13, UI.MUTED)
+		empty_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_child(empty_text)
 		page_content.add_child(empty)
+		return
+
+	var selected_found := false
+	for prospect in prospects:
+		if str(prospect.get("id", "")) == selected_prospect_id:
+			selected_found = true
+			break
+	if not selected_found:
+		selected_prospect_id = str(prospects[0].get("id", ""))
+
+	page_content.add_child(_section_title("SHORTLIST", "Wähle ein Talent für den vollständigen Report."))
+	page_content.add_child(_prospect_selector(prospects, accent))
+	for prospect in prospects:
+		if str(prospect.get("id", "")) == selected_prospect_id:
+			page_content.add_child(_prospect_card(prospect, accent))
+			break
 
 
 func _prospect_card(player: Dictionary, accent: Color) -> Control:
 	var panel := UI.hero(accent)
+	var art := HeroArtRef.new()
+	art.configure(accent, "scout")
+	panel.add_child(art)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
+
 	var top := HBoxContainer.new()
-	top.add_theme_constant_override("separation", 10)
-	box.add_child(top)
+	top.add_theme_constant_override("separation", 12)
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	identity.add_child(UI.overline("SCOUTING-REPORT", accent))
-	identity.add_child(UI.label(str(player["name"]), 20, UI.TEXT, 800))
+	identity.add_child(UI.overline("VOLLSTÄNDIGER REPORT", UI.DIM))
+	identity.add_child(UI.label(str(player.get("name", "PLAYER")), 24, UI.TEXT, 800))
 	identity.add_child(
 		UI.label(
-			(
-				"%s  •  %s  •  ALTER %d"
-				% [str(player["role"]).to_upper(), player["region"], int(player["age"])]
-			),
-			11,
+			"%s  •  %s  •  %d JAHRE"
+			% [
+				str(player.get("role", "PLAYER")).to_upper(),
+				str(player.get("region", "EU")),
+				int(player.get("age", 18)),
+			],
+			10,
 			UI.MUTED,
 			700
 		)
 	)
+	identity.add_child(UI.label("POTENZIAL %d" % int(player.get("potential", 70)), 10, UI.GREEN, 800))
 	top.add_child(identity)
-	var ratings := VBoxContainer.new()
-	var ovr := UI.label(str(game.player_overall(player)), 25, UI.TEXT, 800)
-	ovr.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var pot := UI.label("POT %d" % int(player["potential"]), 10, UI.GREEN, 800)
-	pot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	ratings.add_child(ovr)
-	ratings.add_child(pot)
-	top.add_child(ratings)
-	box.add_child(_development_stat_grid(player))
+	top.add_child(OVRRingRef.new().configure(game.player_overall(player), accent, "OVR"))
+	box.add_child(top)
+
+	var radar_values := [
+		int(player.get("mechanics", 50)),
+		int(player.get("shooting", 50)),
+		int(player.get("rotation", 50)),
+		int(player.get("defense", 50)),
+		int(player.get("game_sense", 50)),
+		int(player.get("mentality", 50)),
+	]
+	var radar_labels := ["MECH", "SCHUSS", "ROT", "DEF", "SENSE", "MENT"]
+	box.add_child(StatRadarRef.new().configure(radar_values, radar_labels, accent))
+
+	var metrics := HBoxContainer.new()
+	metrics.add_theme_constant_override("separation", 6)
+	metrics.add_child(_metric_block("BOOST", str(int(player.get("boost_control", 50))), UI.CYAN))
+	metrics.add_child(_metric_block("KONSTANZ", str(int(player.get("consistency", 50))), UI.PURPLE))
+	metrics.add_child(_metric_block("POTENZIAL", str(int(player.get("potential", 70))), UI.GREEN))
+	box.add_child(metrics)
+
 	var price := int(player.get("contract", 0))
-	var sign := UI.button("SPIELER HOLEN  •  %s" % GameDataRef.format_cash(price), accent, true)
-	sign.disabled = int(game.data["cash"]) < price
-	sign.pressed.connect(_sign_player.bind(str(player["id"])))
+	var affordable := int(game.data.get("cash", 0)) >= price
+	var sign := UI.button(
+		"VERPFLICHTEN  •  %s" % GameDataRef.format_cash(price)
+		if affordable
+		else "BRAUCHT %s" % GameDataRef.format_cash(price),
+		accent,
+		affordable
+	)
+	sign.disabled = not affordable
+	sign.pressed.connect(_sign_player.bind(str(player.get("id", ""))))
 	box.add_child(sign)
 	return panel
+
+
+func _prospect_selector(prospects: Array, accent: Color) -> Control:
+	var panel := PanelContainer.new()
+	var style := UI.box(Color(0.038, 0.046, 0.058, 0.98), 14, Color(0.55, 0.62, 0.70, 0.08), 1)
+	style.shadow_size = 0
+	panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	panel.add_child(row)
+	for prospect_value in prospects:
+		var prospect: Dictionary = prospect_value
+		var id := str(prospect.get("id", ""))
+		var selected := id == selected_prospect_id
+		var button := UI.button(
+			"%s\n%d OVR  •  %d POT"
+			% [
+				str(prospect.get("name", "PLAYER")),
+				game.player_overall(prospect),
+				int(prospect.get("potential", 70)),
+			],
+			accent,
+			selected,
+			true
+		)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size.y = 56
+		button.add_theme_font_size_override("font_size", 9)
+		button.pressed.connect(_select_prospect.bind(id))
+		row.add_child(button)
+	return panel
+
+
+func _select_prospect(prospect_id: String) -> void:
+	selected_prospect_id = prospect_id
+	_show_page("market", false)
 
 
 func _build_empire_page() -> void:
