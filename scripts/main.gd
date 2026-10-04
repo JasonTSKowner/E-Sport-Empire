@@ -1020,20 +1020,21 @@ func _build_team_page() -> void:
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 
-	var summary := UI.hero(accent)
-	var summary_box := VBoxContainer.new()
-	summary_box.add_theme_constant_override("separation", 8)
-	summary.add_child(summary_box)
-	var summary_row := HBoxContainer.new()
-	summary_row.add_theme_constant_override("separation", 6)
-	summary_row.add_child(_metric_block("TEAM-GES", str(game.team_overall(mode)), accent))
-	summary_row.add_child(_metric_block("FORM", "%d%%" % _team_average(mode, "form"), UI.GREEN))
-	summary_row.add_child(_metric_block("MÜDIGKEIT", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD))
-	summary_box.add_child(summary_row)
-	var chemistry := game.team_chemistry(mode)
-	var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
-	summary_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.MUTED))
-	page_content.add_child(summary)
+	if team_view == "roster":
+		var summary := UI.hero(accent)
+		var summary_box := VBoxContainer.new()
+		summary_box.add_theme_constant_override("separation", 8)
+		summary.add_child(summary_box)
+		var summary_row := HBoxContainer.new()
+		summary_row.add_theme_constant_override("separation", 6)
+		summary_row.add_child(_metric_block("TEAM-GES", str(game.team_overall(mode)), accent))
+		summary_row.add_child(_metric_block("FORM", "%d%%" % _team_average(mode, "form"), UI.GREEN))
+		summary_row.add_child(_metric_block("MÜDIGKEIT", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD))
+		summary_box.add_child(summary_row)
+		var chemistry := game.team_chemistry(mode)
+		var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
+		summary_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.MUTED))
+		page_content.add_child(summary)
 
 	_team_view_switch()
 	var roster := game.roster_for(mode)
@@ -1048,7 +1049,8 @@ func _build_team_page() -> void:
 
 	match team_view:
 		"training":
-			page_content.add_child(_team_roster_selector(mode, accent))
+			if roster.size() > 1:
+				page_content.add_child(_team_roster_selector(mode, accent))
 			if not selected_player.is_empty():
 				page_content.add_child(_player_training_panel(selected_player, accent))
 		"coaching":
@@ -1056,7 +1058,8 @@ func _build_team_page() -> void:
 		"scouting":
 			_build_team_scouting(mode, accent)
 		_:
-			page_content.add_child(_team_roster_selector(mode, accent))
+			if roster.size() > 1:
+				page_content.add_child(_team_roster_selector(mode, accent))
 			if not selected_player.is_empty():
 				page_content.add_child(_player_profile_panel(selected_player, accent))
 			var scrim_cost := game.scrim_cost(mode)
@@ -1398,7 +1401,13 @@ func _player_training_panel(player: Dictionary, accent: Color) -> Control:
 	box.add_child(UI.overline("WERTE", UI.DIM))
 	box.add_child(_development_stat_grid(player))
 	box.add_child(_mechanics_arsenal(player, accent))
-	box.add_child(UI.overline("TRAINING WÄHLEN", UI.DIM))
+	var training_title := HBoxContainer.new()
+	training_title.add_child(UI.overline("TRAINING WÄHLEN", UI.DIM))
+	var training_spacer := Control.new()
+	training_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	training_title.add_child(training_spacer)
+	training_title.add_child(UI.badge("BONUS %s" % _chance_text(game.training_breakthrough_chance()), UI.GREEN))
+	box.add_child(training_title)
 	box.add_child(_training_program_grid(player))
 	return panel
 
@@ -1623,12 +1632,10 @@ func _training_program_grid(player: Dictionary) -> Control:
 		var affordable := int(game.data.get("cash", 0)) >= cost
 		var can_train := affordable and focus_ready
 		var button := UI.button(
-			"%s\n%s  •  %s  •  BONUS %s"
+			"%s\n%s"
 			% [
 				str(program.get("short", "TRAIN")),
-				str(program.get("button_detail", "STAT-BONI")),
 				GameDataRef.format_cash(cost),
-				_chance_text(game.training_breakthrough_chance()),
 			],
 			color,
 			can_train,
@@ -1641,8 +1648,8 @@ func _training_program_grid(player: Dictionary) -> Control:
 			else:
 				button.tooltip_text = "Nächster Fokus-Slot in %s." % _format_duration(int(readiness.get("seconds_until_slot", 0)))
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 66
-		button.add_theme_font_size_override("font_size", 10)
+		button.custom_minimum_size.y = 54
+		button.add_theme_font_size_override("font_size", 9)
 		button.pressed.connect(_train_player.bind(str(player.get("id", "")), program_id))
 		grid.add_child(button)
 	return grid
@@ -1674,7 +1681,8 @@ func _build_play_page() -> void:
 		_build_legacy_play_page(mode)
 		return
 	_playlist_switch()
-	_ranked_view_switch()
+	if ranked_view != "overview":
+		_ranked_view_switch()
 	match ranked_view:
 		"circuit":
 			_build_pro_circuit_page()
@@ -1738,19 +1746,22 @@ func _build_ranked_overview() -> void:
 	page_content.add_child(_rank_profile_card(playlist))
 	page_content.add_child(_ranked_queue_card(playlist))
 	page_content.add_child(_section_title("LETZTE SPIELE", "Die letzten Ranked-Ergebnisse in %s." % playlist))
-	_build_playlist_history(page_content, playlist, 3)
+	_build_playlist_history(page_content, playlist, 2)
+
+	var more_row := HBoxContainer.new()
+	more_row.add_theme_constant_override("separation", 5)
+	for entry in [["circuit", "TURNIER"], ["ladder", "RANGLISTE"], ["titles", "TITEL"]]:
+		var more_button := UI.button(str(entry[1]), UI.MUTED, false, true)
+		more_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		more_button.add_theme_font_size_override("font_size", 8)
+		more_button.pressed.connect(_select_ranked_view.bind(str(entry[0])))
+		more_row.add_child(more_button)
+	page_content.add_child(more_row)
+
 	if int(record.get("played", 0)) >= 3:
-		var tools_row := HBoxContainer.new()
-		tools_row.add_theme_constant_override("separation", 7)
-		var circuit_button := UI.button("PRO CIRCUIT", UI.GOLD, false, true)
-		circuit_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		circuit_button.pressed.connect(_select_ranked_view.bind("circuit"))
-		tools_row.add_child(circuit_button)
-		var stream_button := UI.button("STREAMING", UI.CYAN, false, true)
-		stream_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var stream_button := UI.button("STREAMING-TOOLS", UI.CYAN, false, true)
 		stream_button.pressed.connect(_show_ranked_stream_tools)
-		tools_row.add_child(stream_button)
-		page_content.add_child(tools_row)
+		page_content.add_child(stream_button)
 
 
 func _circuit_overview_card() -> Control:
