@@ -409,7 +409,7 @@ func _career_hub_card() -> Control:
 	details.add_child(
 		UI.label(
 			"LEVEL %d  •  %s"
-			% [game.career_level(), str(level_data.get("name", "Unknown Grinder")).to_upper()],
+			% [game.career_level(), str(level_data.get("name", "Unbekannter Grinder")).to_upper()],
 			18,
 			UI.TEXT,
 			800
@@ -704,7 +704,7 @@ func _sponsor_card() -> Control:
 		var progress_row := HBoxContainer.new()
 		progress_row.add_child(
 			_metric_block(
-				"MATCHES",
+				"SPIELE",
 				"%d / %d" % [int(active.get("matches", 0)), int(contract.get("duration", 1))],
 				UI.CYAN
 			)
@@ -847,7 +847,7 @@ func _division_row(mode: String) -> Control:
 	center.add_child(
 		UI.label(
 			(
-				"%dW  %dL  •  %d/%d placements"
+				"%dS  %dN  •  %d/%d Placements"
 				% [int(record["wins"]), int(record["losses"]), int(record["placements"]), game.placement_target(mode)]
 			),
 			11,
@@ -988,7 +988,7 @@ func _coaching_market_card(mode: String) -> Control:
 	)
 	box.add_child(
 		UI.label(
-			"Within every non-SSL family, Tier I–III and Division I–IV are equally likely (8.3% per exact combination).",
+			"In jeder Rangfamilie unter SSL sind Tier I–III und Division I–IV gleich wahrscheinlich (8,3% je Kombination).",
 			9,
 			UI.DIM
 		)
@@ -1151,7 +1151,7 @@ func _player_card(player: Dictionary, accent: Color) -> Control:
 	var archetype := DevelopmentDataRef.player_archetype(player)
 	identity.add_child(
 		UI.label(
-			"%s  •  DYNAMISCHER SPIELSTIL" % str(archetype.get("label", "Complete Player")).to_upper(),
+			"%s  •  DYNAMISCHER SPIELSTIL" % str(archetype.get("label", "Kompletter Spieler")).to_upper(),
 			10,
 			Color(str(archetype.get("color", "f2efff"))),
 			800
@@ -1478,7 +1478,7 @@ func _circuit_overview_card() -> Control:
 	copy.add_child(
 		UI.label(
 			"%s  •  Turnierergebnisse verändern deine Ranked-MMR nie"
-			% ("NÄCHSTES: %s" % game.circuit_round_name(int(circuit.get("stage", 0))) if active else "QF → SF → GRAND FINAL"),
+			% ("NÄCHSTES: %s" % game.circuit_round_name(int(circuit.get("stage", 0))) if active else "VF → HF → FINALE"),
 			10,
 			UI.MUTED
 		)
