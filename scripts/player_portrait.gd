@@ -1,9 +1,12 @@
 class_name PlayerPortrait
 extends Control
 
+const APP_FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
+
 var player_name := "PLAYER"
-var accent := Color("7FE7FF")
+var accent := Color("74DFF7")
 var seed := 0
+var time_value := 0.0
 
 
 func configure(name_value: String, color: Color) -> PlayerPortrait:
@@ -15,73 +18,100 @@ func configure(name_value: String, color: Color) -> PlayerPortrait:
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(68, 76)
+	custom_minimum_size = Vector2(76, 92)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	set_process(true)
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	time_value += delta
 	queue_redraw()
 
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
-	draw_rect(r, Color("0A0F15"), true)
-	draw_rect(r, Color(0.72,0.78,0.86,0.07), false, 1.0)
+	if r.size.x < 2.0 or r.size.y < 2.0:
+		return
 
-	# editorial stripe
-	draw_rect(Rect2(0, 0, 3, r.size.y), Color(accent.r,accent.g,accent.b,0.88), true)
-	var stripe_x := r.size.x * 0.72
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(stripe_x,0), Vector2(r.size.x,0), Vector2(r.size.x,r.size.y*0.42), Vector2(stripe_x-14,0)
-	]), Color(accent.r,accent.g,accent.b,0.07))
+	# Layered player-card body.
+	for index in range(14):
+		var t := float(index) / 13.0
+		var c := Color("111923").lerp(Color("070A0F"), t)
+		c = c.lerp(Color(accent.r * 0.24, accent.g * 0.24, accent.b * 0.24, 1.0), (1.0 - t) * 0.08)
+		var h := r.size.y / 14.0 + 1.0
+		draw_rect(Rect2(0, float(index) * r.size.y / 14.0, r.size.x, h), c, true)
 
-	var skin := Color("B8A18D").lerp(Color("735A4B"), float(seed % 100) / 130.0)
-	var hair := Color("15191E").lerp(Color("4A352A"), float((seed / 7) % 100) / 160.0)
-	var jersey := Color("151D27").lerp(Color(accent.r*0.42, accent.g*0.42, accent.b*0.42, 1.0), 0.35)
-
-	var cx := r.size.x * 0.51
-	var head_y := r.size.y * 0.31
-	var head_r := r.size.x * 0.16
-
-	# shoulders / jersey silhouette
-	var shoulder_y := r.size.y * 0.62
-	var body := PackedVector2Array([
-		Vector2(r.size.x*0.14, r.size.y),
-		Vector2(r.size.x*0.20, shoulder_y),
-		Vector2(cx-11, shoulder_y-7),
-		Vector2(cx+11, shoulder_y-7),
-		Vector2(r.size.x*0.82, shoulder_y),
-		Vector2(r.size.x*0.90, r.size.y)
+	# Editorial diagonal block.
+	var wedge := PackedVector2Array([
+		Vector2(r.size.x * 0.54, 0),
+		Vector2(r.size.x, 0),
+		Vector2(r.size.x, r.size.y * 0.68),
+		Vector2(r.size.x * 0.70, r.size.y * 0.55),
 	])
-	draw_colored_polygon(body, jersey)
-	draw_line(Vector2(r.size.x*0.20, shoulder_y), Vector2(r.size.x*0.82, shoulder_y), Color(accent.r,accent.g,accent.b,0.24), 1.0)
+	draw_colored_polygon(wedge, Color(accent.r, accent.g, accent.b, 0.085))
+	draw_line(Vector2(3, 0), Vector2(3, r.size.y), Color(accent.r, accent.g, accent.b, 0.82), 3.0)
 
-	# neck
-	draw_rect(Rect2(cx-6, head_y+head_r*0.65, 12, 13), skin.darkened(0.06), true)
+	# Large initials watermark creates identity without fake-realistic faces.
+	var initials := player_name.left(2).to_upper()
+	var watermark_size := int(clampf(r.size.x * 0.42, 18.0, 38.0))
+	var mark_width := APP_FONT.get_string_size(initials, HORIZONTAL_ALIGNMENT_LEFT, -1, watermark_size).x
+	draw_string(APP_FONT, Vector2(r.size.x - mark_width - 6, r.size.y * 0.28), initials, HORIZONTAL_ALIGNMENT_LEFT, -1, watermark_size, Color(1, 1, 1, 0.055))
 
-	# head
-	draw_circle(Vector2(cx, head_y), head_r, skin)
+	# Abstract esports athlete silhouette: deliberate, graphic, not pseudo-realistic.
+	var center_x := r.size.x * 0.50
+	var head_center := Vector2(center_x, r.size.y * 0.31)
+	var head_radius := minf(r.size.x, r.size.y) * 0.105
+	var skin := Color("9B887A").lerp(Color("67564D"), float(seed % 100) / 130.0)
+	var jersey := Color("18212B").lerp(Color(accent.r * 0.35, accent.g * 0.35, accent.b * 0.35, 1.0), 0.22)
 
-	# hair variation
-	var hair_drop := 0.22 + float(seed % 6) * 0.035
+	# Shoulders and jersey use sharp sport-card geometry.
+	var shoulders := PackedVector2Array([
+		Vector2(r.size.x * 0.12, r.size.y),
+		Vector2(r.size.x * 0.18, r.size.y * 0.67),
+		Vector2(center_x - head_radius * 1.1, r.size.y * 0.59),
+		Vector2(center_x + head_radius * 1.1, r.size.y * 0.59),
+		Vector2(r.size.x * 0.82, r.size.y * 0.67),
+		Vector2(r.size.x * 0.90, r.size.y),
+	])
+	draw_colored_polygon(shoulders, jersey)
+
+	# Jersey panels and sponsor-like identity bars.
+	draw_line(Vector2(r.size.x * 0.23, r.size.y * 0.71), Vector2(r.size.x * 0.77, r.size.y * 0.71), Color(accent.r, accent.g, accent.b, 0.38), 1.5)
+	draw_rect(Rect2(center_x - 12, r.size.y * 0.76, 24, 3), Color(accent.r, accent.g, accent.b, 0.22), true)
+	draw_rect(Rect2(center_x - 8, r.size.y * 0.82, 16, 2), Color(1, 1, 1, 0.10), true)
+
+	# Neck and clean silhouette head.
+	draw_rect(Rect2(center_x - head_radius * 0.38, head_center.y + head_radius * 0.62, head_radius * 0.76, head_radius * 1.10), skin.darkened(0.08), true)
+	draw_circle(head_center, head_radius, skin)
+
+	# Hair is intentionally graphic.
+	var hair := Color("15191F").lerp(Color("3A2D28"), float((seed / 7) % 100) / 180.0)
 	var hair_poly := PackedVector2Array([
-		Vector2(cx-head_r, head_y-1),
-		Vector2(cx-head_r*0.72, head_y-head_r*0.90),
-		Vector2(cx+head_r*0.18, head_y-head_r*1.07),
-		Vector2(cx+head_r, head_y-head_r*0.42),
-		Vector2(cx+head_r*0.84, head_y-head_r*0.05),
-		Vector2(cx-head_r*0.82, head_y+head_r*hair_drop)
+		Vector2(head_center.x - head_radius, head_center.y - head_radius * 0.10),
+		Vector2(head_center.x - head_radius * 0.70, head_center.y - head_radius * 0.92),
+		Vector2(head_center.x + head_radius * 0.10, head_center.y - head_radius * 1.08),
+		Vector2(head_center.x + head_radius, head_center.y - head_radius * 0.52),
+		Vector2(head_center.x + head_radius * 0.82, head_center.y + head_radius * 0.05),
+		Vector2(head_center.x - head_radius * 0.84, head_center.y + head_radius * 0.18),
 	])
 	draw_colored_polygon(hair_poly, hair)
 
-	# headset
-	draw_arc(Vector2(cx, head_y), head_r*1.18, PI+0.30, TAU-0.30, 26, Color("3C4858"), 2.0)
-	draw_rect(Rect2(cx-head_r*1.20, head_y-1, 3, 9), Color("536274"), true)
-	draw_rect(Rect2(cx+head_r*1.03, head_y-1, 3, 9), Color("536274"), true)
+	# Headset gives esports context without tiny facial details.
+	draw_arc(head_center, head_radius * 1.20, PI + 0.28, TAU - 0.28, 28, Color("596879"), 2.0)
+	draw_rect(Rect2(head_center.x - head_radius * 1.23, head_center.y - 1, 3.5, head_radius * 0.95), Color("455464"), true)
+	draw_rect(Rect2(head_center.x + head_radius * 1.02, head_center.y - 1, 3.5, head_radius * 0.95), Color("455464"), true)
 
-	# face indications
-	draw_line(Vector2(cx-head_r*0.42, head_y+1), Vector2(cx-head_r*0.16, head_y+1), Color(0.12,0.11,0.10,0.50), 1.0)
-	draw_line(Vector2(cx+head_r*0.16, head_y+1), Vector2(cx+head_r*0.42, head_y+1), Color(0.12,0.11,0.10,0.50), 1.0)
-	draw_line(Vector2(cx-head_r*0.18, head_y+head_r*0.45), Vector2(cx+head_r*0.20, head_y+head_r*0.45), Color(0.18,0.13,0.12,0.35), 1.0)
+	# Soft rim light.
+	var rim := 0.32 + sin(time_value * 0.7) * 0.04
+	draw_arc(head_center, head_radius * 1.03, -1.65, 0.35, 22, Color(accent.r, accent.g, accent.b, rim), 1.1)
 
-	# tiny jersey identity
-	var font := ThemeDB.fallback_font
-	var initials := player_name.left(2).to_upper()
-	draw_string(font, Vector2(7, r.size.y-7), initials, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.86,0.90,0.95,0.70))
+	# Lower identity strip.
+	draw_rect(Rect2(0, r.size.y - 18, r.size.x, 18), Color(0.015, 0.020, 0.028, 0.82), true)
+	var display_name := player_name.to_upper()
+	var font_size := 8 if display_name.length() <= 10 else 7
+	draw_string(APP_FONT, Vector2(8, r.size.y - 6), display_name, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 16, font_size, Color(0.90, 0.93, 0.97, 0.86))
+
+	# Minimal frame, no rounded-card outline.
+	draw_line(Vector2(0, 0), Vector2(r.size.x, 0), Color(1, 1, 1, 0.06), 1.0)
+	draw_line(Vector2(r.size.x - 1, 0), Vector2(r.size.x - 1, r.size.y), Color(1, 1, 1, 0.035), 1.0)
