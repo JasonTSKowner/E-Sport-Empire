@@ -18,22 +18,22 @@ const TRAINING_FATIGUE_LIMIT := 80
 const MATCH_ACTIONS := [
 	{
 		"key": "press",
-		"label": "HIGH PRESS",
-		"detail": "Take space immediately. Strong against CONTROL. Costs 18 boost.",
+		"label": "HOHER DRUCK",
+		"detail": "Sofort Raum nehmen. Stark gegen CONTROL. Kostet 18 Boost.",
 		"boost_delta": -18,
 		"minimum_boost": 18,
 	},
 	{
 		"key": "control",
-		"label": "BOOST CONTROL",
-		"detail": "Keep possession and recharge. Strong against COUNTER. Gains 18 boost.",
+		"label": "BOOST-KONTROLLE",
+		"detail": "Ballbesitz halten und Boost laden. Stark gegen KONTER. Gibt 18 Boost.",
 		"boost_delta": 18,
 		"minimum_boost": 0,
 	},
 	{
 		"key": "counter",
-		"label": "FAST COUNTER",
-		"detail": "Absorb pressure, then attack the open field. Strong against PRESS. Costs 10 boost.",
+		"label": "SCHNELLER KONTER",
+		"detail": "Druck aufnehmen und ins offene Feld kontern. Stark gegen PRESS. Kostet 10 Boost.",
 		"boost_delta": -10,
 		"minimum_boost": 10,
 	},
@@ -47,16 +47,16 @@ const TACTIC_COUNTER := {
 
 const MATCH_SITUATIONS := {
 	"press": {
-		"title": "OPPONENT: HIGH PRESS",
-		"read": "They commit early, challenge fast and try to starve your boost.",
+		"title": "GEGNER: HOHER DRUCK",
+		"read": "Sie committen früh, challengen schnell und wollen deinen Boost kontrollieren.",
 	},
 	"control": {
-		"title": "OPPONENT: SLOW CONTROL",
-		"read": "They protect possession and wait for your rotation to open.",
+		"title": "GEGNER: LANGSAME KONTROLLE",
+		"read": "Sie halten Ballbesitz und warten auf eine offene Rotation.",
 	},
 	"counter": {
-		"title": "OPPONENT: LOW BLOCK",
-		"read": "They invite pressure and look for one fast counterattack.",
+		"title": "GEGNER: TIEFER BLOCK",
+		"read": "Sie lassen Druck zu und suchen den schnellen Konter.",
 	},
 }
 
@@ -211,7 +211,7 @@ func _award_career_xp(amount: int) -> Dictionary:
 		"level_before": int(before.get("level", 1)),
 		"level_after": int(after.get("level", 1)),
 		"level_up": int(after.get("level", 1)) > int(before.get("level", 1)),
-		"level_name": str(after.get("name", "Unknown Grinder")),
+		"level_name": str(after.get("name", "Unbekannter Grinder")),
 	}
 
 
@@ -222,12 +222,12 @@ func club_identity() -> Dictionary:
 func set_club_identity(identity_id: String) -> Dictionary:
 	var identity := CareerDataRef.identity(identity_id)
 	if str(identity.get("id", "")) != identity_id:
-		return {"ok": false, "message": "Unknown club identity."}
+		return {"ok": false, "message": "Unbekannte Vereins-DNA."}
 	data["club_identity"] = identity_id
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s is now the club DNA." % str(identity.get("name", "Club identity")),
+		"message": "%s ist jetzt die Vereins-DNA." % str(identity.get("name", "Vereins-DNA")),
 	}
 
 
@@ -245,10 +245,10 @@ func team_scrim(mode: String) -> Dictionary:
 	apply_real_time_fatigue_recovery(false)
 	var roster := roster_for(mode)
 	if roster.size() < 2:
-		return {"ok": false, "message": "A team scrim needs at least two active players."}
+		return {"ok": false, "message": "Für einen Team-Scrim brauchst du mindestens zwei aktive Spieler."}
 	var cost := scrim_cost(mode)
 	if int(data.get("cash", 0)) < cost:
-		return {"ok": false, "message": "You need %s for a team scrim." % GameDataRef.format_cash(cost)}
+		return {"ok": false, "message": "Du brauchst %s für einen Team-Scrim." % GameDataRef.format_cash(cost)}
 	var before := team_chemistry(mode)
 	var gain := (
 		5
@@ -257,7 +257,7 @@ func team_scrim(mode: String) -> Dictionary:
 	)
 	var after := mini(100, before + gain)
 	if after <= before:
-		return {"ok": false, "message": "Team chemistry is already maxed."}
+		return {"ok": false, "message": "Die Teamchemie ist bereits maximal."}
 	data["cash"] = int(data.get("cash", 0)) - cost
 	data["team_chemistry"][mode] = after
 	for player in roster:
@@ -267,7 +267,7 @@ func team_scrim(mode: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "Team scrim complete: +%d chemistry, +8 Career XP for %s."
+		"message": "Team-Scrim beendet: +%d Chemie, +8 Karriere-XP für %s."
 		% [after - before, GameDataRef.format_cash(cost)],
 		"cost": cost,
 		"gain": after - before,
@@ -369,12 +369,12 @@ func claimable_milestone_count() -> int:
 func claim_career_milestone(milestone_id: String) -> Dictionary:
 	var definition := CareerDataRef.milestone(milestone_id)
 	if definition.is_empty():
-		return {"ok": false, "message": "Unknown career milestone."}
+		return {"ok": false, "message": "Unbekannter Karrieremeilenstein."}
 	var claimed: Array = data.get("claimed_milestones", [])
 	if milestone_id in claimed:
-		return {"ok": false, "message": "That milestone reward was already claimed."}
+		return {"ok": false, "message": "Diese Meilenstein-Belohnung wurde bereits abgeholt."}
 	if career_milestone_progress(definition) < int(definition.get("target", 1)):
-		return {"ok": false, "message": "That career milestone is not complete yet."}
+		return {"ok": false, "message": "Dieser Karrieremeilenstein ist noch nicht abgeschlossen."}
 	var cash_reward := int(definition.get("cash", 0))
 	var xp_reward := int(definition.get("xp", 0))
 	data["cash"] = int(data.get("cash", 0)) + cash_reward
@@ -384,10 +384,10 @@ func claim_career_milestone(milestone_id: String) -> Dictionary:
 	save_game()
 	var level_suffix := ""
 	if bool(career_reward.get("level_up", false)):
-		level_suffix = " Level up: %s." % str(career_reward.get("level_name", "New level"))
+		level_suffix = " Level-Up: %s." % str(career_reward.get("level_name", "Neues Level"))
 	return {
 		"ok": true,
-		"message": "%s claimed: +%s and +%d Career XP.%s"
+		"message": "%s abgeholt: +%s und +%d Karriere-XP.%s"
 		% [
 			str(definition.get("label", "Milestone")),
 			GameDataRef.format_cash(cash_reward),
@@ -466,16 +466,16 @@ func staff_level(role_id: String) -> int:
 func hire_staff(candidate_id: String) -> Dictionary:
 	var candidate := DynastyDataRef.staff_candidate(candidate_id)
 	if candidate.is_empty():
-		return {"ok": false, "message": "That staff candidate is unavailable."}
+		return {"ok": false, "message": "Dieser Mitarbeiter ist nicht mehr verfügbar."}
 	var role_id := str(candidate.get("role", ""))
 	var current := staff_member(role_id)
 	if str(current.get("id", "")) == candidate_id:
-		return {"ok": false, "message": "%s already works for the club." % str(candidate.get("name", "Staff member"))}
+		return {"ok": false, "message": "%s arbeitet bereits für den Verein." % str(candidate.get("name", "Mitarbeiter"))}
 	if int(current.get("level", 0)) >= int(candidate.get("level", 0)):
-		return {"ok": false, "message": "This hire would not improve the current department."}
+		return {"ok": false, "message": "Diese Einstellung würde die Abteilung nicht verbessern."}
 	var fee := int(candidate.get("fee", 0))
 	if int(data.get("cash", 0)) < fee:
-		return {"ok": false, "message": "You need %s to complete that staff signing." % GameDataRef.format_cash(fee)}
+		return {"ok": false, "message": "Du brauchst %s für diese Einstellung." % GameDataRef.format_cash(fee)}
 	data["cash"] = int(data.get("cash", 0)) - fee
 	data["staff"][role_id] = candidate.duplicate(true)
 	data["staff_hires"] = int(data.get("staff_hires", 0)) + 1
@@ -484,9 +484,9 @@ func hire_staff(candidate_id: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s joined as %s. Department level %d is now active."
+		"message": "%s kommt als %s. Abteilungslevel %d ist jetzt aktiv."
 		% [
-			str(candidate.get("name", "Staff member")),
+			str(candidate.get("name", "Mitarbeiter")),
 			str(DynastyDataRef.staff_role(role_id).get("name", "Staff")),
 			int(candidate.get("level", 1)),
 		],
@@ -518,15 +518,15 @@ func sponsor_contract_offers() -> Array:
 
 func accept_sponsor_contract(contract_id: String) -> Dictionary:
 	if not data.get("active_sponsor", {}).is_empty():
-		return {"ok": false, "message": "Finish the active sponsor deal before signing another."}
+		return {"ok": false, "message": "Beende zuerst den aktiven Sponsorvertrag."}
 	var contract := DynastyDataRef.sponsor_contract(contract_id)
 	if contract.is_empty():
-		return {"ok": false, "message": "That sponsor offer is unavailable."}
+		return {"ok": false, "message": "Dieses Sponsorangebot ist nicht mehr verfügbar."}
 	if (
 		int(data.get("reputation", 0)) < int(contract.get("min_reputation", 0))
 		or int(data.get("fans", 0)) < int(contract.get("min_fans", 0))
 	):
-		return {"ok": false, "message": "The club does not meet this sponsor's requirements yet."}
+		return {"ok": false, "message": "Der Verein erfüllt die Sponsor-Voraussetzungen noch nicht."}
 	var multiplier := sponsor_income_multiplier()
 	var upfront := int(round(float(contract.get("upfront", 0)) * multiplier))
 	data["cash"] = int(data.get("cash", 0)) + upfront
@@ -541,7 +541,7 @@ func accept_sponsor_contract(contract_id: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s signed: +%s guaranteed upfront. Every condition is visible."
+		"message": "%s unterschrieben: +%s garantiert sofort. Alle Bedingungen sind sichtbar."
 		% [str(contract.get("brand", "Sponsor")), GameDataRef.format_cash(upfront)],
 		"upfront": upfront,
 		"career": career_reward,
@@ -618,13 +618,13 @@ func season_objectives() -> Array:
 func claim_season_objective(objective_id: String) -> Dictionary:
 	var definition := DynastyDataRef.season_objective(objective_id)
 	if definition.is_empty():
-		return {"ok": false, "message": "Unknown season objective."}
+		return {"ok": false, "message": "Unbekanntes Saisonziel."}
 	var claimed: Array = data.get("claimed_season_objectives", [])
 	if objective_id in claimed:
-		return {"ok": false, "message": "That season objective was already claimed."}
+		return {"ok": false, "message": "Dieses Saisonziel wurde bereits abgeholt."}
 	var progress := int(data.get("season_stats", {}).get(str(definition.get("key", "")), 0))
 	if progress < int(definition.get("target", 1)):
-		return {"ok": false, "message": "That season objective is not complete yet."}
+		return {"ok": false, "message": "Dieses Saisonziel ist noch nicht abgeschlossen."}
 	var cash_reward := int(definition.get("cash", 0))
 	data["cash"] = int(data.get("cash", 0)) + cash_reward
 	claimed.append(objective_id)
@@ -633,7 +633,7 @@ func claim_season_objective(objective_id: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s claimed: +%s and +%d Career XP."
+		"message": "%s abgeholt: +%s und +%d Karriere-XP."
 		% [
 			str(definition.get("label", "Objective")),
 			GameDataRef.format_cash(cash_reward),
@@ -666,20 +666,20 @@ func pro_circuit_events() -> Array:
 func start_pro_circuit(event_id: String) -> Dictionary:
 	var current: Dictionary = data.get("pro_circuit", {})
 	if bool(current.get("active", false)):
-		return {"ok": false, "message": "Finish the active Pro Circuit bracket first."}
+		return {"ok": false, "message": "Beende zuerst den aktiven Pro-Circuit-Turnierbaum."}
 	var event := DynastyDataRef.circuit_event(event_id)
 	if event.is_empty():
-		return {"ok": false, "message": "Unknown Pro Circuit event."}
+		return {"ok": false, "message": "Unbekanntes Pro-Circuit-Event."}
 	var format := selected_rl_playlist()
 	if not can_queue_playlist(format):
-		return {"ok": false, "message": "%s needs %d active players." % [format, playlist_required_players(format)]}
+		return {"ok": false, "message": "%s braucht %d aktive Spieler." % [format, playlist_required_players(format)]}
 	var played := int(playlist_record(format).get("played", 0))
 	if (
 		played < int(event.get("min_matches", 0))
 		or career_level() < int(event.get("min_level", 1))
 		or int(data.get("reputation", 0)) < int(event.get("min_reputation", 0))
 	):
-		return {"ok": false, "message": "The club does not meet this event's entry requirements."}
+		return {"ok": false, "message": "Der Verein erfüllt die Teilnahmebedingungen noch nicht."}
 	var pool := DynastyDataRef.CIRCUIT_TEAMS.duplicate(true)
 	pool.shuffle()
 	var opponents: Array = []
@@ -701,7 +701,7 @@ func start_pro_circuit(event_id: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s bracket created. Quarterfinal opponent: %s."
+		"message": "%s gestartet. Viertelfinal-Gegner: %s."
 		% [str(event.get("name", "Pro Circuit")), str(opponents[0].get("name", "Opponent"))],
 	}
 
@@ -728,7 +728,7 @@ func prepare_pro_circuit_match() -> Dictionary:
 	var opponent: Dictionary = opponents[stage]
 	var event := DynastyDataRef.circuit_event(str(circuit.get("event_id", "open_circuit")))
 	var strength_add := float(event.get("strength_mod", 0.0)) + float(opponent.get("strength", 0.0)) + float(stage) * 1.5
-	session["opponent"] = str(opponent.get("name", "Circuit Opponent"))
+	session["opponent"] = str(opponent.get("name", "Turniergegner"))
 	session["opponent_mmr"] = maxi(0, int(session.get("mmr_before", 100)) + int(round(strength_add * 24.0)))
 	session["opponent_strength"] = clampf(float(session.get("player_strength", 50.0)) + strength_add, 32.0, 99.0)
 	session["opponent_profile"] = {
@@ -824,14 +824,14 @@ func equip_title(title_id: String) -> Dictionary:
 		if str(title.get("id", "")) == title_id:
 			data["equipped_title_id"] = title_id
 			save_game()
-			return {"ok": true, "message": "%s equipped." % str(title.get("label", "Title"))}
-	return {"ok": false, "message": "That title has not been earned."}
+			return {"ok": true, "message": "%s ausgerüstet." % str(title.get("label", "Title"))}
+	return {"ok": false, "message": "Diesen Titel hast du noch nicht verdient."}
 
 
 func clear_equipped_title() -> Dictionary:
 	data["equipped_title_id"] = ""
 	save_game()
-	return {"ok": true, "message": "Title unequipped."}
+	return {"ok": true, "message": "Titel abgelegt."}
 
 
 func _grant_title(title: Dictionary) -> bool:
@@ -998,13 +998,13 @@ func facility_cost(key: String) -> int:
 
 func buy_facility(key: String) -> Dictionary:
 	if not GameDataRef.FACILITIES.has(key):
-		return {"ok": false, "message": "Unknown facility."}
+		return {"ok": false, "message": "Unbekannte Einrichtung."}
 	var level := facility_level(key)
 	if level >= 10:
-		return {"ok": false, "message": "This facility is already max level."}
+		return {"ok": false, "message": "Diese Einrichtung ist bereits auf Max-Level."}
 	var cost := facility_cost(key)
 	if int(data["cash"]) < cost:
-		return {"ok": false, "message": "Not enough cash for this upgrade."}
+		return {"ok": false, "message": "Nicht genug Geld für dieses Upgrade."}
 	data["cash"] = int(data["cash"]) - cost
 	data["facilities"][key] = level + 1
 	data["reputation"] = int(data["reputation"]) + 1
@@ -1012,7 +1012,7 @@ func buy_facility(key: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s reached level %d. +18 Career XP."
+		"message": "%s erreicht Level %d. +18 Karriere-XP."
 		% [GameDataRef.FACILITIES[key]["name"], level + 1],
 		"career": career_reward,
 	}
@@ -1105,16 +1105,16 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 	apply_real_time_fatigue_recovery(false)
 	var player := _find_player(player_id)
 	if player.is_empty():
-		return {"ok": false, "message": "Player not found."}
+		return {"ok": false, "message": "Spieler nicht gefunden."}
 	var program := DevelopmentDataRef.program(program_id)
 	if program.is_empty():
-		return {"ok": false, "message": "Unknown development program."}
+		return {"ok": false, "message": "Unbekanntes Trainingsprogramm."}
 	var readiness := training_readiness(player)
 	if not bool(readiness.get("ok", false)):
 		if bool(readiness.get("fatigue_blocked", false)):
 			return {
 				"ok": false,
-				"message": "%s is too fatigued for focused training. Fatigue must drop below %d."
+				"message": "%s ist zu müde für Fokustraining. Müdigkeit muss unter %d fallen."
 				% [str(player.get("name", "Player")), TRAINING_FATIGUE_LIMIT],
 				"readiness": readiness,
 			}
@@ -1124,7 +1124,7 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 		)
 		return {
 			"ok": false,
-			"message": "Focused training limit reached. Next session opens in about %d min."
+			"message": "Fokustraining-Limit erreicht. Nächste Einheit in etwa %d Min."
 			% wait_minutes,
 			"readiness": readiness,
 		}
@@ -1132,7 +1132,7 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 	if int(data["cash"]) < cost:
 		return {
 			"ok": false,
-			"message": "You need %s for %s."
+			"message": "Du brauchst %s für %s."
 			% [GameDataRef.format_cash(cost), str(program.get("label", "training"))],
 		}
 	var potential := int(player.get("potential", 99))
@@ -1148,7 +1148,7 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 			has_development_room = true
 			break
 	if not has_development_room:
-		return {"ok": false, "message": "This program cannot push the player beyond their potential."}
+		return {"ok": false, "message": "Dieses Training kann den Spieler nicht über sein Potenzial bringen."}
 	var coaching := facility_level("coaching")
 	var primary := str(program.get("primary", ""))
 	var breakthrough_chance := training_breakthrough_chance()
@@ -1200,17 +1200,17 @@ func train_player(player_id: String, program_id: String = "mechanics_lab") -> Di
 		var unlock_names: Array[String] = []
 		for move_value in new_mechanics:
 			var move: Dictionary = move_value
-			unlock_names.append(str(move.get("label", "New mechanic")))
-		unlock_suffix = " • UNLOCKED: %s" % ", ".join(unlock_names)
+			unlock_names.append(str(move.get("label", "Neue Mechanik")))
+		unlock_suffix = " • FREIGESCHALTET: %s" % ", ".join(unlock_names)
 	return {
 		"ok": true,
-		"message": "%s completed %s for %s: %s%s. +6 Career XP."
+		"message": "%s beendet %s für %s: %s%s. +6 Karriere-XP."
 		% [
 			player["name"],
 			str(program.get("label", "training")),
 			GameDataRef.format_cash(cost),
 			", ".join(gain_parts),
-			(" + breakthrough" if breakthrough else "") + unlock_suffix,
+			(" + Durchbruch" if breakthrough else "") + unlock_suffix,
 		],
 		"program": program_id,
 		"cost": cost,
@@ -1313,14 +1313,14 @@ func generate_coaching_market() -> Dictionary:
 			"free": is_free,
 		})
 	data["coaching_market"] = offers
-	return {"ok": true, "message": "A fresh coaching board is available.", "offers": offers}
+	return {"ok": true, "message": "Neue Coaching-Angebote sind verfügbar.", "offers": offers}
 
 
 func book_coaching_session(offer_id: String, player_id: String) -> Dictionary:
 	apply_real_time_fatigue_recovery(false)
 	var player := _find_player(player_id)
 	if player.is_empty():
-		return {"ok": false, "message": "Player not found."}
+		return {"ok": false, "message": "Spieler nicht gefunden."}
 	var offer: Dictionary = {}
 	for offer_value in data.get("coaching_market", []):
 		var candidate: Dictionary = offer_value
@@ -1328,18 +1328,18 @@ func book_coaching_session(offer_id: String, player_id: String) -> Dictionary:
 			offer = candidate
 			break
 	if offer.is_empty():
-		return {"ok": false, "message": "That coach is no longer on the board."}
+		return {"ok": false, "message": "Dieser Coach ist nicht mehr verfügbar."}
 	var stat_key := str(offer.get("specialty", "mechanics"))
 	var potential := int(player.get("potential", 99))
 	if int(player.get(stat_key, 50)) >= potential:
 		return {
 			"ok": false,
-			"message": "%s has already reached their potential in %s."
-			% [str(player.get("name", "Player")), str(offer.get("specialty_label", "this stat"))],
+			"message": "%s hat sein Potenzial bei %s bereits erreicht."
+			% [str(player.get("name", "Player")), str(offer.get("specialty_label", "diesem Wert"))],
 		}
 	var cost := int(offer.get("price", 0))
 	if int(data.get("cash", 0)) < cost:
-		return {"ok": false, "message": "You need %s for this coaching session." % GameDataRef.format_cash(cost)}
+		return {"ok": false, "message": "Du brauchst %s für diese Coaching-Session." % GameDataRef.format_cash(cost)}
 	var bonus_chance := float(offer.get("bonus_chance", 0.10))
 	var bonus_hit := rng.randf() < bonus_chance
 	var requested_gain := int(offer.get("guaranteed_gain", 1))
@@ -1361,7 +1361,7 @@ func book_coaching_session(offer_id: String, player_id: String) -> Dictionary:
 		"kind": "coaching",
 		"timestamp": real_time_now(),
 		"program": "",
-		"label": "%s coaching" % str(offer.get("rank_label", "Ranked")),
+		"label": "%s-Coaching" % str(offer.get("rank_label", "Ranked")),
 		"cost": cost,
 		"gains": {stat_key: applied_gain},
 	})
@@ -1377,13 +1377,13 @@ func book_coaching_session(offer_id: String, player_id: String) -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s coached %s: +%d %s%s. +8 Career XP."
+		"message": "%s coacht %s: +%d %s%s. +8 Karriere-XP."
 		% [
 			str(offer.get("name", "Coach")),
 			str(player.get("name", "Player")),
 			applied_gain,
 			str(offer.get("specialty_label", stat_key)),
-			" (bonus hit)" if bonus_hit else "",
+			" (Bonus getroffen)" if bonus_hit else "",
 		],
 		"cost": cost,
 		"gain": applied_gain,
@@ -1405,7 +1405,7 @@ func next_mechanic(player: Dictionary) -> Dictionary:
 func generate_market(charge: bool = true) -> Dictionary:
 	var cost := 5
 	if charge and int(data["cash"]) < cost:
-		return {"ok": false, "message": "You need €5 for a fresh scouting search."}
+		return {"ok": false, "message": "Du brauchst €5 für eine neue Scouting-Suche."}
 	if charge:
 		data["cash"] = int(data["cash"]) - cost
 	var scouting := facility_level("scouting")
@@ -1442,7 +1442,7 @@ func generate_market(charge: bool = true) -> Dictionary:
 	data["market"] = prospects
 	if charge:
 		save_game()
-	return {"ok": true, "message": "Fresh amateur scouting reports are ready."}
+	return {"ok": true, "message": "Neue Amateur-Scoutingberichte sind bereit."}
 
 
 func scouting_elite_potential_chance() -> float:
@@ -1469,10 +1469,10 @@ func sign_player(prospect_id: String) -> Dictionary:
 			prospect = candidate
 			break
 	if prospect.is_empty():
-		return {"ok": false, "message": "This prospect is no longer available."}
+		return {"ok": false, "message": "Dieses Talent ist nicht mehr verfügbar."}
 	var cost := int(prospect.get("contract", 0))
 	if int(data["cash"]) < cost:
-		return {"ok": false, "message": "Not enough cash for this contract."}
+		return {"ok": false, "message": "Nicht genug Geld für diesen Vertrag."}
 	var mode := str(prospect["mode"])
 	var current := roster_for(mode)
 	var replaced := ""
@@ -1490,10 +1490,10 @@ func sign_player(prospect_id: String) -> Dictionary:
 	var chemistry_change := _change_team_chemistry(mode, -7)
 	var career_reward := _award_career_xp(20)
 	save_game()
-	var message := "%s signed for the %s division." % [signed["name"], mode]
+	var message := "%s unterschreibt für den Bereich %s." % [signed["name"], mode]
 	if not replaced.is_empty():
-		message += " %s was released." % replaced
-	message += " Chemistry %d. +20 Career XP." % chemistry_change
+		message += " %s wurde entlassen." % replaced
+	message += " Chemie %d. +20 Karriere-XP." % chemistry_change
 	return {
 		"ok": true,
 		"message": message,
@@ -1512,9 +1512,9 @@ func sponsor_seconds_left() -> int:
 
 func collect_sponsor() -> Dictionary:
 	if not sponsor_eligible():
-		return {"ok": false, "message": "No sponsor is interested yet. Build attention first."}
+		return {"ok": false, "message": "Noch kein Sponsor ist interessiert. Erzeuge zuerst Aufmerksamkeit."}
 	if not sponsor_ready():
-		return {"ok": false, "message": "The next sponsor activation is not ready yet."}
+		return {"ok": false, "message": "Die nächste Sponsor-Aktivierung ist noch nicht bereit."}
 	var reward := 35 + int(data["reputation"]) * 3 + facility_level("hq") * 15
 	var fan_reward := 8 + facility_level("studio") * 3
 	data["cash"] = int(data["cash"]) + reward
@@ -1524,7 +1524,7 @@ func collect_sponsor() -> Dictionary:
 	save_game()
 	return {
 		"ok": true,
-		"message": "Small sponsor activation: +%s, +%d fans and +10 Career XP."
+		"message": "Kleine Sponsor-Aktivierung: +%s, +%d Fans und +10 Karriere-XP."
 		% [GameDataRef.format_cash(reward), fan_reward],
 		"career": career_reward,
 	}
@@ -1552,7 +1552,7 @@ func prepare_match(mode: String) -> Dictionary:
 	apply_real_time_fatigue_recovery(false)
 	var roster := roster_for(mode)
 	if roster.is_empty():
-		return {"ok": false, "message": "You need at least one active player before queueing."}
+		return {"ok": false, "message": "Du brauchst mindestens einen aktiven Spieler für die Queue."}
 	var format := match_format(mode)
 	if mode == "Rocket League" and not can_queue_playlist(format):
 		return {
@@ -1782,19 +1782,19 @@ func match_action_odds(session: Dictionary, action: String) -> Dictionary:
 
 func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 	if bool(session.get("resolved", false)):
-		return {"ok": false, "message": "This match is already complete."}
+		return {"ok": false, "message": "Dieses Spiel ist bereits beendet."}
 	var action_definition: Dictionary = _match_action_definition(action)
 	if action_definition.is_empty():
-		return {"ok": false, "message": "Unknown tactical call."}
+		return {"ok": false, "message": "Unbekannte Taktik."}
 	if not can_play_match_action(session, action):
-		return {"ok": false, "message": "Not enough tactical boost for that call. Use BOOST CONTROL to recharge."}
+		return {"ok": false, "message": "Nicht genug Boost für diese Taktik."}
 	var situation: Dictionary = current_match_situation(session)
 	if situation.is_empty():
-		return {"ok": false, "message": "The match situation could not be loaded."}
+		return {"ok": false, "message": "Die Spielsituation konnte nicht geladen werden."}
 	var opponent_action := str(situation["opponent_action"])
 	var odds := match_action_odds(session, action)
 	if odds.is_empty():
-		return {"ok": false, "message": "The odds for that tactical call could not be calculated."}
+		return {"ok": false, "message": "Die Wahrscheinlichkeiten konnten nicht berechnet werden."}
 	var tactical_edge := int(odds.get("tactical_edge", 0))
 	var repeated_call := bool(odds.get("repeated", false))
 	var boost_before := int(session.get("boost", 45))
@@ -1817,28 +1817,28 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 	var our_score := score_before_ours + our_goal
 	var their_score := score_before_theirs + their_goal
 	var event_type := "neutral"
-	var event_text := "Both teams trade pressure without giving up the goal."
+	var event_text := "Beide Teams tauschen Druckphasen aus, ohne ein Tor zuzulassen."
 	if our_goal > 0:
 		event_type = "good"
 		var signature_text := _signature_goal_text(str(session.get("mode", "Rocket League")))
 		if not signature_text.is_empty():
 			event_text = signature_text
 		elif action == "press":
-			event_text = "Your press forces a rushed touch and TSK converts."
+			event_text = "Dein Druck erzwingt einen schlechten Touch und TSK trifft."
 		elif action == "control":
-			event_text = "Boost control creates space for a composed finish."
+			event_text = "Boost-Kontrolle schafft Raum für einen kontrollierten Abschluss."
 		else:
-			event_text = "The counter opens the field and TSK scores."
+			event_text = "Der Konter öffnet das Feld und TSK trifft."
 	elif their_goal > 0:
 		event_type = "bad"
 		if tactical_edge < 0:
-			event_text = "The opponent reads your call and punishes the rotation."
+			event_text = "Der Gegner liest die Rotation und bestraft sie."
 		else:
-			event_text = "A tight challenge falls their way and the opponent scores."
+			event_text = "Eine enge Challenge fällt an den Gegner und er trifft."
 	elif tactical_edge > 0:
-		event_text = "Perfect read. TSK controls the sequence but the shot stays out."
+		event_text = "Perfekter Read. TSK kontrolliert die Sequenz, aber der Schuss geht nicht rein."
 	elif tactical_edge < 0:
-		event_text = "The call is countered, but the defense survives the pressure."
+		event_text = "Der Spielzug wird gekontert, aber die Defensive hält."
 
 	var match_stats: Dictionary = session.get("match_stats", {})
 	if our_goal > 0:
@@ -1872,13 +1872,13 @@ func play_match_turn(session: Dictionary, action: String) -> Dictionary:
 	session["our_score"] = our_score
 	session["their_score"] = their_score
 	session["decision_score"] = int(session.get("decision_score", 0)) + tactical_edge
-	var feedback := "EVEN READ"
+	var feedback := "AUSGEGLICHEN"
 	if tactical_edge > 0:
-		feedback = "PERFECT READ"
+		feedback = "PERFEKTER READ"
 	elif tactical_edge < 0:
-		feedback = "OUTPLAYED"
+		feedback = "AUSGESPIELT"
 	if repeated_call and tactical_edge <= 0:
-		feedback = "READABLE REPEAT"
+		feedback = "ZU LESBAR"
 	var event := {
 		"time": _interactive_event_time(turn),
 		"type": event_type,
@@ -1936,7 +1936,7 @@ func _signature_goal_text(mode: String) -> String:
 	var trigger_chance := signature_move_chance(player)
 	if rng.randf() > trigger_chance:
 		return ""
-	return "%s creates the goal with %s." % [str(player.get("name", "TSK")), str(signature.get("event", "an elite mechanic"))]
+	return "%s erzielt das Tor mit %s." % [str(player.get("name", "TSK")), str(signature.get("event", "einer Elite-Mechanik"))]
 
 
 func signature_move_chance(player: Dictionary) -> float:
@@ -2181,7 +2181,7 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"career_xp": int(career_reward.get("xp", 0)),
 		"career_level_up": bool(career_reward.get("level_up", false)),
 		"career_level": career_level(),
-		"career_level_name": str(career_level_data().get("name", "Unknown Grinder")),
+		"career_level_name": str(career_level_data().get("name", "Unbekannter Grinder")),
 		"chemistry_gain": chemistry_gain,
 		"team_chemistry": team_chemistry(mode, format),
 		"rival": rival,
