@@ -4,31 +4,31 @@ extends RefCounted
 const STAFF_ROLES := [
 	{
 		"id": "head_coach",
-		"name": "Head Coach",
+		"name": "Chefcoach",
 		"short": "COACH",
 		"color": "a779ff",
-		"effect": "+0.25 team strength and +1 scrim chemistry per level.",
+		"effect": "+0,25 Teamstärke und +1 Scrim-Chemie pro Level.",
 	},
 	{
 		"id": "tactical_analyst",
-		"name": "Tactical Analyst",
+		"name": "Taktik-Analyst",
 		"short": "ANALYST",
 		"color": "2de2ff",
-		"effect": "+0.6 percentage points scoring chance per level, shown before every call.",
+		"effect": "+0,6 Prozentpunkte Torchance pro Level.",
 	},
 	{
 		"id": "performance_director",
-		"name": "Performance Director",
+		"name": "Performance-Leitung",
 		"short": "PERFORMANCE",
 		"color": "58e39b",
-		"effect": "3% training discount and +1.5 percentage points breakthrough chance per level.",
+		"effect": "3% Trainingsrabatt und +1,5 Prozentpunkte Durchbruchchance pro Level.",
 	},
 	{
 		"id": "content_director",
-		"name": "Content Director",
+		"name": "Content-Leitung",
 		"short": "CONTENT",
 		"color": "ffbf69",
-		"effect": "+10% stream reach and +5% sponsor income per level.",
+		"effect": "+10% Stream-Reichweite und +5% Sponsoreinnahmen pro Level.",
 	},
 ]
 
@@ -49,7 +49,7 @@ const STAFF_CANDIDATES := [
 		"level": 2,
 		"fee": 290,
 		"rank": "Grand Champion",
-		"specialty": "Team identity",
+		"specialty": "Teamidentität",
 	},
 	{
 		"id": "coach_sol",
@@ -58,7 +58,7 @@ const STAFF_CANDIDATES := [
 		"level": 3,
 		"fee": 620,
 		"rank": "Supersonic Legend",
-		"specialty": "Championship systems",
+		"specialty": "Championship-Systeme",
 	},
 	{
 		"id": "analyst_ivy",
@@ -67,7 +67,7 @@ const STAFF_CANDIDATES := [
 		"level": 1,
 		"fee": 100,
 		"rank": "Diamond",
-		"specialty": "Opponent tendencies",
+		"specialty": "Gegner-Tendenzen",
 	},
 	{
 		"id": "analyst_orion",
@@ -76,7 +76,7 @@ const STAFF_CANDIDATES := [
 		"level": 2,
 		"fee": 275,
 		"rank": "Grand Champion",
-		"specialty": "Live reads",
+		"specialty": "Live-Reads",
 	},
 	{
 		"id": "analyst_nyx",
@@ -85,7 +85,7 @@ const STAFF_CANDIDATES := [
 		"level": 3,
 		"fee": 590,
 		"rank": "Supersonic Legend",
-		"specialty": "Predictive analysis",
+		"specialty": "Vorausschauende Analyse",
 	},
 	{
 		"id": "performance_juno",
@@ -94,7 +94,7 @@ const STAFF_CANDIDATES := [
 		"level": 1,
 		"fee": 95,
 		"rank": "Champion",
-		"specialty": "Efficient sessions",
+		"specialty": "Effiziente Einheiten",
 	},
 	{
 		"id": "performance_kael",
@@ -103,7 +103,7 @@ const STAFF_CANDIDATES := [
 		"level": 2,
 		"fee": 260,
 		"rank": "Grand Champion",
-		"specialty": "Mechanical growth",
+		"specialty": "Mechanisches Wachstum",
 	},
 	{
 		"id": "performance_aya",
@@ -112,7 +112,7 @@ const STAFF_CANDIDATES := [
 		"level": 3,
 		"fee": 560,
 		"rank": "Supersonic Legend",
-		"specialty": "Elite development",
+		"specialty": "Elite-Entwicklung",
 	},
 	{
 		"id": "content_milo",
@@ -121,7 +121,7 @@ const STAFF_CANDIDATES := [
 		"level": 1,
 		"fee": 85,
 		"rank": "Creator",
-		"specialty": "Short-form clips",
+		"specialty": "Kurzclips",
 	},
 	{
 		"id": "content_sena",
@@ -130,7 +130,7 @@ const STAFF_CANDIDATES := [
 		"level": 2,
 		"fee": 235,
 		"rank": "Partner",
-		"specialty": "Live audience",
+		"specialty": "Live-Publikum",
 	},
 	{
 		"id": "content_echo",
@@ -139,14 +139,14 @@ const STAFF_CANDIDATES := [
 		"level": 3,
 		"fee": 520,
 		"rank": "Global",
-		"specialty": "Brand growth",
+		"specialty": "Markenwachstum",
 	},
 ]
 
 const SPONSOR_CONTRACTS := [
 	{
 		"id": "local_launch",
-		"name": "LOCAL LAUNCH",
+		"name": "LOKALER START",
 		"brand": "Nova Hydration",
 		"color": "58e39b",
 		"min_reputation": 1,
@@ -160,7 +160,7 @@ const SPONSOR_CONTRACTS := [
 	},
 	{
 		"id": "creator_push",
-		"name": "CREATOR PUSH",
+		"name": "CREATOR-PUSH",
 		"brand": "Pulse Gear",
 		"color": "2de2ff",
 		"min_reputation": 3,
@@ -174,7 +174,7 @@ const SPONSOR_CONTRACTS := [
 	},
 	{
 		"id": "pro_standard",
-		"name": "PRO STANDARD",
+		"name": "PROFI-STANDARD",
 		"brand": "Vertex Performance",
 		"color": "a779ff",
 		"min_reputation": 7,
@@ -201,7 +201,7 @@ const CIRCUIT_EVENTS := [
 		"fans": 45,
 		"xp": 140,
 		"strength_mod": -1.5,
-		"detail": "An eight-team bracket and the first real trophy path.",
+		"detail": "Ein Turnier mit acht Teams und der erste echte Weg zu einem Pokal.",
 	},
 	{
 		"id": "challenger_circuit",
@@ -215,7 +215,7 @@ const CIRCUIT_EVENTS := [
 		"fans": 110,
 		"xp": 260,
 		"strength_mod": 3.0,
-		"detail": "A stronger field with serious organization attention.",
+		"detail": "Ein stärkeres Feld mit deutlich mehr Aufmerksamkeit.",
 	},
 	{
 		"id": "elite_circuit",
@@ -229,7 +229,7 @@ const CIRCUIT_EVENTS := [
 		"fans": 260,
 		"xp": 500,
 		"strength_mod": 7.0,
-		"detail": "The hardest non-ranked event in the current build.",
+		"detail": "Das härteste Non-Ranked-Event im aktuellen Build.",
 	},
 ]
 
@@ -251,8 +251,8 @@ const CIRCUIT_TEAMS := [
 const SEASON_OBJECTIVES := [
 	{
 		"id": "season_matches",
-		"label": "SHOW UP",
-		"detail": "Play 10 competitive matches this season.",
+		"label": "ANTRETEN",
+		"detail": "Spiele diese Saison 10 Wettkampfspiele.",
 		"key": "matches",
 		"target": 10,
 		"cash": 90,
@@ -260,8 +260,8 @@ const SEASON_OBJECTIVES := [
 	},
 	{
 		"id": "season_wins",
-		"label": "WINNING RECORD",
-		"detail": "Win 5 competitive matches this season.",
+		"label": "POSITIVE BILANZ",
+		"detail": "Gewinne diese Saison 5 Wettkampfspiele.",
 		"key": "wins",
 		"target": 5,
 		"cash": 120,
@@ -269,8 +269,8 @@ const SEASON_OBJECTIVES := [
 	},
 	{
 		"id": "season_reads",
-		"label": "READ THE SERVER",
-		"detail": "Make 12 perfect tactical reads.",
+		"label": "LIES DAS SPIEL",
+		"detail": "Erreiche 12 perfekte taktische Reads.",
 		"key": "perfect_reads",
 		"target": 12,
 		"cash": 110,
@@ -278,8 +278,8 @@ const SEASON_OBJECTIVES := [
 	},
 	{
 		"id": "season_streams",
-		"label": "BUILD THE AUDIENCE",
-		"detail": "Stream 4 competitive matches.",
+		"label": "BAU DIE COMMUNITY AUF",
+		"detail": "Streame 4 Wettkampfspiele.",
 		"key": "streamed_matches",
 		"target": 4,
 		"cash": 100,
@@ -287,8 +287,8 @@ const SEASON_OBJECTIVES := [
 	},
 	{
 		"id": "season_staff",
-		"label": "FRONT OFFICE",
-		"detail": "Hire 2 staff members.",
+		"label": "MANAGEMENT",
+		"detail": "Stelle 2 Mitarbeiter ein.",
 		"key": "staff_hires",
 		"target": 2,
 		"cash": 140,
@@ -296,8 +296,8 @@ const SEASON_OBJECTIVES := [
 	},
 	{
 		"id": "season_circuit",
-		"label": "LIFT THE TROPHY",
-		"detail": "Win one Pro Circuit bracket.",
+		"label": "HOL DEN POKAL",
+		"detail": "Gewinne einen Pro-Circuit-Turnierbaum.",
 		"key": "circuit_titles",
 		"target": 1,
 		"cash": 250,
