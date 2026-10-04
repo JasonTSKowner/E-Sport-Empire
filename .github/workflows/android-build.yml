@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity, v0.4.8-player-development, v0.4.9-real-time-career, v0.5-career-identity, v0.6-pro-circuit, v1.0-foundation-rebuild, v1.2-mobile-de, v1.3-visual-rebuild, v1.4-premium-rebuild, v2.0-art-direction]
+    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity, v0.4.8-player-development, v0.4.9-real-time-career, v0.5-career-identity, v0.6-pro-circuit, v1.0-foundation-rebuild, v1.2-mobile-de, v1.3-visual-rebuild, v1.4-premium-rebuild, v2.0-art-direction, v2.1-cinematic-ui]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -33,9 +33,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # GitHub's runner already includes the SDK packages Godot needs.
-          # The action's legacy default also requests the removed `tools`
-          # package, so skip that extra package installation.
           packages: ""
           log-accepted-android-sdk-licenses: false
 
