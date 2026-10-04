@@ -9,10 +9,9 @@ const DEFAULT_PAGE := "home"
 
 const NAV_ENTRIES := [
 	["home", "START", "01"],
-	["team", "TEAM", "02"],
-	["play", "RANKED", "03"],
-	["market", "SCOUT", "04"],
-	["empire", "VEREIN", "05"],
+	["play", "RANKED", "02"],
+	["team", "TEAM", "03"],
+	["empire", "VEREIN", "04"],
 ]
 
 
