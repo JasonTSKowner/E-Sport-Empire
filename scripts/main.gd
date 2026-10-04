@@ -755,10 +755,10 @@ func _sponsor_card() -> Control:
 				int(offer.get("min_reputation", 0)), int(offer.get("min_fans", 0))
 			]
 			var sign := UI.button(
-				"%s  •  %s\n%d MATCHES  •  %d WINS  •  UPFRONT %s\n%s"
+				"%s  •  %s\n%d SPIELE  •  %d SIEGE  •  SOFORT %s\n%s"
 				% [
 					str(offer.get("brand", "Sponsor")),
-					str(offer.get("name", "DEAL")),
+					str(offer.get("name", "VERTRAG")),
 					int(offer.get("duration", 1)),
 					int(offer.get("win_target", 1)),
 					GameDataRef.format_cash(int(offer.get("upfront", 0))),
@@ -1409,7 +1409,7 @@ func _playlist_switch() -> void:
 	for playlist in RankedDataRef.PLAYLISTS:
 		var required := game.playlist_required_players(playlist)
 		var button := UI.button(
-			"%s\n%d/%d PLAYERS" % [playlist, mini(roster_size, required), required],
+			"%s\n%d/%d SPIELER" % [playlist, mini(roster_size, required), required],
 			UI.CYAN,
 			str(playlist) == selected,
 			true
@@ -1430,8 +1430,8 @@ func _ranked_view_switch() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 7)
 	for entry in [
-		["overview", "OVERVIEW"], ["circuit", "CIRCUIT"], ["ladder", "LADDER"],
-		["ranks", "RANKS"], ["titles", "TITLES"]
+		["overview", "ÜBERSICHT"], ["circuit", "TURNIER"], ["ladder", "RANGLISTE"],
+		["ranks", "RÄNGE"], ["titles", "TITEL"]
 	]:
 		var active := ranked_view == str(entry[0])
 		var button := UI.button(str(entry[1]), UI.PURPLE, active, true)
@@ -1484,7 +1484,7 @@ func _circuit_overview_card() -> Control:
 		)
 	)
 	top.add_child(copy)
-	var open_button := UI.button("OPEN\nCIRCUIT", accent, true, true)
+	var open_button := UI.button("TURNIER\nÖFFNEN", accent, true, true)
 	open_button.custom_minimum_size.x = 108
 	open_button.pressed.connect(_select_ranked_view.bind("circuit"))
 	top.add_child(open_button)
