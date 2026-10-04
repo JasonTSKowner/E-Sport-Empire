@@ -35,7 +35,7 @@ public class BootReceiver extends BroadcastReceiver {
                 nm.createNotificationChannel(ch);
             }
 
-            Intent open = new Intent(context, MainActivity.class);
+            Intent open = new Intent(context, V7Activity.class);
             open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             PendingIntent pi = PendingIntent.getActivity(
                     context, 44, open,
@@ -47,8 +47,8 @@ public class BootReceiver extends BroadcastReceiver {
 
             Notification n = b
                     .setSmallIcon(android.R.drawable.ic_media_play)
-                    .setContentTitle("BassForge EQ V6")
-                    .setContentText("Tap to restart the SONIC CORE audio engine")
+                    .setContentTitle("BassForge EQ V7")
+                    .setContentText("Tap to restart the AURORA FX audio engine")
                     .setContentIntent(pi)
                     .setAutoCancel(true)
                     .build();
