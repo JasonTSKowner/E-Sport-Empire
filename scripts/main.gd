@@ -406,24 +406,23 @@ func _select_mode(mode: String) -> void:
 
 func _build_home_page() -> void:
 	_page_header(
-		"DEIN START",
-		"Du bist der Captain",
-		"Ein Spieler. Kein Geld. Keine Fans. Erst Leistung zeigen — der Verein wächst danach."
+		"COMMAND CENTER",
+		"E-Sport Empire",
+		"Dein Fortschritt, dein nächstes Ziel und alles Wichtige auf einen Blick."
 	)
 	page_content.add_child(_origin_card())
 	page_content.add_child(_career_hub_card())
-	page_content.add_child(_club_hero())
 	if not game.data.get("contacts", []).is_empty():
-		page_content.add_child(_section_title("SPIELER WERDEN AUFMERKSAM", "Kontakte aus Matches können deine ersten Teamkollegen werden."))
+		page_content.add_child(_section_title("NEUE KONTAKTE", "Spieler, die nach deinen Matches auf dich aufmerksam wurden."))
 		for contact in game.data.get("contacts", []):
 			page_content.add_child(_contact_card(contact))
 	page_content.add_child(_sponsor_card())
 	page_content.add_child(_season_objectives_card())
 	page_content.add_child(_rivals_card())
-	page_content.add_child(_section_title("BEREICHSSTATUS", "Rocket League startet solo. Für andere Bereiche brauchst du weitere Spieler."))
+	page_content.add_child(_section_title("BEREICHE", "Dein aktueller Fortschritt in allen E-Sport-Spielen."))
 	for mode in GameDataRef.MODES:
 		page_content.add_child(_division_row(mode))
-	page_content.add_child(_section_title("LETZTE FORM", "Deine letzten Ergebnisse."))
+	page_content.add_child(_section_title("LETZTE ERGEBNISSE", "Deine jüngsten Wettkampfspiele."))
 	_build_history_list(page_content, 4)
 
 
@@ -590,22 +589,70 @@ func _rivals_card() -> Control:
 	return panel
 
 func _origin_card() -> Control:
-	var panel := UI.card(UI.CYAN)
+	var playlist := game.selected_rl_playlist()
+	var record := game.playlist_record(playlist)
+	var mmr := int(record.get("mmr", 100))
+	var placements := int(record.get("placements", 0))
+	var placed := placements >= 10
+	var rank_data := RankedDataRef.rank_for_mmr(mmr, playlist)
+	var shown_rank := rank_data if placed else RankedDataRef.unranked_data(mmr)
+	var accent := RankedDataRef.color_for_family(str(shown_rank.get("family", "Unranked")))
+
+	var panel := UI.hero(accent)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
-	box.add_child(UI.overline("VON NULL", UI.CYAN))
-	box.add_child(UI.label("Du bist Spieler #1 und Captain.", 19, UI.TEXT, 800))
-	box.add_child(UI.label(
-		"Ranked zahlt dir nichts. Spiele, werde besser und mach auf dich aufmerksam.",
-		12,
-		UI.MUTED
-	))
-	var row := HBoxContainer.new()
-	row.add_child(_metric_block("GELD", GameDataRef.format_cash(int(game.data.get("cash", 0))), UI.GOLD))
-	row.add_child(_metric_block("ATTENTION", str(int(game.data.get("attention", 0))), UI.PURPLE))
-	row.add_child(_metric_block("FORMAT", game.match_format("Rocket League"), UI.CYAN))
-	box.add_child(row)
+
+	var hero_row := HBoxContainer.new()
+	hero_row.add_theme_constant_override("separation", 13)
+	hero_row.add_child(_rank_emblem(shown_rank, 84.0))
+
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_theme_constant_override("separation", 2)
+	identity.add_child(UI.overline("AKTUELLER RUN  •  %s" % playlist, UI.MUTED))
+	identity.add_child(UI.heading("UNRANKED" if not placed else str(rank_data.get("tier_name", "RANKED")), 23))
+	identity.add_child(
+		UI.label(
+			"%d / 10 Placements" % placements if not placed else "%d MMR  •  Division %s" % [mmr, str(rank_data.get("division_roman", "I"))],
+			11,
+			UI.MUTED,
+			700
+		)
+	)
+	hero_row.add_child(identity)
+
+	var status := VBoxContainer.new()
+	var value := UI.label(str(game.team_overall("Rocket League")), 28, UI.TEXT, 800)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var cap := UI.label("TEAM-GES", 8, UI.MUTED, 800)
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	status.add_child(value)
+	status.add_child(cap)
+	hero_row.add_child(status)
+	box.add_child(hero_row)
+
+	if not placed:
+		box.add_child(UI.progress(placements, 10, accent, 8))
+	else:
+		var progress := RankedDataRef.progress_for_mmr(mmr, playlist)
+		box.add_child(UI.progress(float(progress.get("value", 0)), float(progress.get("maximum", 1)), accent, 8))
+
+	var metrics := HBoxContainer.new()
+	metrics.add_theme_constant_override("separation", 7)
+	metrics.add_child(_metric_block("GELD", GameDataRef.format_cash(int(game.data.get("cash", 0))), UI.GOLD))
+	metrics.add_child(_metric_block("FANS", GameDataRef.format_number(int(game.data.get("fans", 0))), UI.PURPLE))
+	metrics.add_child(_metric_block("RUF", str(int(game.data.get("reputation", 0))), UI.GREEN))
+	box.add_child(metrics)
+
+	var queue_ready := game.can_queue_playlist(playlist)
+	var action := UI.button(
+		"RANKED ÖFFNEN" if queue_ready else "KADER FÜR %s AUFBAUEN" % playlist,
+		accent,
+		true
+	)
+	action.pressed.connect(_show_page.bind("play" if queue_ready else "team", true))
+	box.add_child(action)
 	return panel
 
 
@@ -912,7 +959,7 @@ func _build_team_page() -> void:
 	_mode_switch()
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
-	var summary := UI.card(accent)
+	var summary := UI.hero(accent)
 	var summary_box := VBoxContainer.new()
 	summary_box.add_theme_constant_override("separation", 10)
 	summary.add_child(summary_box)
@@ -949,7 +996,7 @@ func _build_team_page() -> void:
 	scrim_button.pressed.connect(_team_scrim.bind(mode))
 	summary_box.add_child(scrim_button)
 	var recovery_note := UI.label(
-		"No energy bar and no training cooldown. Fatigue recovers automatically by 1 point per real minute, including offline; matches never skip the calendar.",
+		"Müdigkeit regeneriert automatisch in Echtzeit – auch offline. Training und Match-Fortschritt bleiben jederzeit transparent.",
 		11,
 		UI.MUTED
 	)
@@ -1641,7 +1688,7 @@ func _rank_profile_card(playlist: String) -> Control:
 	var actual_rank := RankedDataRef.rank_for_mmr(mmr, playlist)
 	var shown_rank := actual_rank if placed else RankedDataRef.unranked_data(mmr)
 	var accent := RankedDataRef.color_for_family(str(shown_rank["family"]))
-	var panel := UI.card(accent)
+	var panel := UI.hero(accent)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 13)
 	panel.add_child(box)
@@ -2389,27 +2436,27 @@ func _prep_line(title: String, value: int, accent: Color, status: String) -> Con
 
 func _build_market_page() -> void:
 	_page_header(
-		"Recruitment",
-		"Scouting Network",
-		"Discover rising players and make decisive roster upgrades."
+		"RECRUITMENT",
+		"Scouting",
+		"Finde Talente, vergleiche Potenzial und verstärke gezielt deinen Kader."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
-	var info := UI.card(UI.GREEN)
+	var info := UI.hero(UI.GREEN)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	info.add_child(row)
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_child(UI.overline("GLOBAL NETWORK", UI.GREEN))
+	text.add_child(UI.overline("SCOUTING-NETZWERK", UI.GREEN))
 	text.add_child(
-		UI.label("Scouting level %d" % game.facility_level("scouting"), 17, UI.TEXT, 800)
+		UI.label("Scouting-Level %d" % game.facility_level("scouting"), 17, UI.TEXT, 800)
 	)
-	text.add_child(UI.label("Higher levels reveal stronger potential.", 11, UI.MUTED))
+	text.add_child(UI.label("Höhere Level erhöhen die Qualität deiner Reports.", 11, UI.MUTED))
 	text.add_child(
 		UI.label(
-			"90+ POTENTIAL CHANCE  •  %s PER PROSPECT"
+			"90+ POTENZIAL  •  %s PRO TALENT"
 			% _chance_text(game.scouting_elite_potential_chance()),
 			10,
 			UI.GREEN,
@@ -2417,14 +2464,14 @@ func _build_market_page() -> void:
 		)
 	)
 	row.add_child(text)
-	var refresh := UI.button("REFRESH\n€5", UI.GREEN, true, true)
+	var refresh := UI.button("NEUE REPORTS\n€5", UI.GREEN, true, true)
 	refresh.custom_minimum_size.x = 106
 	refresh.pressed.connect(_refresh_market)
 	row.add_child(refresh)
 	page_content.add_child(info)
 	page_content.add_child(
 		_section_title(
-			"%s PROSPECTS" % mode.to_upper(), "A new signing replaces the lowest-rated starter."
+			"%s TALENTE" % mode.to_upper(), "Eine Neuverpflichtung ersetzt automatisch den schwächsten Starter."
 		)
 	)
 	var found := 0
@@ -2452,7 +2499,7 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 	box.add_child(top)
 	var identity := VBoxContainer.new()
 	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	identity.add_child(UI.overline("SCOUT REPORT", accent))
+	identity.add_child(UI.overline("SCOUTING-REPORT", accent))
 	identity.add_child(UI.label(str(player["name"]), 20, UI.TEXT, 800))
 	identity.add_child(
 		UI.label(
@@ -2476,7 +2523,7 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 	top.add_child(ratings)
 	box.add_child(_development_stat_grid(player))
 	var price := int(player.get("contract", 0))
-	var sign := UI.button("SIGN PLAYER  •  %s" % GameDataRef.format_cash(price), accent, true)
+	var sign := UI.button("SPIELER HOLEN  •  %s" % GameDataRef.format_cash(price), accent, true)
 	sign.disabled = int(game.data["cash"]) < price
 	sign.pressed.connect(_sign_player.bind(str(player["id"])))
 	box.add_child(sign)
@@ -2485,21 +2532,21 @@ func _prospect_card(player: Dictionary, accent: Color) -> Control:
 
 func _build_empire_page() -> void:
 	_page_header(
-		"Organization",
-		"Build the Empire",
-		"Upgrade the infrastructure behind every player, match and future trophy."
+		"FRONT OFFICE",
+		"Verein",
+		"Baue Staff, Infrastruktur und Einnahmen zu einer echten E-Sport-Organisation aus."
 	)
 	page_content.add_child(_club_identity_card())
 	page_content.add_child(_staff_hq_card())
-	var economy := UI.card(UI.GOLD)
+	var economy := UI.hero(UI.GOLD)
 	var economy_box := VBoxContainer.new()
 	economy_box.add_theme_constant_override("separation", 11)
 	economy.add_child(economy_box)
-	economy_box.add_child(UI.overline("PASSIVE ECONOMY", UI.GOLD))
+	economy_box.add_child(UI.overline("PASSIVE EINNAHMEN", UI.GOLD))
 	var economy_row := HBoxContainer.new()
 	economy_row.add_child(
 		_metric_block(
-			"INCOME / H", GameDataRef.format_cash(game.passive_income_per_hour()), UI.GOLD
+			"EINNAHMEN / H", GameDataRef.format_cash(game.passive_income_per_hour()), UI.GOLD
 		)
 	)
 	economy_row.add_child(
@@ -2507,14 +2554,14 @@ func _build_empire_page() -> void:
 			"FANS / H", "+%s" % GameDataRef.format_number(game.passive_fans_per_hour()), UI.PURPLE
 		)
 	)
-	economy_row.add_child(_metric_block("OFFLINE CAP", "8 HOURS", UI.CYAN))
+	economy_row.add_child(_metric_block("OFFLINE-LIMIT", "8 STUNDEN", UI.CYAN))
 	economy_box.add_child(economy_row)
 	economy_box.add_child(
-		UI.label("Offline rewards are added automatically when you return.", 12, UI.MUTED)
+		UI.label("Offline-Erträge werden bei deiner Rückkehr automatisch gutgeschrieben.", 12, UI.MUTED)
 	)
 	page_content.add_child(economy)
 	page_content.add_child(
-		_section_title("FACILITIES", "Permanent upgrades for the entire organization.")
+		_section_title("EINRICHTUNGEN", "Dauerhafte Upgrades für deine gesamte Organisation.")
 	)
 	for key in GameDataRef.FACILITIES:
 		page_content.add_child(_facility_card(key))
@@ -2568,13 +2615,13 @@ func _staff_hq_card() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 11)
 	panel.add_child(box)
-	box.add_child(UI.overline("STAFF HQ", UI.CYAN))
-	box.add_child(UI.label("Build the team behind the team", 20, UI.TEXT, 800))
-	box.add_child(UI.label("Four departments, three tiers each. Every modifier is deterministic and shown exactly.", 11, UI.MUTED))
+	box.add_child(UI.overline("STAFF-ZENTRALE", UI.CYAN))
+	box.add_child(UI.label("Das Team hinter deinem Team", 20, UI.TEXT, 800))
+	box.add_child(UI.label("Vier Abteilungen mit je drei Stufen. Jeder Bonus wird transparent angezeigt.", 11, UI.MUTED))
 	var summary := HBoxContainer.new()
-	summary.add_child(_metric_block("HIRES", str(int(game.data.get("staff_hires", 0))), UI.CYAN))
-	summary.add_child(_metric_block("DEPARTMENTS", "%d / 4" % int(game.data.get("staff", {}).size()), UI.PURPLE))
-	summary.add_child(_metric_block("MAX TIER", "3", UI.GOLD))
+	summary.add_child(_metric_block("MITARBEITER", str(int(game.data.get("staff_hires", 0))), UI.CYAN))
+	summary.add_child(_metric_block("ABTEILUNGEN", "%d / 4" % int(game.data.get("staff", {}).size()), UI.PURPLE))
+	summary.add_child(_metric_block("MAX. STUFE", "3", UI.GOLD))
 	box.add_child(summary)
 	for role_value in DynastyDataRef.STAFF_ROLES:
 		var role: Dictionary = role_value
@@ -2599,7 +2646,7 @@ func _staff_hq_card() -> Control:
 		department_box.add_child(header)
 		department_box.add_child(UI.progress(level, 3, accent, 5))
 		if current.is_empty():
-			department_box.add_child(UI.label("VACANT  •  no bonus active", 10, UI.DIM, 700))
+			department_box.add_child(UI.label("FREI  •  KEIN BONUS AKTIV", 10, UI.DIM, 700))
 		else:
 			department_box.add_child(
 				UI.badge(
@@ -2616,7 +2663,7 @@ func _staff_hq_card() -> Control:
 			var improves := candidate_level > level
 			var fee := int(candidate.get("fee", 0))
 			var affordable := int(game.data.get("cash", 0)) >= fee
-			var state := "HIRE" if improves and affordable else "NEED %s" % GameDataRef.format_cash(fee) if improves else "TIER PASSED"
+			var state := "EINSTELLEN" if improves and affordable else "BRAUCHT %s" % GameDataRef.format_cash(fee) if improves else "STUFE ERREICHT"
 			var hire := UI.button(
 				"LV %d  •  %s  •  %s\n%s  •  %s"
 				% [candidate_level, str(candidate.get("name", "Candidate")), str(candidate.get("rank", "PRO")), str(candidate.get("specialty", "Specialist")), state],
@@ -2719,7 +2766,7 @@ func _build_history_list(parent: VBoxContainer, limit: int, mode_filter: String 
 	if count == 0:
 		var empty := UI.card()
 		var text := UI.label(
-			"No matches played yet. Your first ranked series is waiting.", 13, UI.MUTED
+			"Noch keine Spiele. Dein erster Ranked-Run wartet.", 13, UI.MUTED
 		)
 		text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_child(text)
@@ -2733,7 +2780,7 @@ func _history_row(entry: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	panel.add_child(row)
-	var result := UI.badge("WIN" if won else "LOSS", accent)
+	var result := UI.badge("SIEG" if won else "NIEDERLAGE", accent)
 	result.custom_minimum_size.x = 58
 	row.add_child(result)
 	var detail := VBoxContainer.new()
@@ -2832,7 +2879,7 @@ func _upgrade_facility(key: String) -> void:
 
 
 func _handle_action(result: Dictionary, page: String) -> void:
-	_show_message(str(result.get("message", "Done.")), bool(result.get("ok", false)))
+	_show_message(str(result.get("message", "Erledigt.")), bool(result.get("ok", false)))
 	if bool(result.get("ok", false)):
 		_show_page(page, false)
 	else:
@@ -2867,7 +2914,7 @@ func _show_message(message: String, positive: bool = true) -> void:
 func _show_offline_message(offline: Dictionary) -> void:
 	_show_message(
 		(
-			"Welcome back: +%s and +%s fans while offline."
+			"Willkommen zurück: +%s und +%s Fans während deiner Abwesenheit."
 			% [
 				GameDataRef.format_cash(int(offline.get("cash", 0))),
 				GameDataRef.format_number(int(offline.get("fans", 0))),
