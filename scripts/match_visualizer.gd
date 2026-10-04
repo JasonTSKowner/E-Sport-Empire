@@ -210,7 +210,9 @@ func _process(delta: float) -> void:
 
 	for particle in boost_particles:
 		particle["life"] = float(particle.get("life", 0.0)) - delta
-		particle["position"] = Vector2(particle.get("position", Vector2.ZERO)) + Vector2(particle.get("velocity", Vector2.ZERO)) * delta
+		var particle_position: Vector2 = particle.get("position", Vector2.ZERO)
+		var particle_velocity: Vector2 = particle.get("velocity", Vector2.ZERO)
+		particle["position"] = particle_position + particle_velocity * delta
 	for index in range(boost_particles.size() - 1, -1, -1):
 		if float(boost_particles[index].get("life", 0.0)) <= 0.0:
 			boost_particles.remove_at(index)
@@ -338,7 +340,8 @@ func _draw_boost_particle(particle: Dictionary, arena: Rect2) -> void:
 	var max_life := maxf(0.01, float(particle.get("max_life", 0.38)))
 	var alpha := clampf(life / max_life, 0.0, 1.0)
 	var color: Color = particle.get("color", BOOST_COLOR)
-	var p := _field_point(Vector2(particle.get("position", Vector2.ZERO)), arena)
+	var particle_position: Vector2 = particle.get("position", Vector2.ZERO)
+	var p := _field_point(particle_position, arena)
 	draw_circle(p, 2.2 + alpha * 1.8, Color(color.r, color.g, color.b, alpha * 0.45))
 
 
