@@ -144,7 +144,7 @@ func _set_team_targets(quality: int) -> void:
 		var our_x := 0.38
 		var their_x := 0.62
 		if phase == "buildup":
-			our_x = 0.50 if action != "counter" else 0.35
+			our_x = 0.50 if action_key != "counter" else 0.35
 			their_x = 0.67
 		elif phase == "challenge":
 			our_x = 0.54 if quality >= 0 else 0.43
