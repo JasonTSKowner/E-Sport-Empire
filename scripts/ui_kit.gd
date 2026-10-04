@@ -1,10 +1,10 @@
 class_name EmpireUI
 extends RefCounted
 
-const BG := Color("070A0F")
-const SURFACE := Color("0F141C")
-const SURFACE_2 := Color("141B25")
-const SURFACE_3 := Color("1B2430")
+const BG := Color("080A0D")
+const SURFACE := Color("101318")
+const SURFACE_2 := Color("151A20")
+const SURFACE_3 := Color("1B2128")
 const TEXT := Color("F5F7FA")
 const MUTED := Color("98A3B3")
 const DIM := Color("647082")
@@ -33,23 +33,24 @@ static func box(
 	style.content_margin_right = 16.0
 	style.content_margin_top = 14.0
 	style.content_margin_bottom = 14.0
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.20)
-	style.shadow_size = 4
-	style.shadow_offset = Vector2(0.0, 2.0)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.12)
+	style.shadow_size = 2
+	style.shadow_offset = Vector2(0.0, 1.0)
 	style.anti_aliasing = true
 	return style
 
 
 static func card(accent: Color = Color.TRANSPARENT) -> PanelContainer:
 	var panel := PanelContainer.new()
-	var border := Color(0.55, 0.63, 0.72, 0.12)
+	var border := Color(0.55, 0.63, 0.72, 0.09)
 	if accent.a > 0.0:
-		border = Color(accent.r, accent.g, accent.b, 0.18)
-	var style := box(Color(0.055, 0.071, 0.094, 0.98), 16, border, 1)
-	style.content_margin_left = 16.0
-	style.content_margin_right = 16.0
-	style.content_margin_top = 15.0
-	style.content_margin_bottom = 15.0
+		border = Color(accent.r, accent.g, accent.b, 0.12)
+	var style := box(Color(0.050, 0.059, 0.071, 0.99), 10, border, 1)
+	style.content_margin_left = 14.0
+	style.content_margin_right = 14.0
+	style.content_margin_top = 13.0
+	style.content_margin_bottom = 13.0
+	style.shadow_size = 0
 	panel.add_theme_stylebox_override("panel", style)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -99,14 +100,14 @@ static func button(
 	node.add_theme_color_override("font_disabled_color", Color(MUTED.r, MUTED.g, MUTED.b, 0.45))
 	var normal_color := Color(accent.r, accent.g, accent.b, 0.16 if filled else 0.035)
 	var normal_border := Color(accent.r, accent.g, accent.b, 0.44 if filled else 0.16)
-	var normal := box(normal_color, 13, normal_border, 1)
+	var normal := box(normal_color, 8, normal_border, 1)
 	normal.content_margin_left = 16.0
 	normal.content_margin_right = 16.0
-	var hover := box(Color(accent.r, accent.g, accent.b, 0.12), 13, Color(accent.r, accent.g, accent.b, 0.34), 1)
-	var pressed := box(Color(accent.r, accent.g, accent.b, 0.20), 12, Color(accent.r, accent.g, accent.b, 0.54), 1)
+	var hover := box(Color(accent.r, accent.g, accent.b, 0.08), 8, Color(accent.r, accent.g, accent.b, 0.22), 1)
+	var pressed := box(Color(accent.r, accent.g, accent.b, 0.14), 8, Color(accent.r, accent.g, accent.b, 0.36), 1)
 	pressed.content_margin_top = 15.0
 	pressed.content_margin_bottom = 13.0
-	var disabled := box(Color(0.16, 0.18, 0.22, 0.38), 13, Color(0.35, 0.38, 0.44, 0.10), 1)
+	var disabled := box(Color(0.12, 0.14, 0.17, 0.46), 8, Color(0.35, 0.38, 0.44, 0.07), 1)
 	node.add_theme_stylebox_override("normal", normal)
 	node.add_theme_stylebox_override("hover", hover)
 	node.add_theme_stylebox_override("pressed", pressed)
@@ -143,13 +144,14 @@ static func progress(
 static func hero(accent: Color = CYAN) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := box(Color(0.062, 0.078, 0.102, 0.99), 20, Color(accent.r, accent.g, accent.b, 0.20), 1)
-	style.content_margin_left = 18.0
-	style.content_margin_right = 18.0
-	style.content_margin_top = 18.0
-	style.content_margin_bottom = 18.0
-	style.shadow_size = 7
-	style.shadow_color = Color(0, 0, 0, 0.24)
+	var style := box(Color(0.052, 0.062, 0.075, 0.995), 12, Color(0.55, 0.63, 0.72, 0.10), 1)
+	style.border_width_top = 2
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.38)
+	style.content_margin_left = 16.0
+	style.content_margin_right = 16.0
+	style.content_margin_top = 16.0
+	style.content_margin_bottom = 16.0
+	style.shadow_size = 0
 	panel.add_theme_stylebox_override("panel", style)
 	return panel
 
@@ -157,7 +159,7 @@ static func hero(accent: Color = CYAN) -> PanelContainer:
 static func metric_tile(caption: String, value: String, accent: Color = CYAN) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := box(Color(0.075, 0.09, 0.115, 0.96), 12, Color(0.55, 0.62, 0.72, 0.10), 1)
+	var style := box(Color(0.058, 0.066, 0.078, 0.98), 8, Color(0.55, 0.62, 0.70, 0.07), 1)
 	style.content_margin_left = 10.0
 	style.content_margin_right = 10.0
 	style.content_margin_top = 9.0
@@ -236,9 +238,9 @@ static func badge(text: String, accent: Color = CYAN) -> PanelContainer:
 	panel.add_theme_stylebox_override(
 		"panel",
 		box(
-			Color(accent.r, accent.g, accent.b, 0.08),
-			8,
-			Color(accent.r, accent.g, accent.b, 0.16),
+			Color(accent.r, accent.g, accent.b, 0.055),
+			6,
+			Color(accent.r, accent.g, accent.b, 0.11),
 			1
 		)
 	)
