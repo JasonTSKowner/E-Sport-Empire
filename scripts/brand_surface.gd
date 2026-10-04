@@ -3,6 +3,7 @@ extends PanelContainer
 
 var accent := Color("74DFF7")
 var variant := "card"
+var time_value := 0.0
 
 
 func configure(new_accent: Color, new_variant: String = "card") -> BrandSurface:
@@ -16,13 +17,19 @@ func configure(new_accent: Color, new_variant: String = "card") -> BrandSurface:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	_apply_margins()
+	set_process(true)
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	time_value += delta
 	queue_redraw()
 
 
 func _apply_margins() -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color.TRANSPARENT
-	var margin := 16.0 if variant == "hero" else 12.0 if variant == "card" else 9.0
+	var margin := 15.0 if variant == "hero" else 11.0 if variant == "card" else 8.0
 	style.content_margin_left = margin
 	style.content_margin_right = margin
 	style.content_margin_top = margin
@@ -35,32 +42,39 @@ func _draw() -> void:
 	if rect.size.x <= 1.0 or rect.size.y <= 1.0:
 		return
 
-	var base := Color("141A22") if variant == "hero" else Color("10151C") if variant == "card" else Color("0D1218")
-	var radius := 12 if variant == "hero" else 8
-	draw_style_box(_background_style(base, radius), rect)
+	var base_top := Color("131A22") if variant == "hero" else Color("0F141B")
+	var base_bottom := Color("0A0E14") if variant == "hero" else Color("0B0F14")
+	var bands := 10 if variant == "hero" else 6
+	for index in range(bands):
+		var t := float(index) / float(maxi(1, bands - 1))
+		var c := base_top.lerp(base_bottom, t)
+		var h := rect.size.y / float(bands) + 1.0
+		draw_rect(Rect2(0, float(index) * rect.size.y / float(bands), rect.size.x, h), c, true)
+
+	# One architectural accent plane instead of a glowing outline around every card.
+	var right_plane := PackedVector2Array([
+		Vector2(rect.size.x * 0.78, 0),
+		Vector2(rect.size.x, 0),
+		Vector2(rect.size.x, rect.size.y),
+		Vector2(rect.size.x * 0.88, rect.size.y),
+	])
+	draw_colored_polygon(right_plane, Color(accent.r, accent.g, accent.b, 0.022 if variant == "card" else 0.040))
 
 	if variant == "hero":
-		# One restrained identity plane instead of neon/grid decoration.
-		var glow_center := Vector2(rect.size.x + 18.0, 10.0)
-		draw_circle(glow_center, minf(118.0, rect.size.x * 0.32), Color(accent.r, accent.g, accent.b, 0.055))
-		draw_rect(Rect2(0, 18, 3, maxf(20.0, rect.size.y - 36)), Color(accent.r, accent.g, accent.b, 0.72), true)
-	elif variant == "metric":
-		draw_rect(Rect2(0, 7, 2, maxf(10.0, rect.size.y - 14)), Color(accent.r, accent.g, accent.b, 0.68), true)
+		var pulse := 0.5 + 0.5 * sin(time_value * 0.42)
+		var glow_center := Vector2(rect.size.x * 0.90, rect.size.y * 0.08)
+		draw_circle(glow_center, minf(115.0, rect.size.x * 0.30), Color(accent.r, accent.g, accent.b, 0.030 + pulse * 0.008))
+		var slash := PackedVector2Array([
+			Vector2(rect.size.x * 0.65, 0),
+			Vector2(rect.size.x * 0.68, 0),
+			Vector2(rect.size.x * 0.52, rect.size.y),
+			Vector2(rect.size.x * 0.49, rect.size.y),
+		])
+		draw_colored_polygon(slash, Color(accent.r, accent.g, accent.b, 0.060))
+		draw_rect(Rect2(0, 0, 3, rect.size.y), Color(accent.r, accent.g, accent.b, 0.70), true)
+	else:
+		# Cards read as content rows, not mini windows.
+		draw_rect(Rect2(0, rect.size.y - 1, rect.size.x, 1), Color(1, 1, 1, 0.055), true)
 
-
-func _background_style(color: Color, radius: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = color
-	style.corner_radius_top_left = radius
-	style.corner_radius_top_right = radius
-	style.corner_radius_bottom_left = radius
-	style.corner_radius_bottom_right = radius
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.75, 0.80, 0.86, 0.075 if variant == "card" else 0.11)
-	style.shadow_color = Color(0, 0, 0, 0.22)
-	style.shadow_size = 5 if variant == "hero" else 1
-	style.shadow_offset = Vector2(0, 2)
-	return style
+	# Fine polished highlight on top edge only.
+	draw_line(Vector2(0, 0), Vector2(rect.size.x, 0), Color(1, 1, 1, 0.045), 1.0)
