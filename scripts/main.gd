@@ -996,34 +996,38 @@ func _build_team_page() -> void:
 	page_content.add_child(summary)
 
 	_team_view_switch()
+	var roster := game.roster_for(mode)
+	var selected_player: Dictionary = {}
+	if not roster.is_empty():
+		selected_player = roster[0]
+		for roster_player in roster:
+			if str(roster_player.get("id", "")) == selected_team_player_id:
+				selected_player = roster_player
+				break
+		selected_team_player_id = str(selected_player.get("id", "captain"))
+
 	match team_view:
+		"training":
+			page_content.add_child(_team_roster_selector(mode, accent))
+			if not selected_player.is_empty():
+				page_content.add_child(_player_training_panel(selected_player, accent))
 		"coaching":
-			page_content.add_child(_development_impact_card())
 			page_content.add_child(_coaching_market_card(mode))
 		"scouting":
 			_build_team_scouting(mode, accent)
 		_:
-			page_content.add_child(_section_title("KADER", "Wähle einen Spieler für Analyse und Training."))
 			page_content.add_child(_team_roster_selector(mode, accent))
-			var roster := game.roster_for(mode)
-			if not roster.is_empty():
-				var selected_player: Dictionary = roster[0]
-				for roster_player in roster:
-					if str(roster_player.get("id", "")) == selected_team_player_id:
-						selected_player = roster_player
-						break
-				selected_team_player_id = str(selected_player.get("id", "captain"))
-				page_content.add_child(_player_card(selected_player, accent))
-
+			if not selected_player.is_empty():
+				page_content.add_child(_player_profile_panel(selected_player, accent))
 			var scrim_cost := game.scrim_cost(mode)
 			var scrim_ready := (
 				roster.size() >= 2
 				and int(game.data.get("cash", 0)) >= scrim_cost
 				and chemistry < 100
 			)
-			var scrim_text := "TEAM-SCRIM  •  %s  •  +%d CHEMIE" % [GameDataRef.format_cash(scrim_cost), scrim_gain]
+			var scrim_text := "SCRIM  •  %s  •  +%d CHEMIE" % [GameDataRef.format_cash(scrim_cost), scrim_gain]
 			if roster.size() < 2:
-				scrim_text = "TEAM-SCRIM  •  BRAUCHT 2 SPIELER"
+				scrim_text = "SCRIM  •  BRAUCHT 2 SPIELER"
 			elif chemistry >= 100:
 				scrim_text = "TEAMCHEMIE MAXIMAL"
 			var scrim_button := UI.button(scrim_text, accent, scrim_ready)
@@ -1035,7 +1039,7 @@ func _build_team_page() -> void:
 func _team_view_switch() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
-	for entry in [["roster", "KADER"], ["coaching", "COACHING"], ["scouting", "SCOUTING"]]:
+	for entry in [["roster", "KADER"], ["training", "TRAINING"], ["coaching", "COACHING"], ["scouting", "SCOUT"]]:
 		var active := team_view == str(entry[0])
 		var button := UI.tab(str(entry[1]), active, UI.CYAN)
 		button.pressed.connect(_select_team_view.bind(str(entry[0])))
@@ -1043,7 +1047,7 @@ func _team_view_switch() -> void:
 	page_content.add_child(row)
 
 func _select_team_view(view: String) -> void:
-	team_view = view if view in ["roster", "coaching", "scouting"] else "roster"
+	team_view = view if view in ["roster", "training", "coaching", "scouting"] else "roster"
 	_show_page("team", false)
 
 
@@ -1250,6 +1254,101 @@ func _coach_offer_card(offer: Dictionary, mode: String) -> Control:
 			_book_coaching_session.bind(str(offer.get("id", "")), str(player.get("id", "")))
 		)
 		box.add_child(book)
+	return panel
+
+
+func _player_profile_panel(player: Dictionary, accent: Color) -> Control:
+	var panel := UI.hero(accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 9)
+	panel.add_child(box)
+
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 10)
+	var portrait := PlayerPortraitRef.new()
+	portrait.configure(str(player.get("name", "PLAYER")), accent)
+	portrait.custom_minimum_size = Vector2(62, 70)
+	top.add_child(portrait)
+
+	var identity := VBoxContainer.new()
+	identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	identity.add_child(UI.label(str(player.get("name", "PLAYER")), 18, UI.TEXT, 800))
+	identity.add_child(
+		UI.label(
+			"%s  •  %s  •  %d J."
+			% [
+				str(player.get("role", "PLAYER")).to_upper(),
+				str(player.get("region", "EU")),
+				int(player.get("age", 16)),
+			],
+			9,
+			UI.MUTED,
+			700
+		)
+	)
+	identity.add_child(UI.label("POT %d" % int(player.get("potential", 99)), 9, accent, 800))
+	top.add_child(identity)
+
+	var rating := VBoxContainer.new()
+	var ovr := UI.label(str(game.player_overall(player)), 28, UI.TEXT, 800)
+	ovr.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var ovr_cap := UI.label("OVR", 8, UI.DIM, 800)
+	ovr_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	rating.add_child(ovr)
+	rating.add_child(ovr_cap)
+	top.add_child(rating)
+	box.add_child(top)
+
+	var status := HBoxContainer.new()
+	status.add_theme_constant_override("separation", 6)
+	status.add_child(_metric_block("FORM", "%d" % int(player.get("form", 50)), UI.GREEN))
+	status.add_child(_metric_block("MÜDIG", "%d" % int(player.get("fatigue", 0)), UI.GOLD))
+	status.add_child(_metric_block("MECH", "%d" % int(player.get("mechanics", 50)), UI.CYAN))
+	box.add_child(status)
+
+	var archetype := DevelopmentDataRef.player_archetype(player)
+	box.add_child(
+		UI.label(
+			str(archetype.get("label", "Kompletter Spieler")).to_upper(),
+			9,
+			Color(str(archetype.get("color", "F5F7FA"))),
+			800
+		)
+	)
+	return panel
+
+
+func _player_training_panel(player: Dictionary, accent: Color) -> Control:
+	var readiness := game.training_readiness(player)
+	var panel := UI.hero(accent)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 9)
+	panel.add_child(box)
+
+	var header := HBoxContainer.new()
+	var title_box := VBoxContainer.new()
+	title_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_box.add_child(UI.overline("PERFORMANCE LAB", UI.DIM))
+	title_box.add_child(UI.label(str(player.get("name", "PLAYER")), 18, UI.TEXT, 800))
+	header.add_child(title_box)
+	header.add_child(
+		UI.badge(
+			"FOKUS %d/%d"
+			% [int(readiness.get("slots_remaining", 0)), int(readiness.get("limit", 3))],
+			UI.GREEN if bool(readiness.get("ok", false)) else UI.RED
+		)
+	)
+	box.add_child(header)
+
+	var training_view := TrainingVisualizerRef.new()
+	training_view.configure(player, readiness, accent)
+	box.add_child(training_view)
+
+	box.add_child(UI.overline("WERTE", UI.DIM))
+	box.add_child(_development_stat_grid(player))
+	box.add_child(_mechanics_arsenal(player, accent))
+	box.add_child(UI.overline("TRAINING WÄHLEN", UI.DIM))
+	box.add_child(_training_program_grid(player))
 	return panel
 
 
