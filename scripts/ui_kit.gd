@@ -1,18 +1,18 @@
 class_name EmpireUI
 extends RefCounted
 
-const BG := Color("050817")
-const SURFACE := Color("0c1228")
-const SURFACE_2 := Color("111a35")
-const SURFACE_3 := Color("172140")
-const TEXT := Color("f3f6ff")
-const MUTED := Color("8d9abb")
-const DIM := Color("596887")
-const CYAN := Color("2de2ff")
-const PURPLE := Color("a779ff")
-const GREEN := Color("58e39b")
-const RED := Color("ff647c")
-const GOLD := Color("ffbf69")
+const BG := Color("070A0F")
+const SURFACE := Color("0F141C")
+const SURFACE_2 := Color("141B25")
+const SURFACE_3 := Color("1B2430")
+const TEXT := Color("F5F7FA")
+const MUTED := Color("98A3B3")
+const DIM := Color("647082")
+const CYAN := Color("7FE7FF")
+const PURPLE := Color("B59CFF")
+const GREEN := Color("5DE1A5")
+const RED := Color("FF6B7A")
+const GOLD := Color("E8C17A")
 
 
 static func box(
@@ -33,25 +33,23 @@ static func box(
 	style.content_margin_right = 16.0
 	style.content_margin_top = 14.0
 	style.content_margin_bottom = 14.0
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.34)
-	style.shadow_size = 9
-	style.shadow_offset = Vector2(0.0, 5.0)
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.20)
+	style.shadow_size = 4
+	style.shadow_offset = Vector2(0.0, 2.0)
 	style.anti_aliasing = true
 	return style
 
 
 static func card(accent: Color = Color.TRANSPARENT) -> PanelContainer:
 	var panel := PanelContainer.new()
-	var border := Color(0.24, 0.34, 0.62, 0.28)
+	var border := Color(0.55, 0.63, 0.72, 0.12)
 	if accent.a > 0.0:
-		border = Color(accent.r, accent.g, accent.b, 0.42)
-	var style := box(Color(0.035, 0.052, 0.115, 0.97), 18, border, 1)
-	style.content_margin_left = 17.0
-	style.content_margin_right = 17.0
-	style.content_margin_top = 16.0
-	style.content_margin_bottom = 16.0
-	if accent.a > 0.0:
-		style.border_width_left = 3
+		border = Color(accent.r, accent.g, accent.b, 0.18)
+	var style := box(Color(0.055, 0.071, 0.094, 0.98), 16, border, 1)
+	style.content_margin_left = 16.0
+	style.content_margin_right = 16.0
+	style.content_margin_top = 15.0
+	style.content_margin_bottom = 15.0
 	panel.add_theme_stylebox_override("panel", style)
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -64,8 +62,7 @@ static func label(text: String, size: int = 16, color: Color = TEXT, weight: int
 	node.add_theme_font_size_override("font_size", size)
 	node.add_theme_color_override("font_color", color)
 	if weight >= 700:
-		node.add_theme_constant_override("outline_size", 1)
-		node.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.24))
+		node.add_theme_constant_override("outline_size", 0)
 	# Never fall back to character-by-character wrapping on narrow phones.
 	# Long copy wraps only at word boundaries throughout the app.
 	node.autowrap_mode = TextServer.AUTOWRAP_WORD
@@ -79,8 +76,8 @@ static func heading(text: String, size: int = 24) -> Label:
 
 
 static func overline(text: String, color: Color = CYAN) -> Label:
-	var node := label(text.to_upper(), 11, color, 800)
-	node.add_theme_constant_override("letter_spacing", 2)
+	var node := label(text.to_upper(), 10, color, 800)
+	node.add_theme_constant_override("letter_spacing", 1)
 	return node
 
 
@@ -100,16 +97,16 @@ static func button(
 	node.add_theme_color_override("font_hover_color", TEXT)
 	node.add_theme_color_override("font_pressed_color", TEXT)
 	node.add_theme_color_override("font_disabled_color", Color(MUTED.r, MUTED.g, MUTED.b, 0.45))
-	var normal_color := Color(accent.r, accent.g, accent.b, 0.18 if filled else 0.055)
-	var normal_border := Color(accent.r, accent.g, accent.b, 0.78 if filled else 0.30)
-	var normal := box(normal_color, 14, normal_border, 1)
+	var normal_color := Color(accent.r, accent.g, accent.b, 0.16 if filled else 0.035)
+	var normal_border := Color(accent.r, accent.g, accent.b, 0.44 if filled else 0.16)
+	var normal := box(normal_color, 13, normal_border, 1)
 	normal.content_margin_left = 16.0
 	normal.content_margin_right = 16.0
-	var hover := box(Color(accent.r, accent.g, accent.b, 0.24), 14, Color(accent.r, accent.g, accent.b, 0.92), 1)
-	var pressed := box(Color(accent.r, accent.g, accent.b, 0.34), 12, accent.lightened(0.10), 2)
-	pressed.content_margin_top = 16.0
-	pressed.content_margin_bottom = 12.0
-	var disabled := box(Color(0.15, 0.18, 0.28, 0.25), 14, Color(0.3, 0.34, 0.46, 0.22), 1)
+	var hover := box(Color(accent.r, accent.g, accent.b, 0.12), 13, Color(accent.r, accent.g, accent.b, 0.34), 1)
+	var pressed := box(Color(accent.r, accent.g, accent.b, 0.20), 12, Color(accent.r, accent.g, accent.b, 0.54), 1)
+	pressed.content_margin_top = 15.0
+	pressed.content_margin_bottom = 13.0
+	var disabled := box(Color(0.16, 0.18, 0.22, 0.38), 13, Color(0.35, 0.38, 0.44, 0.10), 1)
 	node.add_theme_stylebox_override("normal", normal)
 	node.add_theme_stylebox_override("hover", hover)
 	node.add_theme_stylebox_override("pressed", pressed)
@@ -128,7 +125,7 @@ static func progress(
 	bar.show_percentage = false
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.custom_minimum_size.y = height
-	var background := box(Color(0.10, 0.14, 0.27, 0.82), int(height / 2.0))
+	var background := box(Color(0.10, 0.12, 0.16, 0.95), int(height / 2.0))
 	background.content_margin_left = 0.0
 	background.content_margin_right = 0.0
 	background.content_margin_top = 0.0
@@ -141,6 +138,41 @@ static func progress(
 	bar.add_theme_stylebox_override("background", background)
 	bar.add_theme_stylebox_override("fill", fill)
 	return bar
+
+
+static func hero(accent: Color = CYAN) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := box(Color(0.062, 0.078, 0.102, 0.99), 20, Color(accent.r, accent.g, accent.b, 0.20), 1)
+	style.content_margin_left = 18.0
+	style.content_margin_right = 18.0
+	style.content_margin_top = 18.0
+	style.content_margin_bottom = 18.0
+	style.shadow_size = 7
+	style.shadow_color = Color(0, 0, 0, 0.24)
+	panel.add_theme_stylebox_override("panel", style)
+	return panel
+
+
+static func metric_tile(caption: String, value: String, accent: Color = CYAN) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := box(Color(0.075, 0.09, 0.115, 0.96), 12, Color(0.55, 0.62, 0.72, 0.10), 1)
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 9.0
+	style.content_margin_bottom = 9.0
+	panel.add_theme_stylebox_override("panel", style)
+	var box_node := VBoxContainer.new()
+	box_node.add_theme_constant_override("separation", 2)
+	var value_label := label(value, 15 if value.length() < 10 else 12, TEXT, 800)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var caption_label := label(caption.to_upper(), 8, Color(accent.r, accent.g, accent.b, 0.88), 800)
+	caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box_node.add_child(value_label)
+	box_node.add_child(caption_label)
+	panel.add_child(box_node)
+	return panel
 
 
 static func separator(color: Color = Color(0.28, 0.38, 0.62, 0.2)) -> HSeparator:
@@ -184,7 +216,7 @@ static func stat_chip(caption: String, value: String, accent: Color = CYAN) -> P
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_theme_stylebox_override(
 		"panel",
-		box(Color(0.08, 0.12, 0.25, 0.88), 15, Color(accent.r, accent.g, accent.b, 0.24), 1)
+		box(Color(0.075, 0.09, 0.115, 0.98), 13, Color(accent.r, accent.g, accent.b, 0.13), 1)
 	)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 2)
@@ -204,13 +236,13 @@ static func badge(text: String, accent: Color = CYAN) -> PanelContainer:
 	panel.add_theme_stylebox_override(
 		"panel",
 		box(
-			Color(accent.r, accent.g, accent.b, 0.11),
-			10,
-			Color(accent.r, accent.g, accent.b, 0.28),
+			Color(accent.r, accent.g, accent.b, 0.08),
+			8,
+			Color(accent.r, accent.g, accent.b, 0.16),
 			1
 		)
 	)
-	var tag := label(text.to_upper(), 11, accent, 800)
+	var tag := label(text.to_upper(), 9, accent, 800)
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	panel.add_child(tag)
 	return panel
