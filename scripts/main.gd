@@ -1727,9 +1727,8 @@ func _build_ranked_overview() -> void:
 	var record := game.playlist_record(playlist)
 	page_content.add_child(_rank_profile_card(playlist))
 	page_content.add_child(_ranked_queue_card(playlist))
-	page_content.add_child(_mmr_graph_card(playlist))
-	page_content.add_child(_section_title("LETZTE SPIELE", "Ranked-Ergebnisse in %s" % playlist))
-	_build_playlist_history(page_content, playlist, 5)
+	page_content.add_child(_section_title("LETZTE SPIELE", "Die letzten Ranked-Ergebnisse in %s." % playlist))
+	_build_playlist_history(page_content, playlist, 3)
 	if int(record.get("played", 0)) >= 3:
 		var tools_row := HBoxContainer.new()
 		tools_row.add_theme_constant_override("separation", 7)
@@ -2055,6 +2054,7 @@ func _build_ranked_ladder() -> void:
 	var playlist := game.selected_rl_playlist()
 	var record := game.playlist_record(playlist)
 	page_content.add_child(_rank_profile_card(playlist))
+	page_content.add_child(_mmr_graph_card(playlist))
 	page_content.add_child(_section_title("GLOBALE TOP 12", "Simulierte %s-Rangliste" % playlist))
 	for entry in RankedDataRef.top_ladder(playlist):
 		page_content.add_child(_ladder_row(entry))
