@@ -83,10 +83,11 @@ func _run() -> void:
 	var tactical_counters := {"press": "counter", "control": "press", "counter": "control"}
 	var opening_call := str(tactical_counters[str(opening["opponent_action"])])
 	var boost_before := int(tactical_session.get("boost", 0))
+	var momentum_before := int(tactical_session.get("momentum", 0))
 	var opening_result: Dictionary = tactical_state.play_match_turn(tactical_session, opening_call)
 	_check(int(opening_result.get("quality", 0)) == 1, "correct tactical read rewarded")
 	_check(int(opening_result.get("boost_after", 0)) != boost_before, "tactical boost changes")
-	_check(int(opening_result.get("momentum", 0)) > 0, "perfect read creates momentum")
+	_check(int(opening_result.get("momentum", 0)) > momentum_before, "perfect read improves momentum")
 	_check(int(opening_result.get("match_stats", {}).get("possession_ours", 0)) > 0, "live match stats update")
 	var opening_odds: Dictionary = opening_result.get("odds", {})
 	_check(not opening_odds.is_empty(), "match action exposes odds")
@@ -413,10 +414,10 @@ func _run() -> void:
 	main.game.set_selected_rl_playlist("1v1")
 	main._show_page("home", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 7, "focused home dashboard content")
+	_check(main.page_content.get_child_count() >= 6 and main.page_content.get_child_count() <= 8, "focused home dashboard stays compact")
 	main._show_page("empire", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 6, "focused front-office content")
+	_check(main.page_content.get_child_count() >= 5 and main.page_content.get_child_count() <= 6, "front-office overview stays compact")
 	main.ranked_view = "overview"
 	main._show_page("play", false)
 	await process_frame
@@ -441,9 +442,18 @@ func _run() -> void:
 	await process_frame
 	_check(main.page_content.get_child_count() >= 8, "Pro Circuit event board content")
 	main.game.data["cash"] = 500
+	main.team_view = "training"
 	main._show_page("team", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 8, "development and coaching page content")
+	_check(main.page_content.get_child_count() >= 7, "focused training view content")
+	main.team_view = "coaching"
+	main._show_page("team", false)
+	await process_frame
+	_check(main.page_content.get_child_count() >= 6, "focused coaching view content")
+	main.team_view = "roster"
+	main._show_page("team", false)
+	await process_frame
+	_check(main.page_content.get_child_count() >= 7, "focused roster view content")
 	_check(main.season_label.text.contains("SPIEL"), "German real-time season header")
 	_check(main.cash_label != null and main.fans_label == null and main.reputation_label == null, "compact mobile header keeps only cash visible")
 	_check(main._chance_text(0.125) == "13%", "chance formatting")
