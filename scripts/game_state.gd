@@ -2012,6 +2012,75 @@ func _simulate_session(session: Dictionary) -> Dictionary:
 	return finalize_match(session)
 
 
+func _broadcast_time(index: int, total: int) -> String:
+	var seconds_left := maxi(0, 300 - int(round(float(index) / float(maxi(1, total - 1)) * 300.0)))
+	return "%d:%02d" % [seconds_left / 60, seconds_left % 60]
+
+
+func _build_broadcast_replay(core_events: Array) -> Array:
+	var replay: Array = []
+	if core_events.is_empty():
+		return replay
+	var previous_score := "0 - 0"
+	var total := core_events.size() * 3
+	var replay_index := 0
+	for event_value in core_events:
+		var event: Dictionary = event_value
+		var action := str(event.get("call", "control"))
+		var quality := int(event.get("quality", 0))
+		var momentum_value := int(event.get("momentum", 0))
+		var setup_text := "TSK baut den Angriff kontrolliert auf."
+		if action == "press":
+			setup_text = "TSK schiebt hoch und setzt den Gegner früh unter Druck."
+		elif action == "counter":
+			setup_text = "TSK bleibt kompakt und wartet auf den Raum für den Konter."
+		replay.append({
+			"time": _broadcast_time(replay_index, total),
+			"type": "neutral",
+			"text": setup_text,
+			"score": previous_score,
+			"call": action,
+			"quality": 0,
+			"momentum": momentum_value,
+			"phase": "buildup",
+			"count_stats": false,
+		})
+		replay_index += 1
+
+		var challenge_text := "Enges Fifty im Mittelfeld — beide Teams bleiben dran."
+		if quality > 0:
+			challenge_text = "TSK gewinnt die Challenge und hält den Druck hoch."
+		elif quality < 0:
+			challenge_text = "Der Gegner gewinnt die Challenge und dreht das Feld."
+		replay.append({
+			"time": _broadcast_time(replay_index, total),
+			"type": "neutral",
+			"text": challenge_text,
+			"score": previous_score,
+			"call": action,
+			"quality": quality,
+			"momentum": momentum_value,
+			"phase": "challenge",
+			"count_stats": false,
+		})
+		replay_index += 1
+
+		var resolved := event.duplicate(true)
+		resolved["time"] = _broadcast_time(replay_index, total)
+		resolved["phase"] = (
+			"goal_ours" if str(event.get("type", "")) == "good"
+			else "goal_theirs" if str(event.get("type", "")) == "bad"
+			else "chance_ours" if quality > 0
+			else "chance_theirs" if quality < 0
+			else "reset"
+		)
+		resolved["count_stats"] = true
+		replay.append(resolved)
+		replay_index += 1
+		previous_score = str(event.get("score", previous_score))
+	return replay
+
+
 func create_match(mode: String) -> Dictionary:
 	return _simulate_session(prepare_match(mode))
 
@@ -2172,6 +2241,7 @@ func finalize_match(session: Dictionary) -> Dictionary:
 		"opponent_profile": profile,
 		"won": won,
 		"events": events,
+		"broadcast_events": _build_broadcast_replay(events) if mode == "Rocket League" else events.duplicate(true),
 		"score": "%d - %d" % [our_score, their_score],
 		"mmr_delta": mmr_delta,
 		"mmr_before": mmr_before,
