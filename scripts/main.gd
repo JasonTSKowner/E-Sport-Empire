@@ -1624,6 +1624,8 @@ func _build_play_page() -> void:
 		return
 	_playlist_switch()
 	_ranked_view_switch()
+	if ranked_view in ["ladder", "ranks", "titles"]:
+		_ranked_profile_switch()
 	match ranked_view:
 		"circuit":
 			_build_pro_circuit_page()
@@ -1657,20 +1659,43 @@ func _select_rl_playlist(playlist: String) -> void:
 
 func _ranked_view_switch() -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 1)
+	row.add_theme_constant_override("separation", 2)
 	for entry in [
-		["overview", "ÜBERSICHT"], ["circuit", "TURNIER"], ["ladder", "RANGLISTE"],
-		["ranks", "RÄNGE"], ["titles", "TITEL"]
+		["overview", "SPIELEN"],
+		["circuit", "TURNIER"],
+		["profile", "PROFIL"],
 	]:
-		var active := ranked_view == str(entry[0])
+		var target := str(entry[0])
+		var active := (
+			ranked_view == target
+			or (target == "profile" and ranked_view in ["ladder", "ranks", "titles"])
+		)
 		var button := UI.tab(str(entry[1]), active, UI.CYAN)
-		button.add_theme_font_size_override("font_size", 8)
-		button.pressed.connect(_select_ranked_view.bind(str(entry[0])))
+		button.add_theme_font_size_override("font_size", 10)
+		button.pressed.connect(_select_ranked_view.bind(target))
 		row.add_child(button)
 	page_content.add_child(row)
 
+
+func _ranked_profile_switch() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	for entry in [["ladder", "RANGLISTE"], ["ranks", "RÄNGE"], ["titles", "TITEL"]]:
+		var target := str(entry[0])
+		var button := UI.tab(str(entry[1]), ranked_view == target, UI.MUTED)
+		button.add_theme_font_size_override("font_size", 9)
+		button.pressed.connect(_select_ranked_view.bind(target))
+		row.add_child(button)
+	page_content.add_child(row)
+
+
 func _select_ranked_view(view: String) -> void:
-	ranked_view = view if view in ["overview", "circuit", "ladder", "ranks", "titles"] else "overview"
+	if view == "profile":
+		ranked_view = "ladder"
+	elif view in ["overview", "circuit", "ladder", "ranks", "titles"]:
+		ranked_view = view
+	else:
+		ranked_view = "overview"
 	_show_page("play", false)
 
 
