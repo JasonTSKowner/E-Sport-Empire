@@ -23,12 +23,12 @@ const COACH_NAMES := [
 ]
 
 const STYLES := [
-	"Replay analyst",
-	"Ranked specialist",
-	"Mechanical coach",
-	"Decision coach",
-	"Pressure trainer",
-	"Consistency mentor",
+	"Replay-Analyst",
+	"Ranked-Spezialist",
+	"Mechanik-Coach",
+	"Entscheidungs-Coach",
+	"Druck-Trainer",
+	"Konstanz-Mentor",
 ]
 
 # Every paid session has a guaranteed improvement. The displayed chance only
