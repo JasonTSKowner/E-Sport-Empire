@@ -34,6 +34,9 @@ var toast_panel: PanelContainer
 var toast_label: Label
 var toast_token := 0
 var ranked_view := "overview"
+var home_view := "dashboard"
+var team_view := "roster"
+var empire_view := "overview"
 var selected_team_player_id := "captain"
 
 var match_overlay: Control
@@ -414,20 +417,42 @@ func _build_home_page() -> void:
 		"E-Sport Empire",
 		"Dein Fortschritt, dein nächstes Ziel und alles Wichtige auf einen Blick."
 	)
-	page_content.add_child(_origin_card())
-	page_content.add_child(_career_hub_card())
-	if not game.data.get("contacts", []).is_empty():
-		page_content.add_child(_section_title("NEUE KONTAKTE", "Spieler, die nach deinen Matches auf dich aufmerksam wurden."))
-		for contact in game.data.get("contacts", []):
-			page_content.add_child(_contact_card(contact))
-	page_content.add_child(_sponsor_card())
-	page_content.add_child(_season_objectives_card())
-	page_content.add_child(_rivals_card())
-	page_content.add_child(_section_title("BEREICHE", "Dein aktueller Fortschritt in allen E-Sport-Spielen."))
-	for mode in GameDataRef.MODES:
-		page_content.add_child(_division_row(mode))
-	page_content.add_child(_section_title("LETZTE ERGEBNISSE", "Deine jüngsten Wettkampfspiele."))
-	_build_history_list(page_content, 4)
+	_home_view_switch()
+	match home_view:
+		"career":
+			page_content.add_child(_career_hub_card())
+			page_content.add_child(_rivals_card())
+		"season":
+			page_content.add_child(_sponsor_card())
+			page_content.add_child(_season_objectives_card())
+		_:
+			page_content.add_child(_origin_card())
+			if not game.data.get("contacts", []).is_empty():
+				page_content.add_child(_section_title("NEUE KONTAKTE", "Spieler, die nach deinen Matches auf dich aufmerksam wurden."))
+				for contact in game.data.get("contacts", []):
+					page_content.add_child(_contact_card(contact))
+			page_content.add_child(_section_title("BEREICHE", "Fortschritt in deinen aktiven E-Sport-Bereichen."))
+			for mode in GameDataRef.MODES:
+				page_content.add_child(_division_row(mode))
+			page_content.add_child(_section_title("LETZTE ERGEBNISSE", "Deine jüngsten Wettkampfspiele."))
+			_build_history_list(page_content, 4)
+
+
+func _home_view_switch() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	for entry in [["dashboard", "ÜBERSICHT"], ["career", "KARRIERE"], ["season", "SAISON"]]:
+		var active := home_view == str(entry[0])
+		var button := UI.button(str(entry[1]), UI.CYAN, active, true)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(_select_home_view.bind(str(entry[0])))
+		row.add_child(button)
+	page_content.add_child(row)
+
+
+func _select_home_view(view: String) -> void:
+	home_view = view if view in ["dashboard", "career", "season"] else "dashboard"
+	_show_page("home", false)
 
 
 func _career_hub_card() -> Control:
@@ -961,75 +986,82 @@ func _build_team_page() -> void:
 	game.apply_real_time_fatigue_recovery(false)
 	_page_header(
 		"PERFORMANCE HUB",
-		"Teamzentrale",
-		"Trainiere gezielt, buche Ranked-Coaches und baue einen Kader für den Aufstieg."
+		"Team",
+		"Kader, Entwicklung und Coaching — getrennt und fokussiert."
 	)
 	_mode_switch()
 	var mode: String = game.selected_mode()
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
+
 	var summary := UI.hero(accent)
 	var summary_box := VBoxContainer.new()
-	summary_box.add_theme_constant_override("separation", 10)
+	summary_box.add_theme_constant_override("separation", 8)
 	summary.add_child(summary_box)
 	var summary_row := HBoxContainer.new()
+	summary_row.add_theme_constant_override("separation", 6)
 	summary_row.add_child(_metric_block("TEAM-GES", str(game.team_overall(mode)), accent))
 	summary_row.add_child(_metric_block("FORM", "%d%%" % _team_average(mode, "form"), UI.GREEN))
-	summary_row.add_child(
-		_metric_block("MÜDIGKEIT", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD)
-	)
+	summary_row.add_child(_metric_block("MÜDIGKEIT", "%d%%" % _team_average(mode, "fatigue"), UI.GOLD))
 	summary_box.add_child(summary_row)
 	var chemistry_row := HBoxContainer.new()
+	chemistry_row.add_theme_constant_override("separation", 6)
 	var chemistry := game.team_chemistry(mode)
 	var scrim_gain := 5 + int(floor(float(game.facility_level("coaching")) / 3.0))
-	chemistry_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.PURPLE))
-	chemistry_row.add_child(_metric_block("SCRIM-BONUS", "+%d" % scrim_gain, UI.GREEN))
-	chemistry_row.add_child(_metric_block("KARRIERE-XP", "+8", UI.CYAN))
+	chemistry_row.add_child(_metric_block("CHEMIE", "%d%%" % chemistry, UI.MUTED))
+	chemistry_row.add_child(_metric_block("SCRIM", "+%d" % scrim_gain, UI.GREEN))
 	summary_box.add_child(chemistry_row)
-	var scrim_cost := game.scrim_cost(mode)
-	var scrim_ready := (
-		game.roster_for(mode).size() >= 2
-		and int(game.data.get("cash", 0)) >= scrim_cost
-		and chemistry < 100
-	)
-	var scrim_text := (
-		"TEAM-SCRIM  •  %s  •  +%d CHEMIE"
-		% [GameDataRef.format_cash(scrim_cost), scrim_gain]
-	)
-	if game.roster_for(mode).size() < 2:
-		scrim_text = "TEAM-SCRIM  •  BRAUCHT 2 SPIELER"
-	elif chemistry >= 100:
-		scrim_text = "TEAMCHEMIE MAXIMAL"
-	var scrim_button := UI.button(scrim_text, UI.PURPLE, scrim_ready)
-	scrim_button.disabled = not scrim_ready
-	scrim_button.pressed.connect(_team_scrim.bind(mode))
-	summary_box.add_child(scrim_button)
-	var recovery_note := UI.label(
-		"Müdigkeit regeneriert automatisch in Echtzeit – auch offline. Training und Match-Fortschritt bleiben jederzeit transparent.",
-		11,
-		UI.MUTED
-	)
-	summary_box.add_child(recovery_note)
-	summary_box.add_child(
-		UI.label(
-			"Finanziere Entwicklung durch Cups, Sponsoren und virtuelle Stream-Spenden.",
-			10,
-			UI.DIM
-		)
-	)
 	page_content.add_child(summary)
-	page_content.add_child(_development_impact_card())
-	page_content.add_child(_section_title("KADER", "Wähle einen Spieler für Analyse und Training."))
-	page_content.add_child(_team_roster_selector(mode, accent))
-	var roster := game.roster_for(mode)
-	if not roster.is_empty():
-		var selected_player: Dictionary = roster[0]
-		for roster_player in roster:
-			if str(roster_player.get("id", "")) == selected_team_player_id:
-				selected_player = roster_player
-				break
-		selected_team_player_id = str(selected_player.get("id", "captain"))
-		page_content.add_child(_player_card(selected_player, accent))
-	page_content.add_child(_coaching_market_card(mode))
+
+	_team_view_switch()
+	match team_view:
+		"coaching":
+			page_content.add_child(_development_impact_card())
+			page_content.add_child(_coaching_market_card(mode))
+		_:
+			page_content.add_child(_section_title("KADER", "Wähle einen Spieler für Analyse und Training."))
+			page_content.add_child(_team_roster_selector(mode, accent))
+			var roster := game.roster_for(mode)
+			if not roster.is_empty():
+				var selected_player: Dictionary = roster[0]
+				for roster_player in roster:
+					if str(roster_player.get("id", "")) == selected_team_player_id:
+						selected_player = roster_player
+						break
+				selected_team_player_id = str(selected_player.get("id", "captain"))
+				page_content.add_child(_player_card(selected_player, accent))
+
+			var scrim_cost := game.scrim_cost(mode)
+			var scrim_ready := (
+				roster.size() >= 2
+				and int(game.data.get("cash", 0)) >= scrim_cost
+				and chemistry < 100
+			)
+			var scrim_text := "TEAM-SCRIM  •  %s  •  +%d CHEMIE" % [GameDataRef.format_cash(scrim_cost), scrim_gain]
+			if roster.size() < 2:
+				scrim_text = "TEAM-SCRIM  •  BRAUCHT 2 SPIELER"
+			elif chemistry >= 100:
+				scrim_text = "TEAMCHEMIE MAXIMAL"
+			var scrim_button := UI.button(scrim_text, accent, scrim_ready)
+			scrim_button.disabled = not scrim_ready
+			scrim_button.pressed.connect(_team_scrim.bind(mode))
+			page_content.add_child(scrim_button)
+
+
+func _team_view_switch() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	for entry in [["roster", "KADER & TRAINING"], ["coaching", "COACHING"]]:
+		var active := team_view == str(entry[0])
+		var button := UI.button(str(entry[1]), UI.CYAN, active, true)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(_select_team_view.bind(str(entry[0])))
+		row.add_child(button)
+	page_content.add_child(row)
+
+
+func _select_team_view(view: String) -> void:
+	team_view = view if view in ["roster", "coaching"] else "roster"
+	_show_page("team", false)
 
 
 func _team_roster_selector(mode: String, accent: Color) -> Control:
@@ -2583,37 +2615,47 @@ func _build_empire_page() -> void:
 	_page_header(
 		"FRONT OFFICE",
 		"Verein",
-		"Baue Staff, Infrastruktur und Einnahmen zu einer echten E-Sport-Organisation aus."
+		"Organisation, Personal und Infrastruktur ohne unnötige UI-Wände."
 	)
-	page_content.add_child(_club_identity_card())
-	page_content.add_child(_staff_hq_card())
-	var economy := UI.hero(UI.GOLD)
-	var economy_box := VBoxContainer.new()
-	economy_box.add_theme_constant_override("separation", 11)
-	economy.add_child(economy_box)
-	economy_box.add_child(UI.overline("PASSIVE EINNAHMEN", UI.GOLD))
-	var economy_row := HBoxContainer.new()
-	economy_row.add_child(
-		_metric_block(
-			"EINNAHMEN / H", GameDataRef.format_cash(game.passive_income_per_hour()), UI.GOLD
-		)
-	)
-	economy_row.add_child(
-		_metric_block(
-			"FANS / H", "+%s" % GameDataRef.format_number(game.passive_fans_per_hour()), UI.PURPLE
-		)
-	)
-	economy_row.add_child(_metric_block("OFFLINE-LIMIT", "8 STUNDEN", UI.CYAN))
-	economy_box.add_child(economy_row)
-	economy_box.add_child(
-		UI.label("Offline-Erträge werden bei deiner Rückkehr automatisch gutgeschrieben.", 12, UI.MUTED)
-	)
-	page_content.add_child(economy)
-	page_content.add_child(
-		_section_title("EINRICHTUNGEN", "Dauerhafte Upgrades für deine gesamte Organisation.")
-	)
-	for key in GameDataRef.FACILITIES:
-		page_content.add_child(_facility_card(key))
+	_empire_view_switch()
+	match empire_view:
+		"staff":
+			page_content.add_child(_staff_hq_card())
+		"facilities":
+			page_content.add_child(_section_title("EINRICHTUNGEN", "Dauerhafte Upgrades für deine gesamte Organisation."))
+			for key in GameDataRef.FACILITIES:
+				page_content.add_child(_facility_card(key))
+		_:
+			var economy := UI.hero(UI.GOLD)
+			var economy_box := VBoxContainer.new()
+			economy_box.add_theme_constant_override("separation", 9)
+			economy.add_child(economy_box)
+			economy_box.add_child(UI.overline("VEREINSSTATUS", UI.DIM))
+			var economy_row := HBoxContainer.new()
+			economy_row.add_theme_constant_override("separation", 6)
+			economy_row.add_child(_metric_block("EINNAHMEN / H", GameDataRef.format_cash(game.passive_income_per_hour()), UI.GOLD))
+			economy_row.add_child(_metric_block("FANS / H", "+%s" % GameDataRef.format_number(game.passive_fans_per_hour()), UI.MUTED))
+			economy_row.add_child(_metric_block("OFFLINE", "8H", UI.CYAN))
+			economy_box.add_child(economy_row)
+			page_content.add_child(economy)
+			page_content.add_child(_club_identity_card())
+
+
+func _empire_view_switch() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	for entry in [["overview", "ÜBERSICHT"], ["staff", "STAFF"], ["facilities", "ANLAGEN"]]:
+		var active := empire_view == str(entry[0])
+		var button := UI.button(str(entry[1]), UI.CYAN, active, true)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(_select_empire_view.bind(str(entry[0])))
+		row.add_child(button)
+	page_content.add_child(row)
+
+
+func _select_empire_view(view: String) -> void:
+	empire_view = view if view in ["overview", "staff", "facilities"] else "overview"
+	_show_page("empire", false)
 
 
 func _club_identity_card() -> Control:
