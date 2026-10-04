@@ -16,6 +16,7 @@ const FX = preload("res://scripts/ui_fx.gd")
 const UI = preload("res://scripts/ui_kit.gd")
 const NavIconRef = preload("res://scripts/nav_icon.gd")
 const PlayerPortraitRef = preload("res://scripts/player_portrait.gd")
+const BrandMarkRef = preload("res://scripts/brand_mark.gd")
 
 var game: EmpireStateRef
 var current_page := AppConfigRef.DEFAULT_PAGE
@@ -118,89 +119,67 @@ func _build_shell() -> void:
 
 func _build_top_bar() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 88.0
-	var outer_style := UI.box(Color(0.035, 0.043, 0.056, 0.985), 0, Color(0.55, 0.64, 0.74, 0.10), 0)
+	outer.custom_minimum_size.y = 62.0
+	var outer_style := UI.box(Color(0.032,0.039,0.050,0.995), 0, Color(0.72,0.78,0.86,0.07), 0)
 	outer_style.shadow_size = 0
 	outer.add_theme_stylebox_override("panel", outer_style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_left", 10)
 	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_right", 10)
 	margin.add_theme_constant_override("margin_bottom", 7)
 	outer.add_child(margin)
 
-	var vertical := VBoxContainer.new()
-	vertical.add_theme_constant_override("separation", 6)
-	margin.add_child(vertical)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	margin.add_child(row)
 
-	var brand_row := HBoxContainer.new()
-	brand_row.add_theme_constant_override("separation", 10)
-	vertical.add_child(brand_row)
-
-	var brand_mark := PanelContainer.new()
-	brand_mark.custom_minimum_size = Vector2(34, 34)
-	var mark_style := UI.box(Color(0.09, 0.12, 0.16, 1.0), 10, Color(UI.CYAN.r, UI.CYAN.g, UI.CYAN.b, 0.18), 1)
-	mark_style.shadow_size = 0
-	brand_mark.add_theme_stylebox_override("panel", mark_style)
-	var mark_text := UI.label("EE", 11, UI.TEXT, 800)
-	mark_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mark_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	brand_mark.add_child(mark_text)
-	brand_row.add_child(brand_mark)
+	var brand_mark := BrandMarkRef.new()
+	brand_mark.custom_minimum_size = Vector2(36,36)
+	row.add_child(brand_mark)
 
 	var brand_text := VBoxContainer.new()
-	brand_text.add_theme_constant_override("separation", 0)
+	brand_text.add_theme_constant_override("separation", -1)
 	brand_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title := UI.label(str(game.data.get("club_name", "TSK ESPORTS")), 14, UI.TEXT, 800)
-	season_label = UI.label("", 9, UI.MUTED, 700)
+	var title := UI.label(str(game.data.get("club_name", "TSK ESPORTS")), 13, UI.TEXT, 800)
+	season_label = UI.label("", 8, UI.DIM, 700)
 	brand_text.add_child(title)
 	brand_text.add_child(season_label)
-	brand_row.add_child(brand_text)
-
-	var version_badge := UI.badge(AppConfigRef.VERSION_BADGE, UI.MUTED)
-	version_badge.custom_minimum_size.x = 66
-	brand_row.add_child(version_badge)
+	row.add_child(brand_text)
 
 	var stats := HBoxContainer.new()
-	stats.add_theme_constant_override("separation", 5)
-	vertical.add_child(stats)
-	var cash_chip := _header_chip("GELD", UI.CYAN)
+	stats.add_theme_constant_override("separation", 4)
+	row.add_child(stats)
+	var cash_chip := _header_chip("€", UI.CYAN)
 	cash_label = cash_chip.get_meta("value_label")
 	stats.add_child(cash_chip)
-	var fans_chip := _header_chip("FANS", UI.PURPLE)
+	var fans_chip := _header_chip("F", UI.MUTED)
 	fans_label = fans_chip.get_meta("value_label")
 	stats.add_child(fans_chip)
-	var reputation_chip := _header_chip("RUF", UI.GREEN)
+	var reputation_chip := _header_chip("R", UI.GREEN)
 	reputation_label = reputation_chip.get_meta("value_label")
 	stats.add_child(reputation_chip)
 	return outer
 
 func _header_chip(caption: String, accent: Color) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color.TRANSPARENT
-	style.content_margin_left = 4
-	style.content_margin_right = 4
-	style.content_margin_top = 2
-	style.content_margin_bottom = 2
+	style.content_margin_left = 3
+	style.content_margin_right = 3
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
 	panel.add_theme_stylebox_override("panel", style)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 5)
-	var marker := ColorRect.new()
-	marker.color = Color(accent.r, accent.g, accent.b, 0.72)
-	marker.custom_minimum_size = Vector2(2, 20)
-	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(marker)
-	var text_box := VBoxContainer.new()
-	text_box.add_theme_constant_override("separation", -2)
-	var cap := UI.label(caption, 7, UI.DIM, 800)
-	var value := UI.label("—", 11, UI.TEXT, 800)
-	text_box.add_child(cap)
-	text_box.add_child(value)
-	row.add_child(text_box)
-	panel.add_child(row)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", -2)
+	var value := UI.label("—", 10, UI.TEXT, 800)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var cap := UI.label(caption, 7, accent, 800)
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(value)
+	box.add_child(cap)
+	panel.add_child(box)
 	panel.set_meta("value_label", value)
 	return panel
 
@@ -391,23 +370,23 @@ func _apply_scroll_passthrough(node: Node) -> void:
 
 
 func _page_header(kicker: String, title: String, subtitle: String) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 9)
-	var bar := ColorRect.new()
-	bar.color = UI.CYAN
-	bar.custom_minimum_size = Vector2(3, 42)
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(bar)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
 	var text_box := VBoxContainer.new()
-	text_box.add_theme_constant_override("separation", 1)
 	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text_box.add_child(UI.overline(kicker, UI.MUTED))
-	text_box.add_child(UI.heading(title, 24))
-	row.add_child(text_box)
-	page_content.add_child(row)
-	var sub := UI.label(subtitle, 11, UI.MUTED)
-	sub.custom_minimum_size.y = 26
+	text_box.add_theme_constant_override("separation", 0)
+	text_box.add_child(UI.overline(kicker, UI.DIM))
+	text_box.add_child(UI.heading(title, 26))
+	top.add_child(text_box)
+	var mark := BrandMarkRef.new()
+	mark.custom_minimum_size = Vector2(30,30)
+	mark.modulate.a = 0.52
+	top.add_child(mark)
+	page_content.add_child(top)
+	var sub := UI.label(subtitle, 10, UI.MUTED)
+	sub.custom_minimum_size.y = 22
 	page_content.add_child(sub)
+	page_content.add_child(UI.separator(Color(0.72,0.78,0.86,0.07)))
 
 func _mode_switch() -> void:
 	var row := HBoxContainer.new()
