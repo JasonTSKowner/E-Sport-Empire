@@ -2022,12 +2022,12 @@ func create_pro_circuit_match() -> Dictionary:
 
 func finalize_match(session: Dictionary) -> Dictionary:
 	if bool(session.get("resolved", false)):
-		return {"ok": false, "message": "This match result was already saved."}
+		return {"ok": false, "message": "Dieses Spielergebnis wurde bereits gespeichert."}
 	var regulation_turns := int(session.get("regulation_turns", 6))
 	var our_score := int(session.get("our_score", 0))
 	var their_score := int(session.get("their_score", 0))
 	if int(session.get("turn", 0)) < regulation_turns or our_score == their_score:
-		return {"ok": false, "message": "The match is not finished yet."}
+		return {"ok": false, "message": "Das Spiel ist noch nicht beendet."}
 	var mode := str(session.get("mode", "Rocket League"))
 	var format := str(session.get("format", "1v1"))
 	var opponent := str(session.get("opponent", "Unknown"))
@@ -2287,7 +2287,7 @@ func _create_match_events(mode: String, won: bool) -> Array:
 	events[events.size() - 1]["text"] = (
 		"The final moment confirms a hard-earned victory."
 		if won
-		else "The series ends, but the review already starts."
+		else "Die Serie ist vorbei, aber die Analyse beginnt sofort."
 	)
 	events[events.size() - 1]["type"] = "good" if won else "bad"
 	return events
@@ -2299,7 +2299,7 @@ func _event_time(mode: String, index: int) -> String:
 		return "%d:%02d" % [seconds_left / 60, seconds_left % 60]
 	if mode == "Fortnite":
 		return "ZONE %d" % mini(9, index + 1)
-	return "CIRCLE %d" % mini(9, index + 1)
+	return "KREIS %d" % mini(9, index + 1)
 
 
 func _update_rank_title_progress(
@@ -2448,14 +2448,14 @@ func buy_stream_plan(plan: String) -> Dictionary:
 		return {"ok": false, "message": "Unknown streaming plan."}
 	var cost := stream_plan_cost(plan)
 	if int(data.get("cash", 0)) < cost:
-		return {"ok": false, "message": "You cannot afford the %s plan yet." % plan}
+		return {"ok": false, "message": "Du kannst dir den %s-Plan noch nicht leisten." % plan}
 	data["cash"] = int(data["cash"]) - cost
 	data["streaming"]["plan"] = plan
 	data["streaming"]["plan_until"] = int(Time.get_unix_time_from_system()) + 30 * 24 * 60 * 60
 	save_game()
 	return {
 		"ok": true,
-		"message": "%s activated for 30 days. Better tools, not guaranteed viewers." % plan,
+		"message": "%s für 30 Tage aktiviert. Bessere Tools, aber keine garantierten Zuschauer." % plan,
 	}
 
 
@@ -2466,10 +2466,10 @@ func accept_contact(contact_id: String) -> Dictionary:
 			selected = contact
 			break
 	if selected.is_empty():
-		return {"ok": false, "message": "That contact is no longer available."}
+		return {"ok": false, "message": "Dieser Kontakt ist nicht mehr verfügbar."}
 	var mode := str(selected.get("mode", "Rocket League"))
 	if roster_for(mode).size() >= 3:
-		return {"ok": false, "message": "The %s roster is already full." % mode}
+		return {"ok": false, "message": "Der %s-Kader ist bereits voll." % mode}
 	var player := selected.duplicate(true)
 	player["id"] = "player_%d" % int(Time.get_ticks_msec())
 	player["form"] = 52
@@ -2505,7 +2505,7 @@ func play_community_cup(mode: String) -> Dictionary:
 	if int(mode_record(mode).get("played", 0)) < 3:
 		return {"ok": false, "message": "Play at least 3 ranked matches before entering a community cup."}
 	if now < int(data.get("cup_ready_at", 0)):
-		return {"ok": false, "message": "No new community cup is open yet."}
+		return {"ok": false, "message": "Aktuell ist kein neuer Community Cup offen."}
 	var win_chance := community_cup_win_chance(mode)
 	var won := rng.randf() <= win_chance
 	var prize := 0
@@ -2550,12 +2550,12 @@ func _roll_opponent_profile() -> Dictionary:
 	if roll < 0.14:
 		return {"key": "boosted", "label": "BOOSTED PLAYER", "strength_mod": -10.0, "attention_mult": 0.7}
 	if roll < 0.22:
-		return {"key": "peaking", "label": "PEAKING TODAY", "strength_mod": 5.0, "attention_mult": 1.25}
+		return {"key": "peaking", "label": "HEUTE IN TOPFORM", "strength_mod": 5.0, "attention_mult": 1.25}
 	if roll < 0.30:
 		return {"key": "tilted", "label": "TILTED", "strength_mod": -5.0, "attention_mult": 0.85}
 	if roll < 0.36:
-		return {"key": "returning", "label": "RETURNING PLAYER", "strength_mod": 7.0, "attention_mult": 1.35}
-	return {"key": "normal", "label": "NORMAL MATCH", "strength_mod": 0.0, "attention_mult": 1.0}
+		return {"key": "returning", "label": "RÜCKKEHRER", "strength_mod": 7.0, "attention_mult": 1.35}
+	return {"key": "normal", "label": "NORMALES SPIEL", "strength_mod": 0.0, "attention_mult": 1.0}
 
 
 func opponent_profile_odds() -> Array:
@@ -2589,7 +2589,7 @@ func _attention_roll(
 			"points": 0,
 			"reputation": 0,
 			"chance": chance,
-			"text": "No unusual attention after this match.",
+			"text": "Nach diesem Spiel gibt es keine besondere Aufmerksamkeit.",
 		}
 	var roll := rng.randf()
 	var points := rng.randi_range(1, 4)
@@ -2597,15 +2597,15 @@ func _attention_roll(
 	var text := ""
 	var contact: Dictionary = {}
 	if roll < 0.48:
-		text = "Your opponent checked your profile after the match."
+		text = "Dein Gegner hat nach dem Spiel dein Profil angesehen."
 		if rng.randf() < 0.45:
 			contact = _make_contact(mode, "Opponent")
 			text = "%s sent you a queue request after the match." % contact["name"]
 	elif roll < 0.68 and format != "1v1":
-		contact = _make_contact(mode, "Random teammate")
+		contact = _make_contact(mode, "Zufälliger Teamkollege")
 		text = "%s, a random teammate, wants to queue again." % contact["name"]
 	elif roll < 0.88:
-		text = "A small clip from the match started getting shared."
+		text = "Ein kleiner Clip aus dem Spiel wird gerade geteilt."
 		points += 2
 	else:
 		text = "A small tournament organizer noticed your recent results."
@@ -2677,20 +2677,20 @@ func _stream_payload(
 
 	var chat_templates := [
 		"clean",
-		"nice read",
+		"starker Read",
 		"gg",
-		"that was actually good",
+		"das war echt stark",
 		"who is TSK?",
-		"bro is underrated",
+		"der ist underrated",
 		"queue again",
-		"that opponent looks way better than this rank",
+		"der Gegner sieht viel besser aus als dieser Rang",
 	]
 	var comment_templates := [
-		"bro is actually underrated",
-		"played against this guy before, solid",
-		"that match was closer than the rank says",
+		"der ist wirklich underrated",
+		"schon gegen den gespielt, stabil",
+		"das Spiel war enger als der Rang vermuten lässt",
 		"who even is TSK?",
-		"the grind from zero is kinda fire",
+		"der Grind von null ist schon stark",
 		"clean game",
 	]
 	var chat: Array = []
