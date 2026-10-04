@@ -996,6 +996,8 @@ func _build_team_page() -> void:
 	page_content.add_child(summary)
 
 	_team_view_switch()
+	if team_view in ["training", "coaching"]:
+		_team_development_switch()
 	var roster := game.roster_for(mode)
 	var selected_player: Dictionary = {}
 	if not roster.is_empty():
@@ -1039,15 +1041,36 @@ func _build_team_page() -> void:
 func _team_view_switch() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 2)
-	for entry in [["roster", "KADER"], ["training", "TRAINING"], ["coaching", "COACHING"], ["scouting", "SCOUT"]]:
-		var active := team_view == str(entry[0])
+	for entry in [["roster", "KADER"], ["development", "ENTWICKLUNG"], ["scouting", "SCOUT"]]:
+		var target := str(entry[0])
+		var active := (
+			team_view == target
+			or (target == "development" and team_view in ["training", "coaching"])
+		)
 		var button := UI.tab(str(entry[1]), active, UI.CYAN)
-		button.pressed.connect(_select_team_view.bind(str(entry[0])))
+		button.pressed.connect(_select_team_view.bind(target))
 		row.add_child(button)
 	page_content.add_child(row)
 
+
+func _team_development_switch() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	for entry in [["training", "TRAINING"], ["coaching", "COACHING"]]:
+		var target := str(entry[0])
+		var button := UI.tab(str(entry[1]), team_view == target, UI.MUTED)
+		button.pressed.connect(_select_team_view.bind(target))
+		row.add_child(button)
+	page_content.add_child(row)
+
+
 func _select_team_view(view: String) -> void:
-	team_view = view if view in ["roster", "training", "coaching", "scouting"] else "roster"
+	if view == "development":
+		team_view = "training"
+	elif view in ["roster", "training", "coaching", "scouting"]:
+		team_view = view
+	else:
+		team_view = "roster"
 	_show_page("team", false)
 
 
