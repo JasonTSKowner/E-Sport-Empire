@@ -111,7 +111,7 @@ public class BassService extends Service {
     }
 
     private void ensureForeground() {
-        Intent open = new Intent(this, MainActivity.class);
+        Intent open = new Intent(this, V7Activity.class);
         PendingIntent pi = PendingIntent.getActivity(
                 this, 0, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
