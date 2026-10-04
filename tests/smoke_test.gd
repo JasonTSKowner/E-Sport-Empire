@@ -445,11 +445,11 @@ func _run() -> void:
 	main.team_view = "training"
 	main._show_page("team", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 7, "focused training view content")
+	_check(main.page_content.get_child_count() >= 5 and main.page_content.get_child_count() <= 6, "focused training view stays compact")
 	main.team_view = "coaching"
 	main._show_page("team", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 6, "focused coaching view content")
+	_check(main.page_content.get_child_count() >= 5 and main.page_content.get_child_count() <= 6, "focused coaching view stays compact")
 	main.team_view = "roster"
 	main._show_page("team", false)
 	await process_frame
