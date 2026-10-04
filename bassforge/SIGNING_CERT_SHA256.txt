@@ -1,5 +1,6 @@
-BassForge release signing certificate
-SHA-256: b7bb9d40e69aab9bbedb5583106fae8e496b81696524ec47ea720af243fffbb1
+BassForge persistent release signing certificate
+SHA-256: E97B9FE8A26E3B6AEA4DD1BD51CAE2CFD00E3994F1C3B012B950DFDB1CAB3FC3
 
-Public certificate fingerprint only. The private signing key is NOT stored in this public repository.
-Baseline: BassForge V7 AURORA FX
+Baseline: BassForge V7.0.1 SIGNING BASELINE
+The private signing key is stored outside this public repository in the owner's private file library.
+Every future BassForge release must match this certificate fingerprint before distribution.
