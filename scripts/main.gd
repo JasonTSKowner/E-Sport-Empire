@@ -17,6 +17,7 @@ const UI = preload("res://scripts/ui_kit.gd")
 const NavIconRef = preload("res://scripts/nav_icon.gd")
 const PlayerPortraitRef = preload("res://scripts/player_portrait.gd")
 const BrandMarkRef = preload("res://scripts/brand_mark.gd")
+const ModeIconRef = preload("res://scripts/mode_icon.gd")
 const AppFontRef = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
 var game: EmpireStateRef
@@ -123,7 +124,7 @@ func _build_shell() -> void:
 
 func _build_top_bar() -> Control:
 	var outer := PanelContainer.new()
-	outer.custom_minimum_size.y = 62.0
+	outer.custom_minimum_size.y = 60.0
 	var outer_style := UI.box(Color(0.032,0.039,0.050,0.995), 0, Color(0.72,0.78,0.86,0.07), 0)
 	outer_style.shadow_size = 0
 	outer.add_theme_stylebox_override("panel", outer_style)
@@ -152,18 +153,10 @@ func _build_top_bar() -> Control:
 	brand_text.add_child(season_label)
 	row.add_child(brand_text)
 
-	var stats := HBoxContainer.new()
-	stats.add_theme_constant_override("separation", 4)
-	row.add_child(stats)
-	var cash_chip := _header_chip("€", UI.CYAN)
-	cash_label = cash_chip.get_meta("value_label")
-	stats.add_child(cash_chip)
-	var fans_chip := _header_chip("F", UI.MUTED)
-	fans_label = fans_chip.get_meta("value_label")
-	stats.add_child(fans_chip)
-	var reputation_chip := _header_chip("R", UI.GREEN)
-	reputation_label = reputation_chip.get_meta("value_label")
-	stats.add_child(reputation_chip)
+	var status := UI.label("ONLINE", 7, UI.DIM, 800)
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(status)
 	return outer
 
 func _header_chip(caption: String, accent: Color) -> PanelContainer:
@@ -919,56 +912,49 @@ func _season_objectives_card() -> Control:
 func _division_row(mode: String) -> Control:
 	var accent: Color = GameDataRef.MODE_COLORS[mode]
 	var record: Dictionary = game.mode_record(mode)
-	var rank: Dictionary = game.rank_data(mode)
-	var panel := UI.card(accent)
+	var panel := UI.card()
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 10)
 	panel.add_child(row)
-	var mode_mark := PanelContainer.new()
-	mode_mark.custom_minimum_size = Vector2(48, 48)
-	mode_mark.add_theme_stylebox_override(
-		"panel",
-		UI.box(
-			Color(accent.r, accent.g, accent.b, 0.13),
-			15,
-			Color(accent.r, accent.g, accent.b, 0.36),
-			1
-		)
-	)
-	var short := UI.label(GameDataRef.MODE_SHORT[mode], 14, accent, 800)
-	short.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	short.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	mode_mark.add_child(short)
-	row.add_child(mode_mark)
+
+	var icon := ModeIconRef.new()
+	icon.configure(mode, accent)
+	icon.custom_minimum_size = Vector2(40,40)
+	row.add_child(icon)
+
 	var center := VBoxContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	center.add_theme_constant_override("separation", 2)
-	center.add_child(UI.label(mode, 16, UI.TEXT, 800))
+	center.add_theme_constant_override("separation", 1)
+	center.add_child(UI.label(mode, 15, UI.TEXT, 800))
 	center.add_child(
-		UI.label("%s  •  OVR %d" % [game.visible_rank_name(mode), game.team_overall(mode)], 12, UI.MUTED)
+		UI.label("%s  ·  OVR %d" % [game.visible_rank_name(mode), game.team_overall(mode)], 10, UI.MUTED)
 	)
 	center.add_child(
 		UI.label(
-			(
-				"%dS  %dN  •  %d/%d Placements"
-				% [int(record["wins"]), int(record["losses"]), int(record["placements"]), game.placement_target(mode)]
-			),
-			11,
+			"%dS  %dN  ·  %d/%d Placements"
+			% [int(record["wins"]), int(record["losses"]), int(record["placements"]), game.placement_target(mode)],
+			9,
 			UI.DIM
 		)
 	)
 	row.add_child(center)
+
 	var rating := VBoxContainer.new()
 	var rating_hidden := mode == "Rocket League" and int(record.get("placements", 0)) < 10
-	var rating_value := UI.label("VERBORGEN" if rating_hidden else str(record["mmr"]), 15 if rating_hidden else 19, UI.TEXT, 800)
+	var rating_value := UI.label(
+		"%d/%d" % [int(record.get("placements", 0)), game.placement_target(mode)]
+		if rating_hidden else str(int(record.get("mmr", 0))),
+		16,
+		UI.TEXT,
+		800
+	)
 	rating_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var rating_cap := UI.label("PLACEMENTS" if rating_hidden else "MMR", 9 if rating_hidden else 10, accent, 800)
+	var rating_cap := UI.label("PLACEMENTS" if rating_hidden else "MMR", 7, accent, 800)
 	rating_cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	rating.add_child(rating_value)
 	rating.add_child(rating_cap)
 	row.add_child(rating)
 	return panel
-
 
 func _build_team_page() -> void:
 	game.apply_real_time_fatigue_recovery(false)
@@ -1051,26 +1037,33 @@ func _select_team_view(view: String) -> void:
 
 
 func _team_roster_selector(mode: String, accent: Color) -> Control:
-	var panel := UI.card()
+	var roster := game.roster_for(mode)
+	if roster.size() <= 1:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		if not roster.is_empty():
+			var player: Dictionary = roster[0]
+			var portrait := PlayerPortraitRef.new()
+			portrait.configure(str(player.get("name", "PLAYER")), accent)
+			portrait.custom_minimum_size = Vector2(38,42)
+			row.add_child(portrait)
+			var info := VBoxContainer.new()
+			info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			info.add_child(UI.label(str(player.get("name", "PLAYER")).to_upper(), 12, UI.TEXT, 800))
+			info.add_child(UI.label("OVR %d  ·  %s" % [game.player_overall(player), str(player.get("role", "PLAYER")).to_upper()], 8, UI.DIM, 700))
+			row.add_child(info)
+		return row
+
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 5)
-	panel.add_child(row)
-	for player in game.roster_for(mode):
+	row.add_theme_constant_override("separation", 2)
+	for player in roster:
 		var player_id := str(player.get("id", ""))
 		var active := player_id == selected_team_player_id
-		var button := UI.button(
-			"%s\nOVR %d" % [str(player.get("name", "PLAYER")).to_upper(), game.player_overall(player)],
-			accent,
-			active,
-			true
-		)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size.y = 48
-		button.add_theme_font_size_override("font_size", 9)
+		var button := UI.tab("%s · %d" % [str(player.get("name", "PLAYER")).to_upper(), game.player_overall(player)], active, accent)
+		button.add_theme_font_size_override("font_size", 8)
 		button.pressed.connect(_select_team_player.bind(player_id))
 		row.add_child(button)
-	return panel
-
+	return row
 
 func _select_team_player(player_id: String) -> void:
 	selected_team_player_id = player_id
@@ -2630,46 +2623,61 @@ func _select_empire_view(view: String) -> void:
 
 func _club_identity_card() -> Control:
 	var active := game.club_identity()
+	var active_id := str(active.get("id", "counter"))
 	var active_accent := Color(str(active.get("color", "58e39b")))
-	var panel := UI.card(active_accent)
+	var panel := UI.card()
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
+	box.add_theme_constant_override("separation", 8)
 	panel.add_child(box)
-	box.add_child(UI.overline("VEREINS-DNA", active_accent))
-	box.add_child(UI.label(str(active.get("name", "Counter Culture")), 19, UI.TEXT, 800))
-	box.add_child(UI.label(str(active.get("detail", "Lege fest, wie dein Verein spielen soll.")), 11, UI.MUTED))
-	box.add_child(
-		UI.label(
-			"Der Bonus wirkt automatisch in der Match-Simulation. Du kannst die Vereins-DNA jederzeit kostenlos wechseln.",
-			10,
-			UI.DIM
-		)
-	)
+
+	box.add_child(UI.overline("VEREINS-DNA", UI.DIM))
+	box.add_child(UI.label(str(active.get("name", "Konter-Kultur")), 20, UI.TEXT, 800))
+	box.add_child(UI.label(str(active.get("detail", "Lege fest, wie dein Verein spielen soll.")), 10, UI.MUTED))
+	box.add_child(UI.separator(Color(active_accent.r, active_accent.g, active_accent.b, 0.18)))
+
 	for identity_value in CareerDataRef.CLUB_IDENTITIES:
 		var identity: Dictionary = identity_value
-		var identity_id := str(identity.get("id", ""))
-		var selected := identity_id == str(active.get("id", ""))
-		var accent := Color(str(identity.get("color", "2de2ff")))
-		var choose := UI.button(
-			(
-				"AKTIV  •  %s\n%s"
-				if selected
-				else "%s\n%s"
-			)
-			% [
-				str(identity.get("name", "Vereins-DNA")).to_upper(),
-				str(identity.get("detail", "+4 percentage points")),
-			],
-			accent,
-			not selected,
-			true
-		)
-		choose.custom_minimum_size.y = 62
-		choose.disabled = selected
-		choose.pressed.connect(_set_club_identity.bind(identity_id))
-		box.add_child(choose)
+		box.add_child(_identity_option_row(identity, active_id))
 	return panel
 
+
+func _identity_option_row(identity: Dictionary, active_id: String) -> Control:
+	var identity_id := str(identity.get("id", ""))
+	var selected := identity_id == active_id
+	var accent := Color(str(identity.get("color", "74DFF7")))
+	var panel := PanelContainer.new()
+	var style := UI.box(
+		Color(0.045,0.055,0.068,0.78) if selected else Color.TRANSPARENT,
+		5,
+		Color(accent.r,accent.g,accent.b,0.18) if selected else Color(0.72,0.78,0.86,0.07),
+		1
+	)
+	style.border_width_left = 3
+	style.border_color = Color(accent.r, accent.g, accent.b, 0.78 if selected else 0.22)
+	style.shadow_size = 0
+	style.content_margin_left = 10
+	style.content_margin_right = 8
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", style)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	panel.add_child(row)
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_child(UI.label(str(identity.get("name", "Vereins-DNA")).to_upper(), 10, UI.TEXT, 800))
+	text.add_child(UI.label(str(identity.get("detail", "+4 Prozentpunkte")), 8, UI.DIM))
+	row.add_child(text)
+
+	if selected:
+		row.add_child(UI.badge("AKTIV", UI.GREEN))
+	else:
+		var choose := UI.button("WÄHLEN", accent, false, true)
+		choose.custom_minimum_size = Vector2(76, 36)
+		choose.pressed.connect(_set_club_identity.bind(identity_id))
+		row.add_child(choose)
+	return panel
 
 func _staff_hq_card() -> Control:
 	var panel := UI.card(UI.CYAN)
