@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity, v0.4.8-player-development, v0.4.9-real-time-career, v0.5-career-identity, v0.6-pro-circuit, v1.0-foundation-rebuild, v1.2-mobile-de, v1.3-visual-rebuild, v1.4-premium-rebuild, v2.0-art-direction, v2.1-cinematic-ui]
+    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity, v0.4.8-player-development, v0.4.9-real-time-career, v0.5-career-identity, v0.6-pro-circuit, v1.0-foundation-rebuild, v1.2-mobile-de, v1.3-visual-rebuild, v1.4-premium-rebuild, v2.0-art-direction, v2.1-cinematic-ui, v2.2-gameplay-life]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -79,6 +79,15 @@ jobs:
             --headless \
             --path . \
             --script res://tests/smoke_test.gd
+
+      - name: Run v2.2 gameplay life smoke test
+        shell: bash
+        run: |
+          timeout --signal=TERM 45s \
+            /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
+            --headless \
+            --path . \
+            --script res://tests/v22_smoke_test.gd
 
       - name: Capture mobile UI reference screens
         continue-on-error: true
