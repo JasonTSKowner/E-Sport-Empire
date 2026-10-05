@@ -86,6 +86,12 @@ func _player_training_panel(player: Dictionary, accent: Color) -> Control:
 	var panel := super._player_training_panel(player, accent)
 	var box := panel.get_child(0) as VBoxContainer
 	if box != null:
+		if box.get_child_count() > 0:
+			var header := box.get_child(0)
+			if header is HBoxContainer and header.get_child_count() > 1:
+				var badge := header.get_child(1)
+				if badge.get_child_count() > 0 and badge.get_child(0) is Label:
+					(badge.get_child(0) as Label).text = "GRATIS"
 		box.add_child(_mechanic_library_panel(player, accent))
 	return panel
 
