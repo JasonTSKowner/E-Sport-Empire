@@ -1,9 +1,27 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.2.0"
+const CURRENT_VERSION := "2.3.0"
 
 const ENTRIES := [
+	{
+		"version": "2.3.0",
+		"title": "MECHANICAL EXPANSION",
+		"date": "05 OCT 2026",
+		"items": [
+			"Massiver Mechanic-Tree mit Movement, Flicks, Aerials, Resets, Ceiling, Pinches, Defense, Freestyle und Team-Plays.",
+			"Mechanics besitzen jetzt Setup-, Control-, Read- und Finish-Mastery statt nur einen Gesamtwert.",
+			"Mechanic-Unlocks hängen zusätzlich von vorherigen Skills im Tree ab.",
+			"Match-KI wählt Mechanics abhängig von Spielsituation, Playstyle, Mastery und Match-Kontext.",
+			"Neue Failure States: verfehlte Resets, zu weite Carries, schlechte Backboard-Reads, verpasste Redirects und Pinches.",
+			"Mehrstufige Reset-Chains bis Quad Reset werden sichtbar ausgespielt.",
+			"Neue Team-Plays wie Reset Pass → Redirect, Ceiling Pass → Redirect, Backboard Pass → Finish und Team Pinches.",
+			"Psycho- und Musty-Psycho-Plays können weiterhin in Teammate-Redirects übergehen.",
+			"Training zeigt die höchste freigeschaltete Mechanik mit passendem Ablauf statt generischem Movement.",
+			"Mechanic Library im Training zeigt Unlock-Fortschritt, Tier und einzelne Mastery-Komponenten.",
+			"Mechanical Match-Phasen laufen langsamer, damit Ballweg, Rotation und Reads sichtbar bleiben.",
+		],
+	},
 	{
 		"version": "2.2.0",
 		"title": "GAMEPLAY & LIFE",
