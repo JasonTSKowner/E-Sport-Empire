@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/cinematic_shell.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/cinematic_shell_v22.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/backdrop.gd" id="2_backdrop"]
 
 [node name="Main" type="Control"]
@@ -21,4 +21,3 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("2_backdrop")
-
