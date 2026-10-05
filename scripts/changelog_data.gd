@@ -1,9 +1,24 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.3.0"
+const CURRENT_VERSION := "2.4.0"
 
 const ENTRIES := [
+	{
+		"version": "2.4.0",
+		"title": "VISUAL REBUILD",
+		"date": "05 OCT 2026",
+		"items": [
+			"Home und Ranked wurden von gestapelten App-Karten auf große visuelle Hero-Flächen umgebaut.",
+			"Match-Ansicht nutzt einen neuen Broadcast-Arena-Renderer mit größeren Autos, Ball und klarerer Tiefenwirkung.",
+			"Ballflugbahnen werden als lesbare Bögen dargestellt, damit Mechanical Plays nicht mehr wie Teleports wirken.",
+			"1st-, 2nd- und 3rd-Man-Rotationen bleiben sichtbar, aber deutlich weniger debug-artig.",
+			"Training nutzt einen eigenen Arena-Renderer mit größerem Gameplay-Bereich, Zielzone und klarer Bewegungsroute.",
+			"Weniger Mikro-Text und weniger verschachtelte Panels auf den wichtigsten Mobile-Screens.",
+			"Spielerprofil und Rank-Präsentation wurden größer und stärker auf visuelle Hierarchie ausgerichtet.",
+			"Alle Gameplay-, Mechanic-, Setup-, Backup- und Progressionssysteme aus v2.3 bleiben erhalten.",
+		],
+	},
 	{
 		"version": "2.3.0",
 		"title": "MECHANICAL EXPANSION",
