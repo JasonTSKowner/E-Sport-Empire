@@ -2,8 +2,56 @@ extends "res://scripts/cinematic_shell_v24.gd"
 
 const MatchVizV241Ref = preload("res://scripts/match_visualizer_v241.gd")
 const TrainingVizV241Ref = preload("res://scripts/training_visualizer_v241.gd")
+const HomeStageV241Ref = preload("res://scripts/visual_stage_v24.gd")
 const UIV241 = preload("res://scripts/ui_kit.gd")
 const MechanicsV241 = preload("res://scripts/mechanics_catalog_v23.gd")
+
+func _build_home_page() -> void:
+	super._build_home_page()
+	page_content.add_child(_home_progress_stage_v241())
+
+func _home_progress_stage_v241() -> Control:
+	var playlist := game.selected_rl_playlist()
+	var record := game.playlist_record(playlist)
+	var placements := int(record.get("placements", 0))
+	var played := int(record.get("played", 0))
+	var wins := int(record.get("wins", 0))
+	var stage := HomeStageV241Ref.new().configure(UIV241.CYAN, "player")
+	stage.custom_minimum_size.y = 166
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 13)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	stage.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 7)
+	margin.add_child(box)
+
+	var title_row := HBoxContainer.new()
+	var copy := VBoxContainer.new()
+	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	copy.add_theme_constant_override("separation", 0)
+	copy.add_child(UIV241.label("SEASON TRACK", 8, UIV241.CYAN, 800))
+	copy.add_child(UIV241.label("ERSTER RANK", 20, UIV241.TEXT, 800))
+	title_row.add_child(copy)
+	title_row.add_child(UIV241.badge("%d/10" % mini(placements, 10), UIV241.CYAN))
+	box.add_child(title_row)
+
+	box.add_child(UIV241.progress(mini(placements, 10), 10, UIV241.CYAN, 6))
+
+	var milestones := HBoxContainer.new()
+	milestones.add_theme_constant_override("separation", 4)
+	milestones.add_child(_metric_block("START", "%d SPIELE" % played, UIV241.MUTED))
+	milestones.add_child(_metric_block("HALBZEIT", "%d/5" % mini(placements, 5), UIV241.PURPLE))
+	milestones.add_child(_metric_block("RANK", "%d FEHLEN" % maxi(0, 10 - placements), UIV241.CYAN))
+	box.add_child(milestones)
+
+	var footer := "NÄCHSTES ZIEL  ·  %s" % ("PLACEMENTS ABSCHLIESSEN" if placements < 10 else "%d SIEGE  ·  RANK PUSH" % wins)
+	box.add_child(UIV241.label(footer, 8, UIV241.DIM, 700))
+	return stage
 
 func _build_match_overlay() -> void:
 	super._build_match_overlay()
@@ -40,7 +88,6 @@ func _player_training_panel(player: Dictionary, accent: Color) -> Control:
 	header.add_child(UIV241.badge("LIVE TRAINING", accent))
 	root.add_child(header)
 
-	# Gameplay first: the arena is now the dominant visual instead of another data panel.
 	var training := TrainingVizV241Ref.new()
 	training.configure(player, readiness, accent)
 	root.add_child(training)
