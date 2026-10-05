@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity, v0.4.8-player-development, v0.4.9-real-time-career, v0.5-career-identity, v0.6-pro-circuit, v1.0-foundation-rebuild, v1.2-mobile-de, v1.3-visual-rebuild, v1.4-premium-rebuild, v2.0-art-direction, v2.1-cinematic-ui, v2.2-gameplay-life]
+    branches: [main, v0.4-mobile-polish, v0.4.1-rl-mmr, v0.4.2-rl-ranked-core, v0.4.3-hotfix-mobile, v0.4.4-core-mobile-fix, v0.4.5-ranked-overhaul, v0.4.6-core-loop, v0.4.7-rank-identity, v0.4.8-player-development, v0.4.9-real-time-career, v0.5-career-identity, v0.6-pro-circuit, v1.0-foundation-rebuild, v1.2-mobile-de, v1.3-visual-rebuild, v1.4-premium-rebuild, v2.0-art-direction, v2.1-cinematic-ui, v2.2-gameplay-life, v2.3-mechanical-expansion]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -49,7 +49,15 @@ jobs:
           if [ ! -f .android-signing/e-sport-empire.keystore ]; then
             PASS="$(openssl rand -hex 24)"
             printf "%s" "$PASS" > .android-signing/password.txt
-            keytool -genkeypair -noprompt               -keystore .android-signing/e-sport-empire.keystore               -storepass "$PASS"               -keypass "$PASS"               -alias esportempire               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=E-Sport Empire Alpha,O=TSK,C=DE"
+            keytool -genkeypair -noprompt \
+              -keystore .android-signing/e-sport-empire.keystore \
+              -storepass "$PASS" \
+              -keypass "$PASS" \
+              -alias esportempire \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=E-Sport Empire Alpha,O=TSK,C=DE"
           fi
 
       - name: Install Godot test runtime
@@ -74,14 +82,14 @@ jobs:
       - name: Run ranked and mobile smoke test
         shell: bash
         run: |
-          sed -i 's/AppConfigRef.VERSION.begins_with("2.0.")/AppConfigRef.VERSION.begins_with("2.2.")/' tests/smoke_test.gd
+          sed -i 's/AppConfigRef.VERSION.begins_with("2.0.")/AppConfigRef.VERSION.begins_with("2.3.")/' tests/smoke_test.gd
           timeout --signal=TERM 45s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless \
             --path . \
             --script res://tests/smoke_test.gd
 
-      - name: Run v2.2 gameplay life smoke test
+      - name: Run v2.2 compatibility smoke test
         shell: bash
         run: |
           timeout --signal=TERM 45s \
@@ -89,6 +97,15 @@ jobs:
             --headless \
             --path . \
             --script res://tests/v22_smoke_test.gd
+
+      - name: Run v2.3 mechanical expansion smoke test
+        shell: bash
+        run: |
+          timeout --signal=TERM 60s \
+            /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
+            --headless \
+            --path . \
+            --script res://tests/v23_smoke_test.gd
 
       - name: Capture mobile UI reference screens
         continue-on-error: true
@@ -128,7 +145,12 @@ jobs:
           APK="$(find build -type f -name '*.apk' | head -n 1)"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
           PASS="$(cat .android-signing/password.txt)"
-          "$APKSIGNER" sign             --ks .android-signing/e-sport-empire.keystore             --ks-key-alias esportempire             --ks-pass "pass:$PASS"             --key-pass "pass:$PASS"             "$APK"
+          "$APKSIGNER" sign \
+            --ks .android-signing/e-sport-empire.keystore \
+            --ks-key-alias esportempire \
+            --ks-pass "pass:$PASS" \
+            --key-pass "pass:$PASS" \
+            "$APK"
           "$APKSIGNER" verify --verbose --print-certs "$APK"
 
       - name: Upload installable APK
