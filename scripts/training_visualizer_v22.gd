@@ -14,6 +14,7 @@ func _ready() -> void:
 
 
 func configure(player: Dictionary, readiness: Dictionary, color: Color) -> void:
+	custom_minimum_size = Vector2(0.0, 322.0)
 	super.configure(player, readiness, color)
 	var signature := DevelopmentV22Ref.signature_move(player)
 	signature_id = str(signature.get("id", ""))
