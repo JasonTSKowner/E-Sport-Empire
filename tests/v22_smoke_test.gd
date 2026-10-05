@@ -19,7 +19,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	print("V2.2 1/5: free training")
+	print("V2.2 compatibility 1/5: free training")
 	var state := StateV22.new()
 	state.reset_game()
 	var player: Dictionary = state.data["roster"][0]
@@ -30,7 +30,7 @@ func _run() -> void:
 	_check(int(state.data.get("cash", 0)) == cash_before, "training does not spend money")
 	_check(training.has("mastery_gains"), "training returns mechanic mastery progress")
 
-	print("V2.2 2/5: setup and internet")
+	print("V2.2 compatibility 2/5: setup and internet")
 	state.data["cash"] = 5000
 	var old_ping := state.connection_ping()
 	var upgrade := state.buy_setup_upgrade("internet")
@@ -39,7 +39,7 @@ func _run() -> void:
 	_check(state.connection_ping() < old_ping, "internet upgrade improves ping")
 	_check(SetupData.CATEGORIES.size() == 5, "five setup categories")
 
-	print("V2.2 3/5: recovery backup")
+	print("V2.2 compatibility 3/5: recovery backup")
 	state.data["cash"] = 777
 	var backup := state.create_backup_code()
 	_check(bool(backup.get("ok", false)), "backup code created")
@@ -50,7 +50,7 @@ func _run() -> void:
 	_check(bool(restore.get("ok", false)), "backup code restores")
 	_check(int(state.data.get("cash", 0)) == 777, "backup restores save values")
 
-	print("V2.2 4/5: readable mechanic renderer")
+	print("V2.2 compatibility 4/5: readable mechanic renderer")
 	var visualizer := MatchVizV22.new()
 	visualizer.configure({"format": "3v3"})
 	visualizer.play_turn({
@@ -65,7 +65,7 @@ func _run() -> void:
 	_check(int(visual_state.get("cars", 0)) == 6, "3v3 rotation renderer has six cars")
 	visualizer.free()
 
-	print("V2.2 5/5: drill renderer and changelog")
+	print("V2.2 compatibility 5/5: drill renderer")
 	player = state.data["roster"][0]
 	player["mechanics"] = 92
 	player["defense"] = 86
@@ -75,13 +75,13 @@ func _run() -> void:
 	var drill := TrainingVizV22.new()
 	drill.configure(player, state.training_readiness(player), Color("7FE7FF"))
 	_check(drill.custom_minimum_size.y >= 300.0, "training renderer gives gameplay enough height")
-	_check(ChangelogData.CURRENT_VERSION == "2.2.0", "v2.2 changelog version")
+	_check(ChangelogData.CURRENT_VERSION in ["2.2.0", "2.3.0"], "v2.2+ changelog compatibility")
 	drill.free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v2.2 gameplay life smoke test: PASS")
+		print("E-Sport Empire v2.2 compatibility smoke test: PASS")
 		quit(0)
 	else:
 		for failure in failures:
-			push_error("V2.2 smoke test failed: %s" % failure)
+			push_error("V2.2 compatibility smoke test failed: %s" % failure)
 		quit(1)
