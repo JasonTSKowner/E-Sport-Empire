@@ -28,6 +28,7 @@ func _run() -> void:
 
 	print("V2.4 3/4: match renderer")
 	var match_viz := MatchVizV24.new()
+	match_viz._ready()
 	match_viz.configure({"format":"3v3"})
 	match_viz.play_turn({
 		"type":"neutral", "phase":"psycho_contact", "mechanic_label":"Psycho",
