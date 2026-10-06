@@ -21,8 +21,11 @@ func configure(player: Dictionary, readiness: Dictionary, color: Color) -> void:
 func _create_3d_arena() -> void:
 	if arena_3d != null and is_instance_valid(arena_3d):
 		return
-	arena_3d = Arena3DV25.new().configure(accent, Color("FF6B7A"), true)
+	arena_3d = Arena3DV25.new()
 	arena_3d.name = "TrainingArena3D"
+	arena_3d.team_color = accent
+	arena_3d.enemy_color = Color("FF6B7A")
+	arena_3d.training_mode = true
 	arena_3d.set_anchors_preset(Control.PRESET_FULL_RECT)
 	arena_3d.offset_left = 7.0
 	arena_3d.offset_right = -7.0
@@ -30,6 +33,7 @@ func _create_3d_arena() -> void:
 	arena_3d.offset_bottom = -27.0
 	arena_3d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(arena_3d)
+	arena_3d.configure(accent, Color("FF6B7A"), true)
 
 
 func _process(delta: float) -> void:
@@ -52,8 +56,6 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# Gameplay is intentionally delegated to the 3D viewport. Keep only the
-	# information that explains the drill and the current execution phase.
 	draw_rect(Rect2(Vector2.ZERO, size), Color("02050A"), true)
 	var mechanic := signature_label.to_upper() if not signature_label.is_empty() else drill_label.to_upper()
 	var category := str(focus_mechanic.get("category", "TRAINING")).to_upper() if not focus_mechanic.is_empty() else "TRAINING"
