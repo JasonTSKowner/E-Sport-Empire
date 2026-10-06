@@ -78,7 +78,7 @@ jobs:
       - name: Run ranked and mobile smoke test
         shell: bash
         run: |
-          sed -i 's/AppConfigRef.VERSION.begins_with("2.0.")/AppConfigRef.VERSION.begins_with("2.4.")/' tests/smoke_test.gd
+          sed -i 's/AppConfigRef.VERSION.begins_with("2.0.")/AppConfigRef.VERSION.begins_with("2.5.")/' tests/smoke_test.gd
           timeout --signal=TERM 45s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/smoke_test.gd
@@ -86,7 +86,7 @@ jobs:
       - name: Run v2.2 compatibility smoke test
         shell: bash
         run: |
-          sed -i 's/\["2.2.0", "2.3.0"\]/["2.2.0", "2.3.0", "2.4.0", "2.4.3"]/' tests/v22_smoke_test.gd
+          sed -i 's/\["2.2.0", "2.3.0"\]/["2.2.0", "2.3.0", "2.4.0", "2.4.3", "2.5.0"]/' tests/v22_smoke_test.gd
           timeout --signal=TERM 45s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v22_smoke_test.gd
@@ -94,8 +94,8 @@ jobs:
       - name: Run v2.3 compatibility smoke test
         shell: bash
         run: |
-          sed -i 's/ChangelogData.CURRENT_VERSION == "2.3.0"/ChangelogData.CURRENT_VERSION in ["2.3.0", "2.4.0", "2.4.3"]/' tests/v23_smoke_test.gd
-          sed -i 's/AppConfig.VERSION.begins_with("2.3.")/AppConfig.VERSION.begins_with("2.4.")/' tests/v23_smoke_test.gd
+          sed -i 's/ChangelogData.CURRENT_VERSION == "2.3.0"/ChangelogData.CURRENT_VERSION in ["2.3.0", "2.4.0", "2.4.3", "2.5.0"]/' tests/v23_smoke_test.gd
+          sed -i 's/AppConfig.VERSION.begins_with("2.3.")/AppConfig.VERSION.begins_with("2.5.")/' tests/v23_smoke_test.gd
           timeout --signal=TERM 60s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v23_smoke_test.gd
@@ -103,6 +103,8 @@ jobs:
       - name: Run v2.4 visual compatibility smoke test
         shell: bash
         run: |
+          sed -i 's/AppConfig.VERSION.begins_with("2.4.")/AppConfig.VERSION.begins_with("2.5.")/' tests/v24_visual_smoke_test.gd
+          sed -i 's/ChangelogData.CURRENT_VERSION.begins_with("2.4.")/ChangelogData.CURRENT_VERSION.begins_with("2.5.")/' tests/v24_visual_smoke_test.gd
           timeout --signal=TERM 60s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v24_visual_smoke_test.gd
