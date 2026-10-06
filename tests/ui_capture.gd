@@ -8,16 +8,20 @@ func _initialize() -> void:
 	call_deferred("_capture_all")
 
 
-func _capture(main, name: String, page: String) -> void:
-	main._show_page(page, false)
+func _save_current(name: String) -> void:
 	await process_frame
 	await process_frame
-	await create_timer(0.08).timeout
+	await create_timer(0.14).timeout
 	var image := root.get_texture().get_image()
 	var path := "res://build/ui-captures/%s.png" % name
 	var err := image.save_png(path)
 	if err != OK:
 		push_error("Could not save UI capture: %s" % path)
+
+
+func _capture(main, name: String, page: String) -> void:
+	main._show_page(page, false)
+	await _save_current(name)
 
 
 func _capture_all() -> void:
@@ -35,6 +39,19 @@ func _capture_all() -> void:
 
 	main.ranked_view = "overview"
 	await _capture(main, "ranked", "play")
+
+	# Capture the actual live match presentation as part of visual regression.
+	main._start_match("Rocket League")
+	await process_frame
+	await process_frame
+	if main.match_timer != null:
+		main.match_timer.stop()
+	# Advance into an active play so cars, ball trajectory and rotation are visible.
+	if not main.match_finished:
+		main._advance_match()
+	await _save_current("match")
+	if main.match_overlay != null:
+		await main._close_match()
 
 	main.team_view = "roster"
 	await _capture(main, "team-roster", "team")
