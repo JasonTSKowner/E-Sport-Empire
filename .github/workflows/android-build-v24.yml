@@ -1,20 +1,20 @@
-name: Build Android APK v2.4
+name: Build Android APK v2.5
 
 on:
   push:
-    branches: [v2.4-visual-rebuild]
+    branches: [v2.5-arena-3d]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-build-v24-${{ github.ref }}
+  group: android-build-v25-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   export-android:
-    name: Godot 4 Android v2.4
+    name: Godot 4 Android v2.5
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -100,12 +100,19 @@ jobs:
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v23_smoke_test.gd
 
-      - name: Run v2.4 visual rebuild smoke test
+      - name: Run v2.4 visual compatibility smoke test
         shell: bash
         run: |
           timeout --signal=TERM 60s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v24_visual_smoke_test.gd
+
+      - name: Run v2.5 Arena 3D smoke test
+        shell: bash
+        run: |
+          timeout --signal=TERM 60s \
+            /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
+            --headless --path . --script res://tests/v25_arena3d_smoke_test.gd
 
       - name: Capture mobile UI reference screens
         continue-on-error: true
@@ -120,7 +127,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: E-Sport-Empire-v2.4-UI-Captures
+          name: E-Sport-Empire-v2.5-UI-Captures
           path: build/ui-captures/*.png
           if-no-files-found: ignore
           retention-days: 7
@@ -155,7 +162,7 @@ jobs:
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: E-Sport-Empire-v2.4-Android
+          name: E-Sport-Empire-v2.5-Android
           path: build/**/*.apk
           if-no-files-found: error
           retention-days: 30
