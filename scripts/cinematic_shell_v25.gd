@@ -1,4 +1,4 @@
-extends "res://scripts/cinematic_shell_v243.gd"
+extends "res://scripts/cinematic_shell_v24.gd"
 
 const Arena3DRef = preload("res://scripts/arena_3d_stage.gd")
 const MatchVizV25Ref = preload("res://scripts/match_visualizer_v25.gd")
