@@ -2,9 +2,9 @@ class_name AppConfig
 extends RefCounted
 
 const APP_NAME := "E-Sport Empire"
-const VERSION := "2.4.3-season-hub"
-const VERSION_BADGE := "V2.4.3"
-const BUILD_CHANNEL := "SEASON_HUB"
+const VERSION := "2.5.0-3d-arena"
+const VERSION_BADGE := "V2.5"
+const BUILD_CHANNEL := "REAL_3D_ARENA"
 const DEFAULT_PAGE := "home"
 
 const NAV_ENTRIES := [
@@ -13,7 +13,6 @@ const NAV_ENTRIES := [
 	["team", "TEAM", "03"],
 	["empire", "VEREIN", "04"],
 ]
-
 
 static func navigation_ids() -> Array[String]:
 	var ids: Array[String] = []
