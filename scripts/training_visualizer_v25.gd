@@ -1,10 +1,10 @@
 class_name TrainingVisualizerV25
 extends "res://scripts/training_visualizer_v242.gd"
 
-const Arena3DV25 = preload("res://scripts/arena_3d_view_v251.gd")
+const Arena3DV25 = preload("res://scripts/arena_3d_view_v252.gd")
 const V25_FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
-var arena_3d: Arena3DViewV251
+var arena_3d: Arena3DViewV252
 
 
 func _ready() -> void:
