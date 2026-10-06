@@ -1,4 +1,4 @@
-extends "res://scripts/cinematic_shell_v241.gd"
+extends "res://scripts/cinematic_shell_v242.gd"
 
 const StageV243 = preload("res://scripts/visual_stage_v243.gd")
 const UIV243 = preload("res://scripts/ui_kit.gd")
