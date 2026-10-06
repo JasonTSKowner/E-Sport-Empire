@@ -1,9 +1,26 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.4.3"
+const CURRENT_VERSION := "2.5.0"
 
 const ENTRIES := [
+	{
+		"version": "2.5.0",
+		"title": "ARENA 3D",
+		"date": "06 OCT 2026",
+		"items": [
+			"Match und Training laufen jetzt in einer echten 3D-Arena statt auf einem flachen 2D-Taktikfeld.",
+			"3D-Kamera, echte Ballhöhe, räumliche Tore, Backboards, Glaswände, Arena-Lichter und Boost-Pads hinzugefügt.",
+			"Autos wurden für Mobile größer und detaillierter aufgebaut, inklusive Spoiler, Lichtsignaturen und klareren Teamfarben.",
+			"Ballflug wird mit leuchtenden 3D-Prediction-Punkten sichtbar gemacht, damit man sofort erkennt, wohin der Ball geht.",
+			"1st-, 2nd- und 3rd-Man-Rollen bekommen sichtbare Labels und deutlichere Rotationsmarker direkt im Feld.",
+			"Air Dribbles, Resets, Ceiling-Plays, Redirects und Psycho-Sequenzen bewegen das aktive Auto nun sichtbar in der Höhe bzw. an der Wall.",
+			"Mechanical Plays bleiben langsamer, damit Setup, Kontakt, Ballflug, Rotation und Finish auf dem Handy lesbar sind.",
+			"Training zeigt einen längeren Vorschauabschnitt der Ballflugbahn und behält Mastery für Setup, Control, Read und Finish.",
+			"Der CI-Visual-Test erzeugt jetzt zusätzlich einen echten Live-Match-Screenshot für zukünftige Grafik-Checks.",
+			"Alle Mechanics, Team-Combos, Setup/WLAN-, Backup-, Coaching- und Progressionssysteme bleiben erhalten.",
+		],
+	},
 	{
 		"version": "2.4.3",
 		"title": "SEASON HUB & PERSPECTIVE PASS",
