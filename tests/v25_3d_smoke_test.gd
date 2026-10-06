@@ -41,19 +41,19 @@ func _run() -> void:
 	arena.free()
 
 	print("V2.5 3/4: 3D match wrapper")
-	var match := MatchV25.new()
-	match._ready()
-	match.configure({"format":"3v3"})
-	match.play_turn({
+	var match_viz := MatchV25.new()
+	match_viz._ready()
+	match_viz.configure({"format":"3v3"})
+	match_viz.play_turn({
 		"type":"neutral", "phase":"psycho_contact", "mechanic_label":"Psycho",
 		"mechanic_family":"psycho", "mechanic_components":{"setup":92,"control":90,"read":88,"finish":86},
 		"actor_index":0, "support_index":1,
 	}, "control", 1, 25)
-	_check(match.custom_minimum_size.y >= 470.0, "match reserves large 3D gameplay surface")
-	_check(match.arena_3d != null and match.arena_3d.built, "match owns real 3D stage")
-	_check(int(match.snapshot_state().get("cars", 0)) == 6, "match telemetry still exposes six cars")
-	_check(str(match.snapshot_state().get("phase", "")) == "psycho_contact", "psycho reaches 3D match wrapper")
-	match.free()
+	_check(match_viz.custom_minimum_size.y >= 470.0, "match reserves large 3D gameplay surface")
+	_check(match_viz.arena_3d != null and match_viz.arena_3d.built, "match owns real 3D stage")
+	_check(int(match_viz.snapshot_state().get("cars", 0)) == 6, "match telemetry still exposes six cars")
+	_check(str(match_viz.snapshot_state().get("phase", "")) == "psycho_contact", "psycho reaches 3D match wrapper")
+	match_viz.free()
 
 	print("V2.5 4/4: 3D training wrapper")
 	var state := StateV23.new()
