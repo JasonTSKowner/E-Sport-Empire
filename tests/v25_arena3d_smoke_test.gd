@@ -19,7 +19,10 @@ func _initialize() -> void:
 
 func _run() -> void:
 	print("V2.5 1/3: 3D arena core")
-	var arena := Arena3D.new().configure(Color("37D6F6"), Color("FF6B7A"), false)
+	var arena := Arena3D.new()
+	root.add_child(arena)
+	arena.configure(Color("37D6F6"), Color("FF6B7A"), false)
+	await process_frame
 	_check(arena.viewport_3d != null, "SubViewport created")
 	_check(arena.camera != null, "3D camera created")
 	_check(arena.our_cars.size() == 3, "three friendly cars created")
@@ -36,16 +39,19 @@ func _run() -> void:
 	)
 	_check(arena.trajectory_mesh.get_surface_count() > 0, "ball trajectory generated")
 	_check(arena.rotation_mesh.get_surface_count() > 0, "rotation paths generated")
-	arena.free()
+	arena.queue_free()
+	await process_frame
 
 	print("V2.5 2/3: match renderer")
 	var match_viz := MatchV25.new()
 	match_viz.configure({"format":"3v3"})
-	match_viz._ready()
+	root.add_child(match_viz)
+	await process_frame
 	_check(match_viz.custom_minimum_size.y >= 492.0, "match visualizer reserves large 3D stage")
 	_check(match_viz.arena_3d != null, "match visualizer owns 3D arena")
 	_check(int(match_viz.snapshot_state().get("cars", 0)) == 6, "3v3 logic remains six cars")
-	match_viz.free()
+	match_viz.queue_free()
+	await process_frame
 
 	print("V2.5 3/3: training renderer")
 	var state := StateV23.new()
@@ -56,11 +62,13 @@ func _run() -> void:
 	state._ensure_player_v23(player)
 	var training := TrainingV25.new()
 	training.configure(player, state.training_readiness(player), Color("37D6F6"))
-	training._ready()
+	root.add_child(training)
+	await process_frame
 	_check(training.custom_minimum_size.y >= 460.0, "training reserves large 3D stage")
 	_check(training.arena_3d != null, "training visualizer owns 3D arena")
 	_check(not training.focus_mechanic.is_empty(), "training keeps mechanic focus")
-	training.free()
+	training.queue_free()
+	await process_frame
 
 	if failures.is_empty():
 		print("E-Sport Empire v2.5 Arena 3D smoke test: PASS")
