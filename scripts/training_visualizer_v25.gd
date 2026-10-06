@@ -1,7 +1,7 @@
 class_name TrainingVisualizerV25
 extends "res://scripts/training_visualizer_v23.gd"
 
-const Arena3DRef = preload("res://scripts/arena_3d_stage.gd")
+const Arena3DRef = preload("res://scripts/arena_training_camera_v251.gd")
 const FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
 var arena_3d: Arena3DStage
