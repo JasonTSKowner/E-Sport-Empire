@@ -1,7 +1,7 @@
 class_name MatchVisualizerV25
 extends "res://scripts/match_visualizer_v23.gd"
 
-const Arena3DRef = preload("res://scripts/arena_3d_stage.gd")
+const Arena3DRef = preload("res://scripts/arena_3d_stage_v252.gd")
 const FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
 var arena_3d: Arena3DStage
@@ -36,7 +36,6 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# v2.5 deliberately removes the old tactical-board renderer.
 	pass
 
 
@@ -80,7 +79,6 @@ func _build_3d_surface() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	top_back.add_child(row)
-
 	var copy := VBoxContainer.new()
 	copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	copy.add_theme_constant_override("separation", -1)
@@ -97,7 +95,6 @@ func _build_3d_surface() -> void:
 	phase_label.add_theme_color_override("font_color", Color("8CA5B5"))
 	copy.add_child(phase_label)
 	row.add_child(copy)
-
 	role_label = Label.new()
 	role_label.text = "1ST  •  2ND  •  3RD"
 	role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
