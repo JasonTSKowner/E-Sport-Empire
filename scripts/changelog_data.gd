@@ -1,9 +1,22 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.4.0"
+const CURRENT_VERSION := "2.4.3"
 
 const ENTRIES := [
+	{
+		"version": "2.4.3",
+		"title": "SEASON HUB & PERSPECTIVE PASS",
+		"date": "06 OCT 2026",
+		"items": [
+			"Startseite wurde als Season Hub mit größerer Rank-Inszenierung und klarerem nächstem Ziel aufgebaut.",
+			"Ranked nutzt eine fokussiertere Competitive-Hero-Fläche statt gestapelter Dashboard-Karten.",
+			"Match- und Training-Renderer wurden in eine stärkere Arena-/Broadcast-Perspektive überführt.",
+			"Ballflug, aktive Spieler, Support-Rollen und Rotationswege bleiben lesbar, wirken aber weniger wie Debug-Overlays.",
+			"Mechanical Plays, Psycho-Setups, Redirects und Team-Combos aus v2.3 bleiben vollständig erhalten.",
+			"Mobile-Visuals und Android-Release-Metadaten wurden auf den aktuellen v2.4.3-Stand synchronisiert.",
+		],
+	},
 	{
 		"version": "2.4.0",
 		"title": "VISUAL REBUILD",
