@@ -2,9 +2,9 @@ class_name AppConfig
 extends RefCounted
 
 const APP_NAME := "E-Sport Empire"
-const VERSION := "2.4.3-season-hub"
-const VERSION_BADGE := "V2.4.3"
-const BUILD_CHANNEL := "SEASON_HUB"
+const VERSION := "2.5.0-arena-3d"
+const VERSION_BADGE := "V2.5"
+const BUILD_CHANNEL := "ARENA_3D"
 const DEFAULT_PAGE := "home"
 
 const NAV_ENTRIES := [
