@@ -16,8 +16,11 @@ func _ready() -> void:
 func _create_3d_arena() -> void:
 	if arena_3d != null and is_instance_valid(arena_3d):
 		return
-	arena_3d = Arena3DV25.new().configure(OUR_COLOR, THEIR_COLOR, false)
+	arena_3d = Arena3DV25.new()
 	arena_3d.name = "Arena3D"
+	arena_3d.team_color = OUR_COLOR
+	arena_3d.enemy_color = THEIR_COLOR
+	arena_3d.training_mode = false
 	arena_3d.set_anchors_preset(Control.PRESET_FULL_RECT)
 	arena_3d.offset_left = 7.0
 	arena_3d.offset_right = -7.0
@@ -25,6 +28,7 @@ func _create_3d_arena() -> void:
 	arena_3d.offset_bottom = -34.0
 	arena_3d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(arena_3d)
+	arena_3d.configure(OUR_COLOR, THEIR_COLOR, false)
 
 
 func _process(delta: float) -> void:
@@ -47,8 +51,6 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# The gameplay itself is now rendered in a real 3D SubViewport. This layer is
-	# intentionally only broadcast HUD so it no longer looks like a tactics board.
 	draw_rect(Rect2(Vector2.ZERO, size), Color("02050A"), true)
 	var accent := OUR_COLOR if momentum >= 0 else THEIR_COLOR
 	var title := mechanic_label.to_upper() if not mechanic_label.is_empty() else _phase_title_v24(phase)
