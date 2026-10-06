@@ -1,5 +1,5 @@
 class_name ArenaTrainingCameraV251
-extends "res://scripts/arena_3d_stage.gd"
+extends "res://scripts/arena_3d_stage_v252.gd"
 
 
 func set_training_state(
@@ -19,7 +19,6 @@ func set_training_state(
 		ball_position, ball_height, future_ball, future_ball_height,
 		target_position, phase_label, color
 	)
-	# Keep the setup car and the ball readable together, with slightly more weight on the player's approach.
 	var midpoint := car_position.lerp(ball_position, 0.42)
 	var focus := _to_world(midpoint, minf(ball_height * 0.32, 0.28))
 	focus.y = 0.70 + minf(ball_height * 0.52, 0.68)
