@@ -1,10 +1,10 @@
 class_name MatchVisualizerV25
 extends "res://scripts/match_visualizer_v242.gd"
 
-const Arena3DV25 = preload("res://scripts/arena_3d_view_v251.gd")
+const Arena3DV25 = preload("res://scripts/arena_3d_view_v252.gd")
 const V25_FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
 
-var arena_3d: Arena3DViewV251
+var arena_3d: Arena3DViewV252
 
 
 func _ready() -> void:
@@ -46,7 +46,9 @@ func _process(delta: float) -> void:
 		ball_target_height,
 		our_targets,
 		active_actor,
-		support_actor
+		support_actor,
+		phase,
+		mechanic_family
 	)
 
 
