@@ -3,16 +3,16 @@ extends "res://scripts/arena_3d_view_v25.gd"
 
 
 func _build_car(color: Color) -> Node3D:
-	var root := super._build_car(color)
+	var root: Node3D = super._build_car(color)
 	# Lower, wider esports-car silhouette layered over the functional base car.
 	_add_local_box(root, "FrontSplitter", Vector3(1.02, 0.055, 0.20), Vector3(0.0, 0.15, -0.72), Color("071017"), 0.02, 0.38)
 	_add_local_box(root, "RearBumper", Vector3(0.98, 0.10, 0.18), Vector3(0.0, 0.18, 0.70), Color(color.r * 0.34, color.g * 0.34, color.b * 0.34, 1.0), 0.20, 0.28)
 	_add_local_box(root, "SideSkirtL", Vector3(0.08, 0.08, 1.08), Vector3(-0.50, 0.17, 0.02), Color("071017"), 0.04, 0.35)
 	_add_local_box(root, "SideSkirtR", Vector3(0.08, 0.08, 1.08), Vector3(0.50, 0.17, 0.02), Color("071017"), 0.04, 0.35)
 
-	var hood := _add_local_box(root, "SlopedHood", Vector3(0.83, 0.10, 0.46), Vector3(0.0, 0.43, -0.48), Color(color.r * 0.78, color.g * 0.78, color.b * 0.78, 1.0), 0.32, 0.20)
+	var hood: MeshInstance3D = _add_local_box(root, "SlopedHood", Vector3(0.83, 0.10, 0.46), Vector3(0.0, 0.43, -0.48), Color(color.r * 0.78, color.g * 0.78, color.b * 0.78, 1.0), 0.32, 0.20)
 	hood.rotation_degrees.x = -7.0
-	var roof := _add_local_box(root, "LowRoof", Vector3(0.62, 0.10, 0.50), Vector3(0.0, 0.62, 0.10), Color("1A3948"), 0.06, 0.12)
+	var roof: MeshInstance3D = _add_local_box(root, "LowRoof", Vector3(0.62, 0.10, 0.50), Vector3(0.0, 0.62, 0.10), Color("1A3948"), 0.06, 0.12)
 	roof.rotation_degrees.x = 2.5
 
 	# Rear wing makes the tiny mobile silhouette instantly car-like.
@@ -38,22 +38,26 @@ func _build_arena_shell() -> void:
 	_add_world_glass("TheirBackboard", Vector3(FIELD_WIDTH + 0.7, 3.25, 0.055), Vector3(0.0, 1.92, -FIELD_HALF_L - 0.43), enemy_color)
 
 	# Physical corner posts and upper lighting frame the field like a real venue.
-	for x in [-FIELD_HALF_W - 0.48, FIELD_HALF_W + 0.48]:
-		for z in [-FIELD_HALF_L - 0.48, FIELD_HALF_L + 0.48]:
+	var corner_x_values: Array[float] = [-FIELD_HALF_W - 0.48, FIELD_HALF_W + 0.48]
+	var corner_z_values: Array[float] = [-FIELD_HALF_L - 0.48, FIELD_HALF_L + 0.48]
+	for x: float in corner_x_values:
+		for z: float in corner_z_values:
 			_add_world_box("ArenaPost", Vector3(0.16, 3.75, 0.16), Vector3(x, 1.86, z), Color("17313B"), 0.20, 0.30)
 
-	for z in [-FIELD_HALF_L * 0.72, -FIELD_HALF_L * 0.24, FIELD_HALF_L * 0.24, FIELD_HALF_L * 0.72]:
+	var rig_z_values: Array[float] = [-FIELD_HALF_L * 0.72, -FIELD_HALF_L * 0.24, FIELD_HALF_L * 0.24, FIELD_HALF_L * 0.72]
+	for z: float in rig_z_values:
 		_add_world_box("RigL", Vector3(1.60, 0.08, 0.08), Vector3(-FIELD_HALF_W - 1.05, 3.75, z), Color("83E5FA"), 0.02, 0.18, true)
 		_add_world_box("RigR", Vector3(1.60, 0.08, 0.08), Vector3(FIELD_HALF_W + 1.05, 3.75, z), Color("83E5FA"), 0.02, 0.18, true)
 
 	# Simple crowd-light rows add density without expensive geometry.
-	for side in [-1.0, 1.0]:
-		for row in range(3):
-			for i in range(9):
-				var z := -FIELD_HALF_L + 0.9 + float(i) * (FIELD_LENGTH - 1.8) / 8.0
-				var x := side * (FIELD_HALF_W + 1.45 + float(row) * 0.28)
-				var c := team_color if (i + row) % 7 == 0 else enemy_color if (i + row) % 8 == 0 else Color("71818D")
-				_add_world_box("CrowdLight", Vector3(0.06, 0.06, 0.14), Vector3(x, 1.15 + row * 0.44, z), c, 0.0, 0.25, true)
+	var side_values: Array[float] = [-1.0, 1.0]
+	for side: float in side_values:
+		for row: int in range(3):
+			for i: int in range(9):
+				var z: float = -FIELD_HALF_L + 0.9 + float(i) * (FIELD_LENGTH - 1.8) / 8.0
+				var x: float = side * (FIELD_HALF_W + 1.45 + float(row) * 0.28)
+				var c: Color = team_color if (i + row) % 7 == 0 else enemy_color if (i + row) % 8 == 0 else Color("71818D")
+				_add_world_box("CrowdLight", Vector3(0.06, 0.06, 0.14), Vector3(x, 1.15 + float(row) * 0.44, z), c, 0.0, 0.25, true)
 
 
 func _build_goal(prefix: String, z: float, color: Color, depth_dir: float) -> void:
