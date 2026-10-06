@@ -40,7 +40,7 @@ func _process(delta: float) -> void:
 	super._process(delta)
 	if arena_3d == null or not is_instance_valid(arena_3d):
 		return
-	var future_t := minf(0.999, drill_phase + 0.16)
+	var future_t := minf(0.999, drill_phase + 0.28)
 	var future_ball := _ball_target_for_drill(future_t)
 	var future_height := _ball_height_for_drill(future_t)
 	arena_3d.sync_training(
