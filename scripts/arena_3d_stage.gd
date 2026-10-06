@@ -64,7 +64,7 @@ func _ensure_built() -> void:
 	camera_3d.position = camera_home
 	world_root.add_child(camera_3d)
 	camera_3d.current = true
-	camera_3d.look_at(Vector3.ZERO, Vector3.UP)
+	camera_3d.look_at_from_position(camera_home, Vector3.ZERO, Vector3.UP)
 
 	key_light = DirectionalLight3D.new()
 	key_light.rotation_degrees = Vector3(-58.0, -28.0, 0.0)
@@ -430,7 +430,7 @@ func _update_camera(ball_pos: Vector2, ball_height: float, phase: String, goal_f
 		desired.x = focus.x * 0.10
 	camera_3d.position = camera_3d.position.lerp(desired, 0.12)
 	camera_focus = camera_focus.lerp(focus, 0.16)
-	camera_3d.look_at(camera_focus, Vector3.UP)
+	camera_3d.look_at_from_position(camera_3d.position, camera_focus, Vector3.UP)
 
 
 func _car_height_for_phase(index: int, active_actor: int, support_actor: int, phase: String, ball_height: float) -> float:
