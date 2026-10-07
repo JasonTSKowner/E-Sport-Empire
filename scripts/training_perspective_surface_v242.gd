@@ -89,7 +89,7 @@ func _v241_draw_car(arena: Rect2) -> void:
 	# Shadow and four wheels.
 	draw_circle(center+Vector2(2,4*s),11.5*s,Color(0,0,0,0.28))
 	for wheel_offset in [Vector2(-5.5,-7.3),Vector2(6.0,-7.3),Vector2(-5.5,7.3),Vector2(6.0,7.3)]:
-		var wp := center + dir*wheel_offset.x*s + side*wheel_offset.y*s
+		var wp: Vector2 = center + dir*float(wheel_offset.x)*s + side*float(wheel_offset.y)*s
 		draw_circle(wp,2.8*s,Color(0.015,0.02,0.026,0.98))
 		draw_circle(wp,1.2*s,Color(0.34,0.42,0.49,0.75))
 
