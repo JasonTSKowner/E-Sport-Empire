@@ -6,10 +6,10 @@ const TEAM_CAR: Texture2D = preload("res://assets/game/car_team.svg")
 const OPP_CAR: Texture2D = preload("res://assets/game/car_opponent.svg")
 const BALL_TEX: Texture2D = preload("res://assets/game/ball.svg")
 
-const BG := Color("05080C")
-const FIELD := Color("081821")
-const FIELD_ALT := Color("0B202A")
-const LINE := Color(0.66, 0.82, 0.90, 0.16)
+const V25_BG := Color("05080C")
+const V25_FIELD := Color("081821")
+const V25_FIELD_ALT := Color("0B202A")
+const V25_LINE := Color(0.66, 0.82, 0.90, 0.16)
 
 func _ready() -> void:
 	super._ready()
@@ -39,49 +39,45 @@ func _draw() -> void:
 	if goal_flash > 0.01:
 		var c := OUR_COLOR if goal_side > 0 else THEIR_COLOR
 		draw_rect(arena, Color(c.r, c.g, c.b, goal_flash * 0.08), true)
-		var goal_x := arena.end.x if goal_side > 0 else arena.position.x
+		var goal_x: float = arena.end.x if goal_side > 0 else arena.position.x
 		for r in [24.0, 40.0, 58.0]:
 			draw_arc(Vector2(goal_x, arena.get_center().y), r, -PI * 0.5, PI * 0.5, 30, Color(c.r, c.g, c.b, goal_flash * 0.24), 2.0)
 
 func _draw_backdrop_v25(arena: Rect2) -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), BG, true)
+	draw_rect(Rect2(Vector2.ZERO, size), V25_BG, true)
 	for i in range(10):
 		var t := float(i) / 9.0
-		var c := Color("0B1118").lerp(BG, t)
+		var c := Color("0B1118").lerp(V25_BG, t)
 		draw_rect(Rect2(0, float(i) * size.y / 10.0, size.x, size.y / 10.0 + 1.0), c, true)
 
-	# Stadium-light atmosphere without fake perspective.
 	for i in range(9):
-		var x := 18.0 + float(i) * (size.x - 36.0) / 8.0
+		var light_x := 18.0 + float(i) * (size.x - 36.0) / 8.0
 		var a := 0.12 + 0.04 * sin(time_alive * 1.2 + float(i) * 0.8)
-		draw_circle(Vector2(x, 69), 1.8, Color(0.90, 0.96, 1.0, a))
+		draw_circle(Vector2(light_x, 69), 1.8, Color(0.90, 0.96, 1.0, a))
 
 	var glow := 0.020 + 0.006 * sin(time_alive * 0.8)
 	draw_circle(Vector2(size.x * 0.28, arena.get_center().y), size.x * 0.34, Color(OUR_COLOR.r, OUR_COLOR.g, OUR_COLOR.b, glow))
 	draw_circle(Vector2(size.x * 0.78, arena.get_center().y), size.x * 0.28, Color(THEIR_COLOR.r, THEIR_COLOR.g, THEIR_COLOR.b, 0.014))
 
 func _draw_pitch_v25(arena: Rect2) -> void:
-	# Physical broadcast frame.
 	draw_rect(arena.grow(7), Color("101821"), true)
 	draw_rect(arena.grow(5), Color(0.56, 0.74, 0.84, 0.13), false, 1.3)
-	draw_rect(arena, FIELD, true)
+	draw_rect(arena, V25_FIELD, true)
 
 	var stripe_w := arena.size.x / 10.0
 	for i in range(10):
 		if i % 2 == 0:
-			draw_rect(Rect2(arena.position + Vector2(float(i) * stripe_w, 0), Vector2(stripe_w, arena.size.y)), FIELD_ALT, true)
+			draw_rect(Rect2(arena.position + Vector2(float(i) * stripe_w, 0), Vector2(stripe_w, arena.size.y)), V25_FIELD_ALT, true)
 
 	var center := arena.get_center()
-	draw_line(Vector2(center.x, arena.position.y), Vector2(center.x, arena.end.y), LINE, 1.4)
-	draw_arc(center, arena.size.y * 0.16, 0.0, TAU, 40, LINE, 1.3)
+	draw_line(Vector2(center.x, arena.position.y), Vector2(center.x, arena.end.y), V25_LINE, 1.4)
+	draw_arc(center, arena.size.y * 0.16, 0.0, TAU, 40, V25_LINE, 1.3)
 	draw_circle(center, 2.4, Color(0.74, 0.88, 0.94, 0.38))
 
-	# Soft thirds improve orientation without looking like a debug grid.
 	for x_ratio in [0.25, 0.75]:
-		var x := arena.position.x + arena.size.x * x_ratio
-		draw_line(Vector2(x, arena.position.y), Vector2(x, arena.end.y), Color(0.60, 0.76, 0.84, 0.055), 1.0)
+		var third_x: float = arena.position.x + arena.size.x * float(x_ratio)
+		draw_line(Vector2(third_x, arena.position.y), Vector2(third_x, arena.end.y), Color(0.60, 0.76, 0.84, 0.055), 1.0)
 
-	# Boost pads.
 	for pos in [Vector2(0.14,0.18),Vector2(0.14,0.82),Vector2(0.36,0.33),Vector2(0.36,0.67),Vector2(0.64,0.33),Vector2(0.64,0.67),Vector2(0.86,0.18),Vector2(0.86,0.82)]:
 		var point := _p(pos, arena)
 		draw_circle(point, 6.0, Color(0.90, 0.72, 0.38, 0.07))
@@ -92,8 +88,8 @@ func _draw_pitch_v25(arena: Rect2) -> void:
 
 func _draw_goal_v25(left: bool, arena: Rect2, color: Color) -> void:
 	var h := arena.size.y * 0.34
-	var x := arena.position.x - 8.0 if left else arena.end.x
-	var goal := Rect2(x, arena.get_center().y - h * 0.5, 8, h)
+	var goal_x: float = arena.position.x - 8.0 if left else arena.end.x
+	var goal := Rect2(goal_x, arena.get_center().y - h * 0.5, 8, h)
 	draw_rect(goal, Color(color.r, color.g, color.b, 0.08), true)
 	draw_rect(goal, Color(color.r, color.g, color.b, 0.36), false, 1.6)
 	for i in range(1, 5):
@@ -130,8 +126,6 @@ func _draw_ball_prediction_v25(arena: Rect2) -> void:
 		if i % 2 == 0:
 			draw_line(previous, p, Color(0.94, 0.98, 1.0, 0.22), 1.5)
 		previous = p
-
-	# Landing / target marker.
 	draw_arc(_p(ball_target, arena), 10.0, 0.0, TAU, 24, Color(0.92, 0.97, 1.0, 0.13), 1.2)
 
 func _draw_players_v25(arena: Rect2) -> void:
@@ -158,8 +152,6 @@ func _draw_car_sprite_v25(center: Vector2, velocity: Vector2, texture: Texture2D
 	var angle := dir.angle()
 	var scale := 0.50 if active else 0.43
 	var tex_size := texture.get_size() * scale
-
-	# Grounding + selection state.
 	draw_circle(center + Vector2(2, 4), 16.0 if active else 13.0, Color(0, 0, 0, 0.24))
 	if active:
 		draw_circle(center, 22.0, Color(color.r, color.g, color.b, 0.08))
@@ -211,11 +203,11 @@ func _draw_footer_v25() -> void:
 		["FIN", int(mechanic_components.get("finish", 0))],
 	]
 	var cell := (size.x - 24.0) / 4.0
-	var x := 12.0
+	var text_x := 12.0
 	for pair in labels:
 		var text := "%s %d" % [str(pair[0]), int(pair[1])]
-		draw_string(FONT, Vector2(x, size.y - 12), text, HORIZONTAL_ALIGNMENT_CENTER, cell - 3.0, 8, Color(0.68, 0.78, 0.86, 0.70))
-		x += cell
+		draw_string(FONT, Vector2(text_x, size.y - 12), text, HORIZONTAL_ALIGNMENT_CENTER, cell - 3.0, 8, Color(0.68, 0.78, 0.86, 0.70))
+		text_x += cell
 
 func _phase_label_v25(value: String) -> String:
 	var labels := {
