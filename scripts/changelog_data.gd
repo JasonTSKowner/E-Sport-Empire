@@ -1,9 +1,24 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.4.3"
+const CURRENT_VERSION := "2.5.0"
 
 const ENTRIES := [
+	{
+		"version": "2.5.0",
+		"title": "CLEAN VISUAL FOUNDATION",
+		"date": "07 OCT 2026",
+		"items": [
+			"Match und Training verwenden einen gemeinsamen hochwertigen Broadcast-Look statt wechselnder Perspective-Experimente.",
+			"Neue Vector-Car-Assets für eigenes Team und Gegner sowie ein eigenes Ball-Asset ersetzen die alten Polygon-Autos.",
+			"Ballflug, Zielpunkt und Rotationswege bleiben klar sichtbar, wirken aber deutlich weniger wie Debug-Overlays.",
+			"Aktiver Spieler, Support-Spieler sowie 1st-, 2nd- und 3rd-Man-Rollen werden klarer und ruhiger dargestellt.",
+			"Training nutzt denselben visuellen Stil wie Matches mit Live-Drill, Zielzone, Ballvorhersage und Bewegungsroute.",
+			"Home und Ranked bekommen echte Game-Art-Layer mit Car, Ball und Bewegung statt nur abstrakter Flächen.",
+			"Mechanical Plays, Psycho-Setups, Redirects, 70+ Mechanics, Setup/WLAN, Backup und Karriere-System bleiben vollständig erhalten.",
+			"Match-Playback wurde weiter verlangsamt, damit komplexe Mechanics und Rotationen besser lesbar sind.",
+		],
+	},
 	{
 		"version": "2.4.3",
 		"title": "SEASON HUB & PERSPECTIVE PASS",
