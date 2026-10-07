@@ -5,9 +5,9 @@ const FONT = preload("res://assets/fonts/SpaceGrotesk.ttf")
 const TEAM_CAR: Texture2D = preload("res://assets/game/car_team.svg")
 const BALL_TEX: Texture2D = preload("res://assets/game/ball.svg")
 
-const BG := Color("05080C")
-const FIELD := Color("081821")
-const FIELD_ALT := Color("0B202A")
+const V25_BG := Color("05080C")
+const V25_FIELD := Color("081821")
+const V25_FIELD_ALT := Color("0B202A")
 
 func _ready() -> void:
 	super._ready()
@@ -34,27 +34,27 @@ func _draw() -> void:
 	_draw_footer_v25()
 
 func _draw_backdrop_v25(arena: Rect2) -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), BG, true)
+	draw_rect(Rect2(Vector2.ZERO, size), V25_BG, true)
 	for i in range(10):
 		var t := float(i) / 9.0
-		var c := Color("0B1118").lerp(BG, t)
+		var c := Color("0B1118").lerp(V25_BG, t)
 		draw_rect(Rect2(0, float(i) * size.y / 10.0, size.x, size.y / 10.0 + 1.0), c, true)
 	for i in range(8):
-		var x := 20.0 + float(i) * (size.x - 40.0) / 7.0
+		var light_x := 20.0 + float(i) * (size.x - 40.0) / 7.0
 		var a := 0.10 + 0.035 * sin(animation_time * 1.1 + float(i))
-		draw_circle(Vector2(x, 62), 1.8, Color(0.90, 0.96, 1.0, a))
+		draw_circle(Vector2(light_x, 62), 1.8, Color(0.90, 0.96, 1.0, a))
 	var pulse := 0.018 + 0.006 * sin(animation_time * 0.8)
 	draw_circle(Vector2(size.x * 0.72, arena.get_center().y), size.x * 0.30, Color(accent.r, accent.g, accent.b, pulse))
 
 func _draw_pitch_v25(arena: Rect2) -> void:
 	draw_rect(arena.grow(7), Color("101821"), true)
 	draw_rect(arena.grow(5), Color(accent.r, accent.g, accent.b, 0.10), false, 1.3)
-	draw_rect(arena, FIELD, true)
+	draw_rect(arena, V25_FIELD, true)
 
 	var stripe_w := arena.size.x / 10.0
 	for i in range(10):
 		if i % 2 == 0:
-			draw_rect(Rect2(arena.position + Vector2(float(i) * stripe_w, 0), Vector2(stripe_w, arena.size.y)), FIELD_ALT, true)
+			draw_rect(Rect2(arena.position + Vector2(float(i) * stripe_w, 0), Vector2(stripe_w, arena.size.y)), V25_FIELD_ALT, true)
 
 	var center := arena.get_center()
 	draw_line(Vector2(center.x, arena.position.y), Vector2(center.x, arena.end.y), Color(0.64, 0.80, 0.88, 0.16), 1.3)
@@ -67,8 +67,8 @@ func _draw_pitch_v25(arena: Rect2) -> void:
 
 	var goal_h := arena.size.y * 0.34
 	for left in [true, false]:
-		var x := arena.position.x - 8.0 if left else arena.end.x
-		var goal := Rect2(x, arena.get_center().y - goal_h * 0.5, 8, goal_h)
+		var goal_x: float = arena.position.x - 8.0 if bool(left) else arena.end.x
+		var goal := Rect2(goal_x, arena.get_center().y - goal_h * 0.5, 8, goal_h)
 		draw_rect(goal, Color(accent.r, accent.g, accent.b, 0.06), true)
 		draw_rect(goal, Color(accent.r, accent.g, accent.b, 0.28), false, 1.5)
 
@@ -102,11 +102,15 @@ func _draw_guides_v25(arena: Rect2) -> void:
 	draw_arc(target, 9.0, 0.0, TAU, 32, Color(accent.r, accent.g, accent.b, 0.13), 1.2)
 
 	if drill_id == "rotation_review":
-		for item in [[Vector2(0.48,0.67),"2ND"],[Vector2(0.23,0.31),"3RD"]]:
-			var pos: Vector2 = _p(item[0], arena)
-			draw_circle(pos, 14.0, Color(accent.r, accent.g, accent.b, 0.055))
-			draw_arc(pos, 14.0, 0.0, TAU, 24, Color(accent.r, accent.g, accent.b, 0.20), 1.2)
-			draw_string(FONT, pos + Vector2(-17, -18), str(item[1]), HORIZONTAL_ALIGNMENT_CENTER, 34, 8, Color(0.80, 0.91, 0.97, 0.74))
+		var rotation_markers := [
+			{"position": Vector2(0.48,0.67), "label": "2ND"},
+			{"position": Vector2(0.23,0.31), "label": "3RD"},
+		]
+		for item in rotation_markers:
+			var marker_pos: Vector2 = _p(item["position"], arena)
+			draw_circle(marker_pos, 14.0, Color(accent.r, accent.g, accent.b, 0.055))
+			draw_arc(marker_pos, 14.0, 0.0, TAU, 24, Color(accent.r, accent.g, accent.b, 0.20), 1.2)
+			draw_string(FONT, marker_pos + Vector2(-17, -18), str(item["label"]), HORIZONTAL_ALIGNMENT_CENTER, 34, 8, Color(0.80, 0.91, 0.97, 0.74))
 
 func _draw_car_v25(arena: Rect2) -> void:
 	var center := _p(car_position, arena)
