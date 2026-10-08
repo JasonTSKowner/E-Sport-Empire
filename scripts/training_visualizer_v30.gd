@@ -130,8 +130,9 @@ func _draw_car_v30(arena: Rect2) -> void:
 	var rear := center-dir*12*s
 	var nose := center+dir*17*s
 	draw_circle(center+Vector2(2,5*s),12*s,Color(0,0,0,0.34))
-	for off in [Vector2(-6,-7.6),Vector2(6,-7.6),Vector2(-6,7.6),Vector2(6,7.6)]:
-		var wp := center+dir*off.x*s+side*off.y*s
+	for off_value in [Vector2(-6.0,-7.6),Vector2(6.0,-7.6),Vector2(-6.0,7.6),Vector2(6.0,7.6)]:
+		var off: Vector2 = off_value
+		var wp: Vector2 = center+dir*off.x*s+side*off.y*s
 		draw_circle(wp,3*s,Color(0.01,0.015,0.022,0.98))
 		draw_circle(wp,1.3*s,Color(0.38,0.46,0.54,0.90))
 	var body := PackedVector2Array([nose,center+dir*6*s+side*8.2*s,center-dir*8*s+side*6.5*s,rear+side*4.7*s,rear-side*4.7*s,center-dir*8*s-side*6.5*s,center+dir*6*s-side*8.2*s])
