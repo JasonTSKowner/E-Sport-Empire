@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ProjectCitadel"
+rootProject.name = "Crownforge"
 include ':app'

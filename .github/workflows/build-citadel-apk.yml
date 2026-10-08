@@ -1,46 +1,120 @@
-name: Build Project Citadel APK
+name: Crownforge V0.2 Android
 
 on:
   push:
     branches:
       - citadel-apk-build
+      - crownforge-v02
     paths:
       - 'citadel_android/**'
       - '.github/workflows/build-citadel-apk.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: crownforge-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-
       - name: Install Android platform
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Setup Gradle
+      - name: Setup Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-
-      - name: Build debug APK
+      - name: Build APKs, run model tests and Android lint
         working-directory: citadel_android
-        run: gradle :app:assembleDebug --stacktrace
-
-      - name: Upload APK
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug --continue --stacktrace
+      - name: Name APK
+        if: always()
+        run: |
+          if [ -f citadel_android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp citadel_android/app/build/outputs/apk/debug/app-debug.apk citadel_android/app/build/outputs/apk/debug/Crownforge-V0.2-debug.apk
+          fi
+      - name: Upload Crownforge APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Project-Citadel-V0.1-APK
-          path: citadel_android/app/build/outputs/apk/debug/app-debug.apk
+          name: Crownforge-V0.2-debug
+          path: citadel_android/app/build/outputs/apk/debug/Crownforge-V0.2-debug.apk
+          if-no-files-found: error
+      - name: Upload Android test APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Crownforge-V0.2-androidTest
+          path: citadel_android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: warn
+      - name: Upload test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Crownforge-model-and-lint-reports
+          path: |
+            citadel_android/app/build/reports/
+            citadel_android/app/build/test-results/
+
+  device-verification:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [29, 35]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Crownforge-V0.2-debug
+          path: apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: Crownforge-V0.2-androidTest
+          path: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Verify launch, touch, persistence and rendering on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          profile: pixel_2
+          target: default
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            mkdir -p verification
+            adb install -r -t apk/Crownforge-V0.2-debug.apk
+            adb install -r -t apk/app-debug-androidTest.apk
+            adb logcat -c
+            adb shell am instrument -w -r com.jasontsk.projectcitadel.test/com.jasontsk.projectcitadel.CrownforgeInstrumentation > verification/instrumentation.txt
+            adb logcat -d > verification/logcat.txt
+            adb pull /sdcard/Android/data/com.jasontsk.projectcitadel/files/verification verification/screenshots || true
+            cat verification/instrumentation.txt
+            grep -q 'CROWNFORGE_RESULT: PASS' verification/instrumentation.txt
+      - name: Upload device reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Crownforge-Android-${{ matrix.api }}-verification
+          path: verification/
+          if-no-files-found: warn
