@@ -1,8 +1,36 @@
 extends "res://scripts/cinematic_shell_v243.gd"
 
 const TrainingVizV25 = preload("res://scripts/training_visualizer_v25.gd")
+const MatchVizV25 = preload("res://scripts/match_visualizer_v25.gd")
 const UIV25 = preload("res://scripts/ui_kit.gd")
 const GameDataV25 = preload("res://scripts/game_data.gd")
+
+func _build_match_overlay() -> void:
+	super._build_match_overlay()
+	if match_visualizer == null or not is_instance_valid(match_visualizer):
+		return
+	var old := match_visualizer
+	var parent := old.get_parent()
+	var index := old.get_index()
+	if parent == null:
+		return
+	parent.remove_child(old)
+	old.queue_free()
+	var replacement := MatchVizV25.new()
+	replacement.configure(match_result)
+	parent.add_child(replacement)
+	parent.move_child(replacement, index)
+	match_visualizer = replacement
+	if match_timer != null:
+		match_timer.wait_time = 2.0
+
+func _advance_match() -> void:
+	super._advance_match()
+	if match_timer == null or match_finished or match_visualizer == null:
+		return
+	var mechanic_play := not str(match_visualizer.mechanic_label).is_empty()
+	var important_phase := str(match_visualizer.phase) in ["shot","save","goal","psycho_contact","redirect_finish","reset_2","reset_3","reset_4"]
+	match_timer.wait_time = 2.35 if important_phase else 2.15 if mechanic_play else 1.85
 
 func _build_team_page() -> void:
 	if team_view != "training":
