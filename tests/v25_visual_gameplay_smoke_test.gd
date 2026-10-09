@@ -62,6 +62,7 @@ func _run() -> void:
 	if failures.is_empty():
 		print("E-Sport Empire v2.5 visual gameplay smoke test: PASS")
 		quit(0)
+		return
 	for failure in failures:
 		push_error("V2.5 smoke test failed: %s" % failure)
 	quit(1)
