@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#151722"/><stop offset="1" stop-color="#050507"/></radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff"/><stop offset=".48" stop-color="#cbd1df"/><stop offset="1" stop-color="#7f8798"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="none" stroke="#7487ff" stroke-opacity=".32" stroke-width="10" filter="url(#glow)">
+    <path d="M256 102 L338 178 L256 226 L174 178 Z"/>
+    <path d="M256 410 L174 334 L256 286 L338 334 Z"/>
+  </g>
+  <g fill="url(#metal)">
+    <path d="M256 96 L348 182 L276 224 L256 210 L236 224 L164 182 Z"/>
+    <path d="M416 256 L330 348 L288 276 L302 256 L288 236 L330 164 Z"/>
+    <path d="M256 416 L164 330 L236 288 L256 302 L276 288 L348 330 Z"/>
+    <path d="M96 256 L182 164 L224 236 L210 256 L224 276 L182 348 Z"/>
+  </g>
+</svg>
