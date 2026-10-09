@@ -1,9 +1,9 @@
-name: Nexora AI Android
+name: Nexora AI v1.5 Native Android
 
 on:
   push:
     branches:
-      - nexora-models-v14
+      - nexora-v15-native-profile
     paths:
       - 'nexora_android/**'
       - '.github/workflows/build-nexora-apk.yml'
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: nexora-${{ github.ref }}
+  group: nexora-v15-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -37,14 +37,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Build debug APK
+      - name: Build native debug APK
         working-directory: nexora_android
         run: gradle :app:assembleDebug --stacktrace
       - name: Name APK
-        run: cp nexora_android/app/build/outputs/apk/debug/app-debug.apk nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.4-models.apk
+        run: cp nexora_android/app/build/outputs/apk/debug/app-debug.apk nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.5-native-profile.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Nexora-AI-v1.4-models
-          path: nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.4-models.apk
+          name: Nexora-AI-v1.5-native-profile
+          path: nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.5-native-profile.apk
           if-no-files-found: error
