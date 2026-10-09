@@ -61,9 +61,9 @@ func _draw_projected_car(p: Vector2, velocity: Vector2, color: Color, role: Stri
 
 	draw_circle(center+Vector2(3,5*s),13*s,Color(0,0,0,0.34))
 	for off in [Vector2(-6,-8),Vector2(6,-8),Vector2(-6,8),Vector2(6,8)]:
-		var w := center+dir*off.x*s+side*off.y*s
-		draw_circle(w,3.0*s,Color(0.01,0.015,0.02,1))
-		draw_circle(w,1.2*s,Color(0.42,0.50,0.58,0.78))
+		var wheel_pos: Vector2 = center+dir*off.x*s+side*off.y*s
+		draw_circle(wheel_pos,3.0*s,Color(0.01,0.015,0.02,1))
+		draw_circle(wheel_pos,1.2*s,Color(0.42,0.50,0.58,0.78))
 
 	var body := PackedVector2Array([
 		center+dir*17*s,
@@ -112,8 +112,8 @@ func _draw_broadcast_header() -> void:
 	draw_string(FONT_V25,Vector2(12,24),title,HORIZONTAL_ALIGNMENT_LEFT,size.x-24,17,Color(0.96,0.98,1,0.98))
 	draw_string(FONT_V25,Vector2(12,44),subtitle,HORIZONTAL_ALIGNMENT_LEFT,size.x-24,8,Color(0.60,0.72,0.82,0.86))
 	var live := "LIVE  ·  AUTO-SIM"
-	var live_w := FONT_V25.get_string_size(live,HORIZONTAL_ALIGNMENT_LEFT,-1,7).x
-	draw_string(FONT_V25,Vector2(size.x-12-live_w,19),live,HORIZONTAL_ALIGNMENT_LEFT,-1,7,Color(0.40,0.86,0.68,0.78))
+	var live_width: float = FONT_V25.get_string_size(live,HORIZONTAL_ALIGNMENT_LEFT,-1,7).x
+	draw_string(FONT_V25,Vector2(size.x-12-live_width,19),live,HORIZONTAL_ALIGNMENT_LEFT,-1,7,Color(0.40,0.86,0.68,0.78))
 	var pressure := clampf((float(momentum)+100.0)/200.0,0.0,1.0)
 	draw_rect(Rect2(12,52,size.x-24,3),Color(1,1,1,0.055),true)
 	draw_rect(Rect2(12,52,(size.x-24)*pressure,3),OUR_COLOR if momentum>=0 else THEIR_COLOR,true)
