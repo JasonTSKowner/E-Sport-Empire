@@ -1,9 +1,9 @@
-name: Nexora AI v1.5 Native Android
+name: Nexora AI v1.6 Core Rework
 
 on:
   push:
     branches:
-      - nexora-v15-native-profile
+      - nexora-v16-core-rework
     paths:
       - 'nexora_android/**'
       - '.github/workflows/build-nexora-apk.yml'
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: nexora-v15-${{ github.ref }}
+  group: nexora-v16-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -41,10 +41,10 @@ jobs:
         working-directory: nexora_android
         run: gradle :app:assembleDebug --stacktrace
       - name: Name APK
-        run: cp nexora_android/app/build/outputs/apk/debug/app-debug.apk nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.5-native-profile.apk
+        run: cp nexora_android/app/build/outputs/apk/debug/app-debug.apk nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.6-core-rework.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Nexora-AI-v1.5-native-profile
-          path: nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.5-native-profile.apk
+          name: Nexora-AI-v1.6-core-rework
+          path: nexora_android/app/build/outputs/apk/debug/Nexora-AI-v1.6-core-rework.apk
           if-no-files-found: error
