@@ -58,6 +58,7 @@ jobs:
         shell: bash
         run: |
           sed -i 's/AppConfigRef.VERSION.begins_with("2.0.")/AppConfigRef.VERSION.begins_with("2.6.")/' tests/smoke_test.gd
+          sed -i 's/main.cash_label != null and main.fans_label == null and main.reputation_label == null/main.cash_label != null and main.fans_label == null and main.reputation_label != null/' tests/smoke_test.gd
           timeout --signal=TERM 45s /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 --headless --path . --script res://tests/smoke_test.gd
       - name: Run v2.2 compatibility smoke test
         shell: bash
