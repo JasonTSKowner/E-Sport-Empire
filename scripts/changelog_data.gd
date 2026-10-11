@@ -1,9 +1,24 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.5.0"
+const CURRENT_VERSION := "2.6.0"
 
 const ENTRIES := [
+	{
+		"version": "2.6.0",
+		"title": "PROFESSIONAL OVERHAUL",
+		"date": "11 OCT 2026",
+		"items": [
+			"Komplette visuelle Shell auf einen einheitlichen professionellen E-Sport-Stil umgebaut.",
+			"Start und Ranked nutzen größere Hero-Kompositionen mit klarer Hierarchie und deutlich weniger leerer Dashboard-Fläche.",
+			"Topbar und Bottom-Navigation wurden neu proportioniert, ruhiger gestaltet und visuell konsistenter gemacht.",
+			"Spielerprofile wurden zu großen Player-Dossiers mit klarer OVR-, Potenzial- und Stat-Hierarchie umgebaut.",
+			"Scouting-Karten nutzen größere Reports, stärkere Ratings und klarere Vertragsaktionen.",
+			"Vereinsübersicht zeigt Organisation, Wirtschaft und Wachstum als echte Management-Zentrale statt einfacher Listenkarte.",
+			"Neue Professional-Stage liefert kontrollierte Licht-, Tiefen- und Editorial-Layer ohne übertriebenen Neon-Look.",
+			"Match-, Training-, Mechanics-, Setup-, Backup- und Progressionssysteme aus v2.5 bleiben vollständig erhalten.",
+		],
+	},
 	{
 		"version": "2.5.0",
 		"title": "VISUAL GAMEPLAY",
