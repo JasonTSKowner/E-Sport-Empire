@@ -1,9 +1,25 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.4.3"
+const CURRENT_VERSION := "2.5.0"
 
 const ENTRIES := [
+	{
+		"version": "2.5.0",
+		"title": "PROFESSIONAL REBUILD",
+		"date": "11 OCT 2026",
+		"items": [
+			"Komplette sichtbare Shell auf eine einheitliche Broadcast-/Esports-Art-Direction umgebaut.",
+			"Home, Ranked, Team, Scout und Verein nutzen neue visuelle Stages statt flacher App-Karten.",
+			"Neue hochwertige Spieler-Showcase-Karten ersetzen die alten Platzhalter-Portraits.",
+			"Topbar und Bottom-Navigation wurden ruhiger, klarer und weniger app-artig gestaltet.",
+			"Spielerprofile zeigen OVR, Potenzial und Kernstats stärker wie echte Esports-Profile.",
+			"Scouting nutzt eine eigenständige Prospect-Präsentation statt generischer Datenboxen.",
+			"Vereinsübersicht wurde als Club-HQ-Fläche neu inszeniert.",
+			"Training-Programme wurden optisch vereinheitlicht und normales Training bleibt kostenlos.",
+			"Alle Mechanics-, Combo-, Match-, Setup-, Backup- und Progressionssysteme bleiben erhalten.",
+		],
+	},
 	{
 		"version": "2.4.3",
 		"title": "SEASON HUB & PERSPECTIVE PASS",
@@ -78,7 +94,6 @@ const ENTRIES := [
 		],
 	},
 ]
-
 
 static func latest() -> Dictionary:
 	return ENTRIES[0].duplicate(true)
