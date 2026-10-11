@@ -1,9 +1,25 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.4.3"
+const CURRENT_VERSION := "2.5.0"
 
 const ENTRIES := [
+	{
+		"version": "2.5.0",
+		"title": "GAMEPLAY PRESENTATION",
+		"date": "11 OCT 2026",
+		"items": [
+			"Match- und Training-Kamera wurden für Mobile deutlich stärker auf Gameplay statt Taktikdiagramm ausgerichtet.",
+			"Autos sind größer, besitzen klarere Fahrzeugrichtung, Räder, Glas, Lichtdetails, Schatten und stärkere Boost-Trails.",
+			"Ballhöhe ist durch Bodenschatten, vertikale Distanz und größere Ball-Darstellung leichter zu lesen.",
+			"Ballflugbahnen zeigen jetzt eine klarere Kurve mit Zwischenpunkten und sichtbarer Landezone.",
+			"1st-, 2nd- und 3rd-Man-Rotation bleibt sichtbar; aktive und unterstützende Laufwege erhalten klarere Pfeile.",
+			"Arena, Sidewalls, Goals, Crowd und Licht-Rigs wurden stärker räumlich aufgebaut, damit Gameplay weniger flach wirkt.",
+			"Training verwendet dieselbe Broadcast-/Arena-Sprache wie Matches und zeigt Drill-Ziel, Fahrzeugweg und Ballweg klarer.",
+			"Match-Playback wurde weiter verlangsamt, damit Mechanical Setups, Redirects und Rotationen lesbar bleiben.",
+			"Alle Mechanics, Team-Combos, Mastery-, Setup-, Backup- und Progressionssysteme der vorherigen Versionen bleiben erhalten.",
+		],
+	},
 	{
 		"version": "2.4.3",
 		"title": "SEASON HUB & PERSPECTIVE PASS",
