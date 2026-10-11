@@ -9,6 +9,8 @@ func configure(color: Color, stage_variant: String = "hero") -> ProfessionalStag
 	accent = color
 	variant = stage_variant
 	mouse_filter = Control.MOUSE_FILTER_PASS
+	if custom_minimum_size.y <= 0.0:
+		custom_minimum_size.y = 260.0 if variant in ["hero", "rank", "club"] else 210.0
 	var empty := StyleBoxEmpty.new()
 	add_theme_stylebox_override("panel", empty)
 	set_process(true)
