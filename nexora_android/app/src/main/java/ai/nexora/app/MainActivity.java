@@ -3,6 +3,9 @@ package ai.nexora.app;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,7 +13,10 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
+import android.text.method.PasswordTransformationMethod;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,24 +34,21 @@ import android.widget.Toast;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
-    private static final int BG = Color.rgb(9, 9, 11);
-    private static final int PANEL = Color.rgb(20, 20, 25);
-    private static final int PANEL_2 = Color.rgb(27, 27, 33);
-    private static final int LINE = Color.rgb(42, 42, 51);
-    private static final int TEXT = Color.rgb(244, 244, 247);
-    private static final int MUTED = Color.rgb(145, 145, 158);
-    private static final int ACCENT = Color.rgb(205, 211, 255);
+    private static final int BG = Color.rgb(8, 8, 10);
+    private static final int PANEL = Color.rgb(19, 19, 24);
+    private static final int PANEL_2 = Color.rgb(26, 26, 33);
+    private static final int PANEL_3 = Color.rgb(32, 32, 40);
+    private static final int LINE = Color.rgb(43, 43, 53);
+    private static final int TEXT = Color.rgb(244, 244, 248);
+    private static final int MUTED = Color.rgb(145, 145, 159);
+    private static final int ACCENT = Color.rgb(214, 218, 255);
+    private static final int GREEN = Color.rgb(124, 225, 170);
+    private static final int RED = Color.rgb(245, 117, 132);
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ArrayList<Chat> chats = new ArrayList<>();
@@ -54,6 +57,7 @@ public class MainActivity extends Activity {
     private String activeId;
     private String defaultModel = "1.5";
     private boolean busy = false;
+    private int requestGeneration = 0;
 
     private LinearLayout messageList;
     private ScrollView chatScroll;
@@ -67,7 +71,6 @@ public class MainActivity extends Activity {
         String role;
         String text;
         String model;
-
         Msg(String role, String text, String model) {
             this.role = role;
             this.text = text;
@@ -80,7 +83,6 @@ public class MainActivity extends Activity {
         String title;
         String model;
         final ArrayList<Msg> messages = new ArrayList<>();
-
         Chat(String id, String title, String model) {
             this.id = id;
             this.title = title;
@@ -116,15 +118,26 @@ public class MainActivity extends Activity {
         root.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(58)));
 
         Button menu = smallButton("☰");
+        menu.setContentDescription("Menü");
         menu.setOnClickListener(v -> showMenu());
         top.addView(menu, new LinearLayout.LayoutParams(dp(42), dp(42)));
 
-        TextView brand = label("Nexora", 19, TEXT, true);
-        LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        brandLp.leftMargin = dp(10);
-        top.addView(brand, brandLp);
+        LinearLayout brandWrap = new LinearLayout(this);
+        brandWrap.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams brandWrapLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        brandWrapLp.leftMargin = dp(10);
+        top.addView(brandWrap, brandWrapLp);
 
-        coreStatus = label("Core offline", 11, MUTED, false);
+        brandWrap.addView(label("Nexora", 18, TEXT, true));
+        TextView version = label("AI · v1.6", 9, Color.rgb(95, 95, 108), false);
+        version.setPadding(0, dp(1), 0, 0);
+        brandWrap.addView(version);
+
+        coreStatus = label("Core", 10, MUTED, true);
+        coreStatus.setPadding(dp(9), dp(5), dp(9), dp(5));
+        coreStatus.setGravity(Gravity.CENTER);
+        coreStatus.setBackground(round(PANEL, 12, LINE, 1));
+        coreStatus.setOnClickListener(v -> showCoreSettings());
         LinearLayout.LayoutParams statusLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         statusLp.rightMargin = dp(8);
         top.addView(coreStatus, statusLp);
@@ -136,7 +149,7 @@ public class MainActivity extends Activity {
         top.addView(profileButton, new LinearLayout.LayoutParams(dp(38), dp(38)));
 
         View divider = new View(this);
-        divider.setBackgroundColor(Color.rgb(26, 26, 31));
+        divider.setBackgroundColor(Color.rgb(25, 25, 30));
         root.addView(divider, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
 
         chatScroll = new ScrollView(this);
@@ -162,12 +175,12 @@ public class MainActivity extends Activity {
 
         input = new EditText(this);
         input.setHint("Nachricht an Nexora …");
-        input.setHintTextColor(Color.rgb(105, 105, 117));
+        input.setHintTextColor(Color.rgb(105, 105, 118));
         input.setTextColor(TEXT);
         input.setTextSize(15);
         input.setBackgroundColor(Color.TRANSPARENT);
         input.setPadding(dp(2), dp(5), dp(2), dp(8));
-        input.setMaxLines(5);
+        input.setMaxLines(6);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         composer.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -179,9 +192,18 @@ public class MainActivity extends Activity {
         modelChip = label("Nexora 1.5  ▾", 12, TEXT, true);
         modelChip.setGravity(Gravity.CENTER);
         modelChip.setPadding(dp(11), 0, dp(11), 0);
-        modelChip.setBackground(round(Color.rgb(16, 16, 20), 12, LINE, 1));
+        modelChip.setBackground(round(Color.rgb(15, 15, 19), 12, LINE, 1));
         modelChip.setOnClickListener(v -> showModelPicker());
         bottom.addView(modelChip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34)));
+
+        TextView memoryBadge = label("Memory", 10, MUTED, true);
+        memoryBadge.setGravity(Gravity.CENTER);
+        memoryBadge.setPadding(dp(10), 0, dp(10), 0);
+        memoryBadge.setBackground(round(Color.rgb(15, 15, 19), 12, LINE, 1));
+        memoryBadge.setOnClickListener(v -> showMemorySettings());
+        LinearLayout.LayoutParams memoryLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(34));
+        memoryLp.leftMargin = dp(7);
+        bottom.addView(memoryBadge, memoryLp);
 
         View spacer = new View(this);
         bottom.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
@@ -193,20 +215,28 @@ public class MainActivity extends Activity {
         sendButton.setAllCaps(false);
         sendButton.setGravity(Gravity.CENTER);
         sendButton.setPadding(0, 0, 0, dp(2));
-        sendButton.setBackground(round(Color.rgb(239, 239, 242), 13, Color.TRANSPARENT, 0));
-        sendButton.setOnClickListener(v -> send());
+        sendButton.setBackground(round(Color.rgb(239, 239, 243), 13, Color.TRANSPARENT, 0));
+        sendButton.setOnClickListener(v -> {
+            if (busy) stopGeneration(); else send();
+        });
         bottom.addView(sendButton, new LinearLayout.LayoutParams(dp(38), dp(38)));
 
-        TextView disclaimer = label("Nexora kann Fehler machen. Wichtige Infos prüfen.", 9, Color.rgb(83, 83, 94), false);
+        TextView disclaimer = label("Nexora kann Fehler machen. Wichtige Infos prüfen.", 9, Color.rgb(80, 80, 91), false);
         disclaimer.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams disLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         disLp.topMargin = dp(6);
         composerWrap.addView(disclaimer, disLp);
 
+        input.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { updateSendButton(); }
+            @Override public void afterTextChanged(Editable s) { }
+        });
+
         setContentView(root);
-        input.setOnEditorActionListener((v, actionId, event) -> false);
         updateProfileButton();
         updateCoreStatus();
+        updateSendButton();
     }
 
     private void render() {
@@ -214,11 +244,12 @@ public class MainActivity extends Activity {
         Chat chat = activeChat();
         updateModelChip();
         updateCoreStatus();
+        updateSendButton();
 
         if (chat == null || chat.messages.isEmpty()) {
             renderWelcome();
         } else {
-            for (Msg msg : chat.messages) addMessageView(msg);
+            for (int i = 0; i < chat.messages.size(); i++) addMessageView(chat.messages.get(i), i);
             if (busy) addTypingView(chat.model);
         }
         main.postDelayed(() -> chatScroll.fullScroll(View.FOCUS_DOWN), 50);
@@ -228,13 +259,14 @@ public class MainActivity extends Activity {
         LinearLayout welcome = new LinearLayout(this);
         welcome.setOrientation(LinearLayout.VERTICAL);
         welcome.setGravity(Gravity.CENTER_HORIZONTAL);
-        welcome.setPadding(dp(10), dp(70), dp(10), dp(30));
+        welcome.setPadding(dp(10), dp(54), dp(10), dp(30));
         messageList.addView(welcome, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.ic_launcher);
-        logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        welcome.addView(logo, new LinearLayout.LayoutParams(dp(76), dp(76)));
+        logo.setImageResource(R.drawable.nexora_pb);
+        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        logo.setBackground(round(Color.BLACK, 24, LINE, 1));
+        welcome.addView(logo, new LinearLayout.LayoutParams(dp(84), dp(84)));
 
         TextView h = label("Was kann ich für dich tun?", 25, TEXT, true);
         h.setGravity(Gravity.CENTER);
@@ -242,75 +274,122 @@ public class MainActivity extends Activity {
         hLp.topMargin = dp(18);
         welcome.addView(h, hLp);
 
-        Chat c = activeChat();
-        String m = c == null ? defaultModel : c.model;
-        TextView sub = label("Nexora " + m + " · Native v1.5", 13, MUTED, false);
+        TextView sub = label("Nexora " + currentModel() + " · Core v" + NexoraCore.CORE_VERSION, 12, MUTED, true);
         sub.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         subLp.topMargin = dp(7);
         welcome.addView(sub, subLp);
 
-        TextView note = label(coreEndpoint().isEmpty()
-                ? "Die Oberfläche ist jetzt nativ. Für echte KI-Antworten muss nur noch der Nexora Core verbunden werden."
-                : "Core verbunden. Schreib deine erste Nachricht.", 13, MUTED, false);
+        String state = coreEndpoint().isEmpty()
+                ? "Core-System aktiv · echter Model-Server noch nicht verbunden"
+                : "Model-Server verbunden · Memory und Kontext aktiv";
+        TextView note = label(state, 12, coreEndpoint().isEmpty() ? MUTED : GREEN, false);
         note.setGravity(Gravity.CENTER);
-        note.setLineSpacing(0, 1.18f);
         LinearLayout.LayoutParams noteLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        noteLp.topMargin = dp(18);
+        noteLp.topMargin = dp(10);
+        noteLp.bottomMargin = dp(16);
         welcome.addView(note, noteLp);
 
-        String[] prompts = {"App planen", "Code verbessern", "Game-Konzept", "Problem analysieren"};
-        for (String p : prompts) {
-            TextView chip = label(p, 13, TEXT, true);
-            chip.setGravity(Gravity.CENTER_VERTICAL);
-            chip.setPadding(dp(14), 0, dp(14), 0);
-            chip.setBackground(round(PANEL, 14, LINE, 1));
-            chip.setOnClickListener(v -> {
-                input.setText(((TextView) v).getText());
+        String[][] prompts = {
+                {"App bauen", "Plane mit mir eine App komplett von Grund auf."},
+                {"Code analysieren", "Analysiere meinen Code systematisch und verbessere ihn."},
+                {"Game entwickeln", "Entwickle mit mir ein starkes Game-Konzept mit Progression."},
+                {"Deep Reasoning", "Analysiere dieses Problem gründlich und nenne die beste Lösung."}
+        };
+        for (String[] p : prompts) {
+            LinearLayout card = new LinearLayout(this);
+            card.setOrientation(LinearLayout.VERTICAL);
+            card.setPadding(dp(14), dp(10), dp(14), dp(9));
+            card.setBackground(round(PANEL, 14, LINE, 1));
+            card.addView(label(p[0], 13, TEXT, true));
+            card.addView(label(p[1], 11, MUTED, false));
+            card.setOnClickListener(v -> {
+                input.setText(p[1]);
                 input.setSelection(input.length());
                 input.requestFocus();
             });
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-            lp.topMargin = dp(9);
-            welcome.addView(chip, lp);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = dp(8);
+            welcome.addView(card, lp);
         }
     }
 
-    private void addMessageView(Msg msg) {
+    private void addMessageView(Msg msg, int index) {
         FrameLayout row = new FrameLayout(this);
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rowLp.bottomMargin = dp(16);
+        rowLp.bottomMargin = dp(14);
         messageList.addView(row, rowLp);
 
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(13), dp(10), dp(13), dp(11));
+        card.setPadding(dp(13), dp(10), dp(13), dp(10));
         boolean user = "user".equals(msg.role);
-        card.setBackground(round(user ? Color.rgb(36, 36, 43) : Color.rgb(17, 17, 21), 16, user ? Color.rgb(52, 52, 61) : Color.TRANSPARENT, user ? 1 : 0));
+        card.setBackground(round(user ? Color.rgb(35, 35, 43) : Color.rgb(16, 16, 20), 16,
+                user ? Color.rgb(52, 52, 62) : Color.TRANSPARENT, user ? 1 : 0));
 
-        TextView head = label(user ? profileName() : "Nexora " + (msg.model == null ? currentModel() : msg.model), 11, MUTED, true);
+        TextView head = label(user ? profileName() : "Nexora " + (msg.model == null ? currentModel() : msg.model), 10, MUTED, true);
         card.addView(head);
 
         TextView body = label(msg.text, 15, TEXT, false);
-        body.setLineSpacing(dp(2), 1.15f);
+        body.setTextIsSelectable(true);
+        body.setLineSpacing(dp(2), 1.14f);
+        body.setOnLongClickListener(v -> {
+            copyText(msg.text);
+            return true;
+        });
         LinearLayout.LayoutParams bodyLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         bodyLp.topMargin = dp(5);
         card.addView(body, bodyLp);
 
-        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(user ? dp(300) : ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30));
+        actionsLp.topMargin = dp(6);
+        card.addView(actions, actionsLp);
+
+        TextView copy = miniAction("Kopieren");
+        copy.setOnClickListener(v -> copyText(msg.text));
+        actions.addView(copy, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(28)));
+
+        if (!user && index == activeChat().messages.size() - 1) {
+            TextView retry = miniAction("Regenerieren");
+            retry.setOnClickListener(v -> regenerateLast());
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(28));
+            rlp.leftMargin = dp(6);
+            actions.addView(retry, rlp);
+        }
+
+        FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(user ? dp(310) : ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         cardLp.gravity = user ? Gravity.END : Gravity.START;
-        if (!user) cardLp.rightMargin = dp(14);
+        if (!user) cardLp.rightMargin = dp(10);
         row.addView(card, cardLp);
     }
 
+    private TextView miniAction(String text) {
+        TextView t = label(text, 10, Color.rgb(126, 126, 141), true);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(dp(8), 0, dp(8), 0);
+        t.setBackground(round(Color.rgb(22, 22, 28), 10, LINE, 1));
+        return t;
+    }
+
     private void addTypingView(String model) {
-        TextView t = label("Nexora " + model + " denkt …", 13, MUTED, false);
-        t.setPadding(dp(13), dp(11), dp(13), dp(11));
-        t.setBackground(round(Color.rgb(17, 17, 21), 15, Color.TRANSPARENT, 0));
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(12), dp(10), dp(12), dp(10));
+        box.setBackground(round(Color.rgb(16, 16, 20), 15, Color.TRANSPARENT, 0));
+        TextView t = label("Nexora " + model + " denkt …", 12, MUTED, true);
+        box.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView stop = miniAction("Stop");
+        stop.setTextColor(RED);
+        stop.setOnClickListener(v -> stopGeneration());
+        box.addView(stop, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(28)));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.rightMargin = dp(14);
+        lp.rightMargin = dp(10);
         lp.bottomMargin = dp(12);
-        messageList.addView(t, lp);
+        messageList.addView(box, lp);
     }
 
     private void send() {
@@ -321,111 +400,82 @@ public class MainActivity extends Activity {
         Chat c = activeChat();
         if (c == null) c = createChat();
         c.messages.add(new Msg("user", text, null));
-        if ("Neuer Chat".equals(c.title)) c.title = text.length() > 34 ? text.substring(0, 34) + "…" : text;
+        if ("Neuer Chat".equals(c.title)) c.title = makeTitle(text);
         input.setText("");
         saveState();
+        requestAnswer(c, text);
+    }
+
+    private void requestAnswer(Chat chat, String latestText) {
+        busy = true;
+        requestGeneration++;
+        final int generation = requestGeneration;
         render();
 
-        String endpoint = coreEndpoint();
-        if (endpoint.isEmpty()) {
-            Chat finalC = c;
-            main.postDelayed(() -> {
-                finalC.messages.add(new Msg("assistant",
-                        "Der Nexora Core ist noch nicht verbunden. Öffne ☰ → Core verbinden und trage dort später euren Server-Endpunkt ein. Profil, Chats und Modellwahl funktionieren bereits nativ.",
-                        finalC.model));
+        NexoraCore.Config config = new NexoraCore.Config();
+        config.endpoint = coreEndpoint();
+        config.apiKey = coreApiKey();
+        config.userName = profileName();
+        config.username = profileUsername();
+        config.memory = memoryText();
+        config.customSystemPrompt = customInstruction();
+        config.modelId = chat.model;
+
+        ArrayList<NexoraCore.Message> history = new ArrayList<>();
+        for (Msg m : chat.messages) history.add(new NexoraCore.Message(m.role, m.text));
+
+        new Thread(() -> {
+            NexoraCore.Result result = NexoraCore.complete(config, history, latestText);
+            main.post(() -> {
+                if (generation != requestGeneration) return;
+                busy = false;
+                chat.messages.add(new Msg("assistant", result.text, chat.model));
                 saveState();
                 render();
-            }, 280);
-            return;
-        }
+            });
+        }).start();
+    }
 
-        busy = true;
+    private void stopGeneration() {
+        if (!busy) return;
+        requestGeneration++;
+        busy = false;
         render();
-        Chat requestChat = c;
-        new Thread(() -> callCore(endpoint, requestChat, text)).start();
+        Toast.makeText(this, "Generierung gestoppt", Toast.LENGTH_SHORT).show();
     }
 
-    private void callCore(String endpoint, Chat chat, String latestText) {
-        String answer;
-        try {
-            JSONObject body = new JSONObject();
-            body.put("model", "nexora-" + chat.model);
-            body.put("message", latestText);
-            body.put("profile_name", profileName());
-            body.put("profile_username", profileUsername());
-            JSONArray history = new JSONArray();
-            int start = Math.max(0, chat.messages.size() - 20);
-            for (int i = start; i < chat.messages.size(); i++) {
-                Msg m = chat.messages.get(i);
-                JSONObject item = new JSONObject();
-                item.put("role", m.role);
-                item.put("content", m.text);
-                history.put(item);
+    private void regenerateLast() {
+        if (busy) return;
+        Chat c = activeChat();
+        if (c == null || c.messages.isEmpty()) return;
+        if ("assistant".equals(c.messages.get(c.messages.size() - 1).role)) c.messages.remove(c.messages.size() - 1);
+        String latest = null;
+        for (int i = c.messages.size() - 1; i >= 0; i--) {
+            if ("user".equals(c.messages.get(i).role)) {
+                latest = c.messages.get(i).text;
+                break;
             }
-            body.put("history", history);
-
-            HttpURLConnection conn = (HttpURLConnection) new URL(endpoint).openConnection();
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(30000);
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-            conn.setRequestProperty("Accept", "application/json, text/plain");
-            conn.setDoOutput(true);
-            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
-            conn.setFixedLengthStreamingMode(bytes.length);
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(bytes);
-            }
-
-            int code = conn.getResponseCode();
-            InputStream stream = code >= 200 && code < 300 ? conn.getInputStream() : conn.getErrorStream();
-            StringBuilder raw = new StringBuilder();
-            if (stream != null) {
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = br.readLine()) != null) raw.append(line).append('\n');
-                }
-            }
-            String response = raw.toString().trim();
-            if (code < 200 || code >= 300) throw new Exception("HTTP " + code + (response.isEmpty() ? "" : ": " + response));
-            answer = parseCoreResponse(response);
-            conn.disconnect();
-        } catch (Exception e) {
-            answer = "Core-Verbindung fehlgeschlagen. " + (e.getMessage() == null ? "Unbekannter Fehler." : e.getMessage());
         }
-
-        String finalAnswer = answer;
-        main.post(() -> {
-            busy = false;
-            chat.messages.add(new Msg("assistant", finalAnswer, chat.model));
-            saveState();
-            render();
-        });
+        if (latest == null) return;
+        saveState();
+        requestAnswer(c, latest);
     }
 
-    private String parseCoreResponse(String response) throws Exception {
-        if (response == null || response.trim().isEmpty()) return "Der Core hat eine leere Antwort geliefert.";
-        String t = response.trim();
-        if (t.startsWith("{")) {
-            JSONObject o = new JSONObject(t);
-            if (o.has("text")) return o.optString("text", "");
-            if (o.has("message")) return o.optString("message", "");
-            if (o.has("output")) return o.optString("output", "");
-            if (o.has("response")) return o.optString("response", "");
-        }
-        return t;
+    private String makeTitle(String text) {
+        String clean = text.replace('\n', ' ').trim();
+        return clean.length() > 36 ? clean.substring(0, 36) + "…" : clean;
     }
 
     private void showModelPicker() {
         final String[] labels = {
-                "Nexora 1.0\nLegacy · erste Generation",
+                "Nexora 1.0\nFast · Legacy",
                 "Nexora 1.1\nBalanced · mehr Kontext",
-                "Nexora 1.5\nNewest · stärkstes Profil"
+                "Nexora 1.5\nReasoning · stärkstes Profil"
         };
         final String[] ids = {"1.0", "1.1", "1.5"};
         int checked = "1.0".equals(currentModel()) ? 0 : ("1.1".equals(currentModel()) ? 1 : 2);
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Modell auswählen")
+                .setTitle("Nexora Modell")
                 .setSingleChoiceItems(labels, checked, null)
                 .setNegativeButton("Abbrechen", null)
                 .setPositiveButton("Übernehmen", null)
@@ -438,7 +488,6 @@ public class MainActivity extends Activity {
             c.model = ids[selected];
             defaultModel = ids[selected];
             saveState();
-            updateModelChip();
             render();
             dialog.dismiss();
         }));
@@ -449,25 +498,41 @@ public class MainActivity extends Activity {
         Dialog dialog = new Dialog(this);
         LinearLayout box = dialogBox();
 
-        TextView title = label("Dein Profil", 21, TEXT, true);
-        box.addView(title);
-        TextView sub = label("Wird lokal auf diesem Gerät gespeichert.", 12, MUTED, false);
-        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        subLp.topMargin = dp(4);
-        subLp.bottomMargin = dp(18);
-        box.addView(sub, subLp);
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView pb = new ImageView(this);
+        pb.setImageResource(R.drawable.nexora_pb);
+        pb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        pb.setBackground(round(Color.BLACK, 17, LINE, 1));
+        header.addView(pb, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        LinearLayout ht = new LinearLayout(this);
+        ht.setOrientation(LinearLayout.VERTICAL);
+        ht.setPadding(dp(12), 0, 0, 0);
+        ht.addView(label("Dein Profil", 20, TEXT, true));
+        ht.addView(label("Lokal gespeichert · für Personalisierung", 11, MUTED, false));
+        header.addView(ht, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        box.addView(header);
 
         EditText name = field("Anzeigename", profileName());
-        box.addView(name, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
+        LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        nlp.topMargin = dp(18);
+        box.addView(name, nlp);
 
         EditText user = field("Username", profileUsername());
-        LinearLayout.LayoutParams userLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
-        userLp.topMargin = dp(10);
-        box.addView(user, userLp);
+        LinearLayout.LayoutParams ulp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        ulp.topMargin = dp(10);
+        box.addView(user, ulp);
+
+        Button memory = secondaryButton("Memory bearbeiten");
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        mlp.topMargin = dp(10);
+        box.addView(memory, mlp);
+        memory.setOnClickListener(v -> { dialog.dismiss(); showMemorySettings(); });
 
         Button save = actionButton("Profil speichern");
         LinearLayout.LayoutParams saveLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        saveLp.topMargin = dp(16);
+        saveLp.topMargin = dp(14);
         box.addView(save, saveLp);
         save.setOnClickListener(v -> {
             String n = name.getText().toString().trim();
@@ -482,7 +547,35 @@ public class MainActivity extends Activity {
         });
 
         dialog.setContentView(box);
+        dialog.show();
         configureDialogWindow(dialog);
+    }
+
+    private void showMemorySettings() {
+        Dialog dialog = new Dialog(this);
+        LinearLayout box = dialogBox();
+        box.addView(label("Nexora Memory", 21, TEXT, true));
+        TextView info = label("Schreib hier Dinge rein, die Nexora in neuen Antworten berücksichtigen soll. Diese Daten bleiben lokal und werden nur an deinen verbundenen Core gesendet.", 12, MUTED, false);
+        info.setLineSpacing(0, 1.16f);
+        LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ilp.topMargin = dp(6);
+        ilp.bottomMargin = dp(14);
+        box.addView(info, ilp);
+
+        EditText memory = multiField("z. B. Projekte, Schreibstil, wichtige Präferenzen …", memoryText(), 1500);
+        box.addView(memory, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(160)));
+
+        Button save = actionButton("Memory speichern");
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        slp.topMargin = dp(13);
+        box.addView(save, slp);
+        save.setOnClickListener(v -> {
+            prefs.edit().putString("memory_text", memory.getText().toString().trim()).apply();
+            dialog.dismiss();
+            Toast.makeText(this, "Memory gespeichert", Toast.LENGTH_SHORT).show();
+        });
+
+        dialog.setContentView(box);
         dialog.show();
         configureDialogWindow(dialog);
     }
@@ -490,31 +583,59 @@ public class MainActivity extends Activity {
     private void showCoreSettings() {
         Dialog dialog = new Dialog(this);
         LinearLayout box = dialogBox();
-        box.addView(label("Nexora Core", 21, TEXT, true));
-        TextView info = label("Hier kommt später euer eigener KI-Server rein. Die App sendet POST-JSON mit Modell, Nachricht und Chat-History.", 12, MUTED, false);
-        info.setLineSpacing(0, 1.18f);
+        box.addView(label("Nexora Core v" + NexoraCore.CORE_VERSION, 21, TEXT, true));
+        TextView info = label("Der Core verwaltet Model-Routing, Memory, System-Prompt und bis zu 30 letzte Nachrichten Kontext. Für echte KI-Intelligenz braucht er einen kompatiblen Model-Server.", 12, MUTED, false);
+        info.setLineSpacing(0, 1.16f);
         LinearLayout.LayoutParams infoLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         infoLp.topMargin = dp(6);
-        infoLp.bottomMargin = dp(16);
+        infoLp.bottomMargin = dp(14);
         box.addView(info, infoLp);
 
         EditText endpoint = field("https://dein-server.de/chat", coreEndpoint());
         endpoint.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         box.addView(endpoint, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
 
+        EditText key = field("API-/Core-Key (optional)", coreApiKey());
+        key.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        key.setTransformationMethod(PasswordTransformationMethod.getInstance());
+        LinearLayout.LayoutParams klp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        klp.topMargin = dp(9);
+        box.addView(key, klp);
+
+        EditText system = multiField("Custom Instructions für Nexora …", customInstruction(), 1000);
+        LinearLayout.LayoutParams sysLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(110));
+        sysLp.topMargin = dp(9);
+        box.addView(system, sysLp);
+
+        Button test = secondaryButton("Verbindung testen");
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        tlp.topMargin = dp(10);
+        box.addView(test, tlp);
+        test.setOnClickListener(v -> {
+            String e = endpoint.getText().toString().trim();
+            if (e.isEmpty()) {
+                Toast.makeText(this, "Noch kein Endpunkt eingetragen", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Toast.makeText(this, "Wird beim nächsten Chat-Request geprüft", Toast.LENGTH_SHORT).show();
+        });
+
         Button save = actionButton("Core speichern");
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
-        lp.topMargin = dp(14);
+        lp.topMargin = dp(10);
         box.addView(save, lp);
         save.setOnClickListener(v -> {
-            prefs.edit().putString("core_endpoint", endpoint.getText().toString().trim()).apply();
+            prefs.edit()
+                    .putString("core_endpoint", endpoint.getText().toString().trim())
+                    .putString("core_api_key", key.getText().toString().trim())
+                    .putString("custom_instruction", system.getText().toString().trim())
+                    .apply();
             updateCoreStatus();
             render();
             dialog.dismiss();
         });
 
         dialog.setContentView(box);
-        configureDialogWindow(dialog);
         dialog.show();
         configureDialogWindow(dialog);
     }
@@ -522,7 +643,21 @@ public class MainActivity extends Activity {
     private void showMenu() {
         Dialog dialog = new Dialog(this);
         LinearLayout box = dialogBox();
-        box.addView(label("Nexora", 21, TEXT, true));
+
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.drawable.nexora_pb);
+        icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        head.addView(icon, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        LinearLayout headText = new LinearLayout(this);
+        headText.setOrientation(LinearLayout.VERTICAL);
+        headText.setPadding(dp(10), 0, 0, 0);
+        headText.addView(label("Nexora", 20, TEXT, true));
+        headText.addView(label("v1.6 · Core " + NexoraCore.CORE_VERSION, 10, MUTED, false));
+        head.addView(headText);
+        box.addView(head);
 
         Button newChat = actionButton("＋  Neuer Chat");
         LinearLayout.LayoutParams newLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
@@ -535,23 +670,28 @@ public class MainActivity extends Activity {
             dialog.dismiss();
         });
 
-        Button profile = secondaryButton("Profil");
-        LinearLayout.LayoutParams pLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
-        pLp.topMargin = dp(8);
-        box.addView(profile, pLp);
-        profile.setOnClickListener(v -> {
-            dialog.dismiss();
-            showProfile();
-        });
+        LinearLayout quick = new LinearLayout(this);
+        quick.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        qlp.topMargin = dp(8);
+        box.addView(quick, qlp);
 
-        Button core = secondaryButton("Core verbinden");
-        LinearLayout.LayoutParams cLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
-        cLp.topMargin = dp(8);
-        box.addView(core, cLp);
-        core.setOnClickListener(v -> {
-            dialog.dismiss();
-            showCoreSettings();
-        });
+        Button profile = secondaryButton("Profil");
+        Button memory = secondaryButton("Memory");
+        Button core = secondaryButton("Core");
+        quick.addView(profile, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        LinearLayout.LayoutParams memLp = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        memLp.leftMargin = dp(6);
+        quick.addView(memory, memLp);
+        LinearLayout.LayoutParams coreLp = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        coreLp.leftMargin = dp(6);
+        quick.addView(core, coreLp);
+        profile.setGravity(Gravity.CENTER);
+        memory.setGravity(Gravity.CENTER);
+        core.setGravity(Gravity.CENTER);
+        profile.setOnClickListener(v -> { dialog.dismiss(); showProfile(); });
+        memory.setOnClickListener(v -> { dialog.dismiss(); showMemorySettings(); });
+        core.setOnClickListener(v -> { dialog.dismiss(); showCoreSettings(); });
 
         TextView historyTitle = label("CHATS", 10, Color.rgb(100, 100, 112), true);
         historyTitle.setPadding(dp(2), dp(18), 0, dp(7));
@@ -562,10 +702,10 @@ public class MainActivity extends Activity {
         list.setOrientation(LinearLayout.VERTICAL);
         sc.addView(list);
         for (Chat c : chats) {
-            Button b = secondaryButton((c.id.equals(activeId) ? "●  " : "") + c.title);
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
-            lp.bottomMargin = dp(4);
-            list.addView(b, lp);
+            Button b = secondaryButton((c.id.equals(activeId) ? "●  " : "") + c.title + "   · " + c.model);
+            LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
+            blp.bottomMargin = dp(4);
+            list.addView(b, blp);
             b.setOnClickListener(v -> {
                 activeId = c.id;
                 saveState();
@@ -573,13 +713,30 @@ public class MainActivity extends Activity {
                 dialog.dismiss();
             });
         }
-        LinearLayout.LayoutParams scLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(210));
-        box.addView(sc, scLp);
+        box.addView(sc, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(190)));
+
+        Button clear = secondaryButton("Aktuellen Chat löschen");
+        clear.setTextColor(RED);
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        clp.topMargin = dp(8);
+        box.addView(clear, clp);
+        clear.setOnClickListener(v -> {
+            deleteCurrentChat();
+            dialog.dismiss();
+        });
 
         dialog.setContentView(box);
-        configureDialogWindow(dialog);
         dialog.show();
         configureDialogWindow(dialog);
+    }
+
+    private void deleteCurrentChat() {
+        Chat c = activeChat();
+        if (c != null) chats.remove(c);
+        if (chats.isEmpty()) createChat();
+        else activeId = chats.get(0).id;
+        saveState();
+        render();
     }
 
     private Chat createChat() {
@@ -612,21 +769,38 @@ public class MainActivity extends Activity {
 
     private void updateCoreStatus() {
         if (coreStatus == null) return;
-        coreStatus.setText(coreEndpoint().isEmpty() ? "Core offline" : "Core online");
-        coreStatus.setTextColor(coreEndpoint().isEmpty() ? MUTED : Color.rgb(125, 221, 169));
+        boolean online = !coreEndpoint().isEmpty();
+        coreStatus.setText(online ? "Core ✓" : "Core •");
+        coreStatus.setTextColor(online ? GREEN : MUTED);
     }
 
-    private String profileName() {
-        return prefs.getString("profile_name", "Jason");
+    private void updateSendButton() {
+        if (sendButton == null) return;
+        if (busy) {
+            sendButton.setText("■");
+            sendButton.setTextSize(12);
+            sendButton.setTextColor(Color.rgb(25, 25, 29));
+            sendButton.setAlpha(1f);
+            return;
+        }
+        sendButton.setText("↑");
+        sendButton.setTextSize(19);
+        boolean enabled = input != null && !input.getText().toString().trim().isEmpty();
+        sendButton.setAlpha(enabled ? 1f : .42f);
     }
 
-    private String profileUsername() {
-        return prefs.getString("profile_username", "jason");
+    private void copyText(String value) {
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Nexora", value));
+        Toast.makeText(this, "Kopiert", Toast.LENGTH_SHORT).show();
     }
 
-    private String coreEndpoint() {
-        return prefs.getString("core_endpoint", "").trim();
-    }
+    private String profileName() { return prefs.getString("profile_name", "Jason"); }
+    private String profileUsername() { return prefs.getString("profile_username", "jason"); }
+    private String coreEndpoint() { return prefs.getString("core_endpoint", "").trim(); }
+    private String coreApiKey() { return prefs.getString("core_api_key", "").trim(); }
+    private String memoryText() { return prefs.getString("memory_text", "").trim(); }
+    private String customInstruction() { return prefs.getString("custom_instruction", "").trim(); }
 
     private void saveState() {
         try {
@@ -685,7 +859,7 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(20), dp(20), dp(20), dp(20));
-        box.setBackground(round(Color.rgb(17, 17, 21), 22, LINE, 1));
+        box.setBackground(round(Color.rgb(16, 16, 20), 22, LINE, 1));
         return box;
     }
 
@@ -714,6 +888,32 @@ public class MainActivity extends Activity {
         return e;
     }
 
+    private EditText multiField(String hint, String value, int maxChars) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setHintTextColor(Color.rgb(100, 100, 112));
+        e.setText(value == null ? "" : value);
+        e.setTextColor(TEXT);
+        e.setTextSize(13);
+        e.setGravity(Gravity.TOP | Gravity.START);
+        e.setPadding(dp(13), dp(11), dp(13), dp(11));
+        e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        e.setMaxLines(8);
+        e.setBackground(round(PANEL_2, 13, LINE, 1));
+        e.addTextChangedListener(new TextWatcher() {
+            boolean changing;
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+            @Override public void afterTextChanged(Editable s) {
+                if (changing || s.length() <= maxChars) return;
+                changing = true;
+                s.delete(maxChars, s.length());
+                changing = false;
+            }
+        });
+        return e;
+    }
+
     private Button actionButton(String text) {
         Button b = new Button(this);
         b.setText(text);
@@ -721,7 +921,7 @@ public class MainActivity extends Activity {
         b.setTextSize(14);
         b.setTextColor(Color.rgb(18, 18, 22));
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        b.setBackground(round(Color.rgb(235, 235, 239), 13, Color.TRANSPARENT, 0));
+        b.setBackground(round(Color.rgb(237, 237, 241), 13, Color.TRANSPARENT, 0));
         return b;
     }
 
@@ -730,9 +930,9 @@ public class MainActivity extends Activity {
         b.setText(text);
         b.setAllCaps(false);
         b.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-        b.setTextSize(13);
+        b.setTextSize(12);
         b.setTextColor(TEXT);
-        b.setPadding(dp(13), 0, dp(13), 0);
+        b.setPadding(dp(12), 0, dp(12), 0);
         b.setBackground(round(PANEL_2, 12, LINE, 1));
         return b;
     }
@@ -741,7 +941,7 @@ public class MainActivity extends Activity {
         Button b = new Button(this);
         b.setText(text);
         b.setAllCaps(false);
-        b.setTextSize(19);
+        b.setTextSize(18);
         b.setTextColor(TEXT);
         b.setPadding(0, 0, 0, dp(1));
         b.setBackground(round(PANEL, 13, LINE, 1));
