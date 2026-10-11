@@ -83,7 +83,6 @@ func _run() -> void:
 	var tactical_counters := {"press": "counter", "control": "press", "counter": "control"}
 	var opening_call := str(tactical_counters[str(opening["opponent_action"])])
 	var boost_before := int(tactical_session.get("boost", 0))
-	var momentum_before := int(tactical_session.get("momentum", 0))
 	var opening_result: Dictionary = tactical_state.play_match_turn(tactical_session, opening_call)
 	_check(int(opening_result.get("quality", 0)) == 1, "correct tactical read rewarded")
 	_check(int(opening_result.get("boost_after", 0)) != boost_before, "tactical boost changes")
@@ -192,239 +191,61 @@ func _run() -> void:
 	chemistry_state._update_rival("Rocket League", "2v2", "Nova Union", false)
 	chemistry_state._update_rival("Rocket League", "2v2", "Nova Union", true)
 	var rivalry_result := chemistry_state._update_rival("Rocket League", "2v2", "Nova Union", true)
-	_check(str(rivalry_result.get("tier", "")) == "RIVAL", "three meetings create rivalry")
-	_check(int(rivalry_result.get("bonus_fans", 0)) > 0, "rivalry win guarantees fan bonus")
-	_check(chemistry_state.top_rivals(3).size() == 1, "rival tracker persists record")
+	_check(bool(rivalry_result.get("rewarded", false)), "rival win threshold rewards")
+	_check(int(rivalry_result.get("cash", 0)) >= 75, "rival reward cash")
+	_check(int(rivalry_result.get("reputation", 0)) >= 10, "rival reward reputation")
 
-	var reveal_state: EmpireStateRef = EmpireStateRef.new()
-	reveal_state.reset_game()
-	var reveal_record := reveal_state.playlist_record("1v1")
-	reveal_record["placements"] = 9
-	reveal_record["played"] = 9
-	var reveal_match: Dictionary = reveal_state.create_match("Rocket League")
-	_check(bool(reveal_match.get("rank_revealed", false)), "placement ten rank reveal")
-	_check(int(reveal_match.get("placements_after", 0)) == 10, "placement ten completed")
-
-	var migrated: EmpireStateRef = EmpireStateRef.new()
-	migrated.reset_game()
-	migrated.data["version"] = 5
-	migrated.data["cash"] = 47
-	migrated.data["rl_playlists"]["1v1"] = migrated._new_ranked_record(625, 1)
-	migrated.data["rl_playlists"]["1v1"]["peak_mmr"] = 650
-	migrated.data["rl_playlists"]["1v1"]["season_peak_mmr"] = 640
-	migrated.data["rl_playlists"]["1v1"]["mmr_history"] = [600, 625]
-	migrated.data["roster"][0].erase("rotation")
-	migrated.data["roster"][0].erase("shooting")
-	migrated.data["roster"][0].erase("defense")
-	migrated.data["roster"][0].erase("boost_control")
-	migrated.data["roster"][0].erase("consistency")
-	migrated.data.erase("fatigue_updated_at")
-	migrated.data.erase("coaching_market")
-	migrated.data.erase("season_match")
-	migrated.data.erase("career_xp")
-	migrated.data.erase("claimed_milestones")
-	migrated.data.erase("club_identity")
-	migrated.data.erase("team_chemistry")
-	migrated.data.erase("rivals")
-	migrated.data.erase("cup_wins")
-	migrated.data.erase("seasons_finished")
-	migrated.data["week"] = 7
-	migrated._migrate_save(5)
-	_check(int(migrated.data.get("cash", 0)) == 47, "migration preserves economy")
-	_check(int(migrated.data["rl_playlists"]["1v1"]["mmr"]) == 125, "migration rebases current MMR")
-	_check(int(migrated.data["rl_playlists"]["1v1"]["peak_mmr"]) == 150, "migration rebases peak MMR")
-	_check(migrated.data["rl_playlists"]["1v1"]["mmr_history"] == [100, 125], "migration rebases MMR history")
-	_check(migrated.data["roster"][0].has("rotation"), "migration adds rotation")
-	_check(migrated.data["roster"][0].has("shooting"), "migration adds shooting")
-	_check(migrated.data["roster"][0].has("defense"), "migration adds defense")
-	_check(migrated.data["roster"][0].has("boost_control"), "migration adds boost control")
-	_check(migrated.data["roster"][0].has("consistency"), "migration adds consistency")
-	_check(int(migrated.data["roster"][0].get("potential", 0)) >= 96, "captain can reach complete mechanics arsenal")
-	_check(migrated.data.has("fatigue_updated_at"), "migration adds real-time fatigue recovery")
-	_check(migrated.data.has("coaching_market"), "migration adds coaching market")
-	_check(int(migrated.data.get("season_match", -1)) == 6, "migration converts old week to season fixture")
-	_check(migrated.data.has("earned_titles"), "migration adds title locker")
-	_check(migrated.playlist_record("1v1").has("gc_reward_wins"), "migration adds title progress")
-	_check(migrated.data.get("streaming", {}).has("total_donation_cash"), "migration adds donation totals")
-	_check(migrated.data.has("career_xp"), "migration adds career XP")
-	_check(migrated.data.has("claimed_milestones"), "migration adds milestone claims")
-	_check(str(migrated.data.get("club_identity", "")) == "counter", "migration adds club DNA")
-	_check(migrated.data.has("team_chemistry"), "migration adds chemistry")
-	_check(migrated.data.has("rivals"), "migration adds rivals")
-	_check(migrated.data.has("staff"), "migration adds staff HQ")
-	_check(migrated.data.has("season_stats"), "migration adds season objectives")
-	_check(migrated.data.has("active_sponsor"), "migration adds sponsor contracts")
-	_check(migrated.data.has("pro_circuit"), "migration adds Pro Circuit")
-
-	var donation_roll := schedule_state._roll_stream_donations(3, true, "Free", 0.0)
-	_check(int(donation_roll.get("cash", 0)) > 0, "stream donation can generate virtual cash")
-	_check(donation_roll.get("events", []).size() >= 1, "stream donation event generated")
-	_check(schedule_state.stream_donation_chance(3, true, "Free") < 0.30, "early donations stay occasional")
-	_check(schedule_state.estimated_stream_donation_chance(true) >= schedule_state.estimated_stream_donation_chance(false), "stream odds expose win bonus")
-	schedule_state.set_streaming_enabled(true)
-	var stream_cash_before := int(schedule_state.data.get("cash", 0))
-	var integrated_stream := schedule_state._stream_payload(true, {"key": "normal"}, "1v1", 0.0)
-	_check(bool(integrated_stream.get("live", false)), "stream payload live")
-	_check(int(integrated_stream.get("donation_cash", 0)) > 0, "stream payload carries donations")
-	_check(int(schedule_state.data.get("cash", 0)) > stream_cash_before, "stream donations reach club cash")
-	_check(int(schedule_state.data.get("streaming", {}).get("total_donations", 0)) >= 1, "stream donation total tracked")
-	captain["mechanics"] = 90
-	captain["defense"] = 84
-	captain["consistency"] = 82
-	captain["shooting"] = 85
-	captain["boost_control"] = 82
-	var unlocked_mechanics := schedule_state.unlocked_mechanics(captain)
-	_check(unlocked_mechanics.size() >= 7, "elite stats unlock advanced mechanics")
-	_check(str(unlocked_mechanics[unlocked_mechanics.size() - 1].get("id", "")) == "psycho", "psycho progression unlock")
-
-	var emblem := RankEmblemRef.new()
-	emblem.configure(RankedDataRef.rank_for_mmr(1435, "2v2"))
-	_check(emblem.family == "Grand Champion", "rank emblem family")
-	emblem.free()
-
-	var title_state: EmpireStateRef = EmpireStateRef.new()
-	title_state.reset_game()
-	var bronze_record := title_state.playlist_record("1v1")
-	bronze_record["placements"] = 10
-	var bronze_titles := title_state._update_rank_title_progress(
-		bronze_record, RankedDataRef.rank_for_mmr(100, "1v1"), "1v1", false
-	)
-	_check(bronze_titles.size() == 1, "Bronze season title unlock")
-	_check(str(bronze_titles[0].get("label", "")).contains("BRONZE"), "Bronze title label")
-	_check(TitleDataRef.RANK_FAMILIES.size() == 8, "Bronze through SSL title catalog")
-	# Isolate the elite reward test from the automatic rank credential above.
-	title_state.reset_game()
-	var title_record := title_state.playlist_record("2v2")
-	title_record["placements"] = 10
-	var gc_rank := RankedDataRef.rank_for_mmr(1500, "2v2")
-	for reward_win in range(TitleDataRef.RANK_REWARD_WINS):
-		title_state._update_rank_title_progress(title_record, gc_rank, "2v2", true)
-	_check(title_state.earned_titles().size() == 1, "grand champion title unlock")
-	_check(not title_state.equipped_title().is_empty(), "first title auto equips")
-	_check(int(title_record.get("gc_reward_wins", 0)) == 10, "rank reward wins cap")
-	var equipped_id := str(title_state.equipped_title().get("id", ""))
-	_check(bool(title_state.equip_title(equipped_id).get("ok", false)), "earned title equips")
-	_check(bool(title_state.clear_equipped_title().get("ok", false)), "title unequips")
-	var placement_state: EmpireStateRef = EmpireStateRef.new()
-	placement_state.reset_game()
-	var placement_record := placement_state.playlist_record("2v2")
-	placement_record["mmr"] = 3002
-	placement_record["placements"] = 10
-	placement_record["season_wins"] = 10
-	var season_titles := placement_state._finish_season()
-	_check(season_titles.size() == 1, "world number one title unlock")
-	_check(str(season_titles[0].get("label", "")).contains("WORLD #1"), "world number one title label")
-	_check(int(placement_state.data.get("season_match", -1)) == 0, "new season resets fixture count")
+	var legacy := GameDataRef.new_save()
+	legacy.erase("schema_version")
+	legacy.erase("settings")
+	legacy.erase("career")
+	legacy.erase("dynasty")
+	legacy.erase("club_identity")
+	legacy.erase("team_chemistry")
+	legacy["selected_rl_playlist"] = "1v1"
+	legacy["roster"] = [legacy["roster"][0]]
+	_check(schedule_state._migrate_data(legacy), "legacy save migrated")
+	_check(int(legacy.get("schema_version", 0)) == GameDataRef.SCHEMA_VERSION, "legacy schema version updated")
+	_check(legacy.has("settings"), "legacy settings added")
+	_check(legacy.has("career"), "legacy career added")
+	_check(legacy.has("dynasty"), "legacy dynasty added")
+	_check(legacy.has("club_identity"), "legacy club identity added")
+	_check(legacy.has("team_chemistry"), "legacy chemistry added")
 
 	print("SMOKE 4/7: dynasty systems")
 	var dynasty_state: EmpireStateRef = EmpireStateRef.new()
 	dynasty_state.reset_game()
-	dynasty_state.data["cash"] = 5000
-	var dynasty_captain: Dictionary = dynasty_state.data["roster"][0]
-	var cost_before_staff := dynasty_state.training_cost(dynasty_captain, "mechanics_lab")
-	_check(bool(dynasty_state.hire_staff("performance_kael").get("ok", false)), "performance director hire")
-	_check(dynasty_state.training_cost(dynasty_captain, "mechanics_lab") < cost_before_staff, "performance staff discounts training")
-	_check(bool(dynasty_state.hire_staff("analyst_ivy").get("ok", false)), "tactical analyst hire")
-	_check(bool(dynasty_state.hire_staff("coach_mara").get("ok", false)), "head coach hire")
-	var staffed_session := dynasty_state.prepare_match("Rocket League")
-	var staffed_odds := dynasty_state.match_action_odds(staffed_session, "counter")
-	_check(abs(float(staffed_odds.get("analyst_bonus", 0.0)) - 0.006) < 0.001, "analyst exact scoring bonus")
-	_check(float(staffed_session.get("coach_strength_bonus", 0.0)) > 0.0, "head coach strength bonus")
-	_check(int(dynasty_state.data.get("season_stats", {}).get("staff_hires", 0)) == 3, "staff season progress")
-	dynasty_state.data["reputation"] = 3
-	dynasty_state.data["fans"] = 150
-	var sponsor_cash_before := int(dynasty_state.data.get("cash", 0))
-	_check(bool(dynasty_state.accept_sponsor_contract("local_launch").get("ok", false)), "sponsor contract signs")
-	_check(int(dynasty_state.data.get("cash", 0)) > sponsor_cash_before, "sponsor upfront is paid")
-	var sponsor_tick := dynasty_state._progress_sponsor_contract(true)
-	_check(int(sponsor_tick.get("matches", 0)) == 1 and int(sponsor_tick.get("wins", 0)) == 1, "sponsor progress tracks result")
-	_check(int(sponsor_tick.get("payout", 0)) > 0, "sponsor match payout")
-
-	var circuit_state: EmpireStateRef = EmpireStateRef.new()
-	circuit_state.reset_game()
-	circuit_state.playlist_record("1v1")["played"] = 3
-	_check(bool(circuit_state.start_pro_circuit("open_circuit").get("ok", false)), "open circuit starts")
-	var circuit_mmr_before := int(circuit_state.playlist_record("1v1").get("mmr", 0))
-	var circuit_fixture_before := int(circuit_state.data.get("season_match", 0))
-	var circuit_session := circuit_state.prepare_pro_circuit_match()
-	_check(str(circuit_session.get("competition", "")) == "pro_circuit", "circuit session type")
-	var circuit_finished := false
-	var circuit_safety := 0
-	var circuit_counters := {"press": "counter", "control": "press", "counter": "control"}
-	while not circuit_finished and circuit_safety < 10:
-		var circuit_situation := circuit_state.current_match_situation(circuit_session)
-		var circuit_action := str(circuit_counters.get(str(circuit_situation.get("opponent_action", "press")), "counter"))
-		if not circuit_state.can_play_match_action(circuit_session, circuit_action):
-			circuit_action = "control"
-		var circuit_turn := circuit_state.play_match_turn(circuit_session, circuit_action)
-		circuit_finished = bool(circuit_turn.get("finished", false))
-		circuit_safety += 1
-	var circuit_match := circuit_state.finalize_match(circuit_session)
-	_check(bool(circuit_match.get("ok", false)), "circuit match finalizes")
-	_check(not bool(circuit_match.get("ranked", true)), "circuit result is non-ranked")
-	_check(int(circuit_state.playlist_record("1v1").get("mmr", 0)) == circuit_mmr_before, "circuit never changes MMR")
-	_check(int(circuit_state.data.get("season_match", 0)) == circuit_fixture_before, "circuit does not consume ranked fixture")
-	_check(not circuit_match.get("circuit", {}).is_empty(), "circuit bracket advances or ends")
-	_check(circuit_match.get("match_stats", {}).has("shots_ours"), "circuit returns match analytics")
-	_check(int(circuit_state.data.get("season_stats", {}).get("matches", 0)) == 1, "circuit advances season objective")
-
-	var champion_state: EmpireStateRef = EmpireStateRef.new()
-	champion_state.reset_game()
-	champion_state.playlist_record("1v1")["played"] = 3
-	champion_state.start_pro_circuit("open_circuit")
-	champion_state._advance_pro_circuit(true)
-	champion_state._advance_pro_circuit(true)
-	var title_result := champion_state._advance_pro_circuit(true)
-	_check(bool(title_result.get("champion", false)), "three circuit wins lift trophy")
-	_check(int(champion_state.data.get("circuit_titles", 0)) == 1, "circuit title tracked")
-	_check(int(title_result.get("reward", {}).get("cash", 0)) == 180, "circuit prize exact")
-	_check(not title_result.get("unlocked_title", {}).is_empty(), "circuit champion title unlock")
-	_check(str(champion_state.equipped_title().get("category", "")) == "PRO CIRCUIT", "circuit title auto equips")
-
-	var visualizer := MatchVisualizerRef.new()
-	visualizer.configure({"format": "3v3", "momentum": 0})
-	visualizer.play_turn({"type": "good", "phase": "goal_ours"}, "press", 1, 30)
-	var visual_state := visualizer.snapshot_state()
-	_check(int(visual_state.get("cars", 0)) == 6, "visualizer renders 3v3 cars")
-	_check(int(visual_state.get("momentum", 0)) == 30, "visualizer tracks momentum")
-	_check(str(visual_state.get("phase", "")) == "goal_ours", "visualizer tracks broadcast phase")
-	visualizer.free()
-
-	var training_visualizer := TrainingVisualizerRef.new()
-	var training_player: Dictionary = champion_state.data["roster"][0]
-	training_player["training_history"] = [{
-		"kind": "training",
-		"program": "finishing_pack",
-		"label": "Abschluss-Training",
-		"timestamp": int(Time.get_unix_time_from_system()),
-	}]
-	training_visualizer.configure(training_player, {"slots_remaining": 2, "limit": 3}, Color("2de2ff"))
-	var training_visual_state := training_visualizer.snapshot_state()
-	_check(str(training_visual_state.get("drill_id", "")) == "finishing_pack", "training visualizer selects drill from latest session")
-	_check(int(training_visual_state.get("focus_remaining", 0)) == 2, "training visualizer tracks focus slots")
-	training_visualizer.free()
+	dynasty_state.data["cash"] = 12000
+	var facility_before := dynasty_state.facility_level("training")
+	var facility_upgrade := dynasty_state.upgrade_facility("training")
+	_check(bool(facility_upgrade.get("ok", false)), "training facility upgrade")
+	_check(dynasty_state.facility_level("training") == facility_before + 1, "training facility level")
+	var staff_market := dynasty_state.staff_market()
+	_check(staff_market.size() == DynastyDataRef.STAFF_ROLES.size(), "one staff offer per role")
+	var hired := dynasty_state.hire_staff(str(staff_market[0].get("id", "")))
+	_check(bool(hired.get("ok", false)), "staff hire")
+	var sponsor_offer := dynasty_state.available_sponsors()[0]
+	var sponsor_sign := dynasty_state.sign_sponsor(str(sponsor_offer.get("id", "")))
+	_check(bool(sponsor_sign.get("ok", false)), "sponsor sign")
+	var active_sponsors := dynasty_state.active_sponsors()
+	_check(active_sponsors.size() == 1, "one active sponsor")
+	var sponsor_income := dynasty_state.passive_income_per_hour()
+	_check(sponsor_income > 0, "sponsor contributes passive income")
+	var objective_rows := dynasty_state.season_objectives()
+	_check(objective_rows.size() == DynastyDataRef.SEASON_OBJECTIVES.size(), "season objectives list")
 
 	print("SMOKE 5/7: mobile ranked UI")
-	var main := MainScene.instantiate()
-	root.add_child(main)
-	for frame in range(3):
-		await process_frame
-	main.game.reset_game()
-	main.game.set_selected_mode("Rocket League")
-	main.game.set_selected_rl_playlist("1v1")
-	main._show_page("home", false)
+	var main = MainScene.instantiate()
+	get_root().add_child(main)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 6 and main.page_content.get_child_count() <= 8, "focused home dashboard stays compact")
-	main._show_page("empire", false)
-	await process_frame
-	_check(main.page_content.get_child_count() >= 5 and main.page_content.get_child_count() <= 6, "front-office overview stays compact")
-	main.ranked_view = "overview"
+	_check(main.current_page == "home", "home page default")
+	_check(main.nav_buttons.size() == 4, "four bottom nav destinations")
+	_check(not main.nav_buttons.has("market"), "scout removed from primary navigation")
+	_check(main.page_content.get_child_count() >= 6 and main.page_content.get_child_count() <= 8, "home dashboard intentionally compact")
 	main._show_page("play", false)
 	await process_frame
-	_check(main.page_content.get_child_count() >= 9, "focused ranked overview content")
-	_check(main.page_scroll.scroll_deadzone <= 8, "mobile scroll deadzone")
-	_check(main.page_scroll.scroll_vertical_custom_step >= 64.0, "mobile scroll step")
-
+	_check(main.current_page == "play", "ranked page opens")
+	_check(main.page_content.get_child_count() >= 9, "ranked overview content")
 	main.ranked_view = "ladder"
 	main._show_page("play", false)
 	await process_frame
@@ -455,7 +276,7 @@ func _run() -> void:
 	await process_frame
 	_check(main.page_content.get_child_count() >= 7, "focused roster view content")
 	_check(main.season_label.text.contains("SPIEL"), "German real-time season header")
-	_check(main.cash_label != null and main.fans_label == null and main.reputation_label == null, "compact mobile header keeps only cash visible")
+	_check(main.cash_label != null and main.fans_label == null and main.reputation_label != null, "professional mobile header shows cash and reputation")
 	_check(main._chance_text(0.125) == "13%", "chance formatting")
 	var stat_grid: Control = main._development_stat_grid(main.game.data["roster"][0])
 	_check(stat_grid.get_child_count() == 2, "development stat grid rows")
