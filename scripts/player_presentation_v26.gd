@@ -33,70 +33,125 @@ func _draw() -> void:
 	var h: float = size.y
 	var seed: int = absi(player_name.hash())
 	var cx: float = w * 0.52
-	var ground_y: float = h * 0.91
-	var glow: float = 0.045 + sin(pulse * 0.9) * 0.008
-	draw_circle(Vector2(cx, h * 0.42), minf(w,h) * 0.48, Color(accent.r,accent.g,accent.b,glow))
+	var hero_scale: float = 1.08 if mode == "hero" else 1.0
+	var glow: float = 0.055 + sin(pulse * 0.85) * 0.009
 
-	var podium := PackedVector2Array([
-		Vector2(w*0.18,ground_y), Vector2(w*0.84,ground_y),
-		Vector2(w*0.74,h*0.99), Vector2(w*0.28,h*0.99)
-	])
-	draw_colored_polygon(podium, Color(0.025,0.045,0.058,0.92))
-	draw_polyline(PackedVector2Array([podium[0],podium[1],podium[2],podium[3],podium[0]]), Color(accent.r,accent.g,accent.b,0.16), 1.2)
+	# Media-day backlight and subtle scan architecture.
+	draw_circle(Vector2(cx, h * 0.39), minf(w,h) * 0.50, Color(accent.r,accent.g,accent.b,glow))
+	draw_circle(Vector2(cx, h * 0.39), minf(w,h) * 0.36, Color(accent.r,accent.g,accent.b,0.018))
+	for i in range(5):
+		var x: float = w * (0.12 + float(i) * 0.20)
+		draw_line(Vector2(x,h*0.13),Vector2(x-18,h*0.88),Color(accent.r,accent.g,accent.b,0.026),1.0)
+	for i in range(3):
+		var y: float = h * (0.30 + float(i) * 0.20)
+		draw_line(Vector2(w*0.08,y),Vector2(w*0.94,y),Color(0.82,0.91,0.97,0.025),1.0)
 
-	var hip_y: float = h * 0.69
-	var leg_left := PackedVector2Array([
-		Vector2(cx-21,hip_y), Vector2(cx-5,hip_y), Vector2(cx-9,ground_y), Vector2(cx-27,ground_y)
-	])
-	var leg_right := PackedVector2Array([
-		Vector2(cx+5,hip_y), Vector2(cx+22,hip_y), Vector2(cx+28,ground_y), Vector2(cx+9,ground_y)
-	])
-	draw_colored_polygon(leg_left, Color("101820"))
-	draw_colored_polygon(leg_right, Color("101820"))
-
-	var shoulder_y: float = h * 0.38
+	# Shoulder / jersey silhouette – cropped like an esports media-day portrait.
+	var shoulder_y: float = h * 0.48
+	var torso_bottom: float = h * (0.96 if mode == "hero" else 0.86)
+	var shoulder_half: float = w * 0.36 * hero_scale
+	var waist_half: float = w * 0.23 * hero_scale
 	var torso := PackedVector2Array([
-		Vector2(cx-36, shoulder_y+8), Vector2(cx-22, shoulder_y-4),
-		Vector2(cx+22, shoulder_y-4), Vector2(cx+38, shoulder_y+8),
-		Vector2(cx+28, hip_y), Vector2(cx-28, hip_y)
+		Vector2(cx-shoulder_half,shoulder_y+16),
+		Vector2(cx-shoulder_half*0.78,shoulder_y-8),
+		Vector2(cx-shoulder_half*0.42,shoulder_y-18),
+		Vector2(cx+shoulder_half*0.42,shoulder_y-18),
+		Vector2(cx+shoulder_half*0.78,shoulder_y-8),
+		Vector2(cx+shoulder_half,shoulder_y+16),
+		Vector2(cx+waist_half,torso_bottom),
+		Vector2(cx-waist_half,torso_bottom),
 	])
-	draw_colored_polygon(torso, Color(0.035,0.13,0.16,0.98))
-	draw_polyline(PackedVector2Array([torso[0],torso[1],torso[2],torso[3],torso[4],torso[5],torso[0]]), Color(accent.r,accent.g,accent.b,0.72), 1.7)
+	draw_colored_polygon(torso, Color("07171E"))
+	draw_polyline(PackedVector2Array([torso[0],torso[1],torso[2],torso[3],torso[4],torso[5],torso[6],torso[7],torso[0]]),Color(accent.r,accent.g,accent.b,0.72),1.8)
 
+	# Jersey side panels and shoulder lighting.
+	var left_panel := PackedVector2Array([
+		Vector2(cx-shoulder_half,shoulder_y+16),
+		Vector2(cx-shoulder_half*0.58,shoulder_y-10),
+		Vector2(cx-waist_half*0.86,torso_bottom),
+		Vector2(cx-waist_half,torso_bottom),
+	])
+	var right_panel := PackedVector2Array([
+		Vector2(cx+shoulder_half,shoulder_y+16),
+		Vector2(cx+shoulder_half*0.58,shoulder_y-10),
+		Vector2(cx+waist_half*0.86,torso_bottom),
+		Vector2(cx+waist_half,torso_bottom),
+	])
+	draw_colored_polygon(left_panel,Color(accent.r*0.12,accent.g*0.22,accent.b*0.25,0.90))
+	draw_colored_polygon(right_panel,Color(accent.r*0.10,accent.g*0.19,accent.b*0.22,0.90))
+	draw_line(Vector2(cx-shoulder_half*0.73,shoulder_y+1),Vector2(cx-shoulder_half*0.30,shoulder_y+15),Color(accent.r,accent.g,accent.b,0.58),2.2)
+	draw_line(Vector2(cx+shoulder_half*0.73,shoulder_y+1),Vector2(cx+shoulder_half*0.30,shoulder_y+15),Color(accent.r,accent.g,accent.b,0.42),2.0)
+
+	# Neck and stylized face with one-sided light instead of a flat avatar face.
+	var neck_y: float = h * 0.39
+	draw_rect(Rect2(cx-9,neck_y,18,h*0.10),Color("705E55"),true)
+	var head_center := Vector2(cx,h*0.285)
+	var head_radius: float = minf(w,h) * 0.145 * hero_scale
+	draw_circle(head_center,head_radius,Color("8B7467"))
+	var face_shadow := PackedVector2Array([
+		Vector2(cx,head_center.y-head_radius),
+		Vector2(cx+head_radius,head_center.y-head_radius*0.38),
+		Vector2(cx+head_radius*0.82,head_center.y+head_radius*0.62),
+		Vector2(cx+head_radius*0.18,head_center.y+head_radius),
+		Vector2(cx,head_center.y+head_radius*0.90),
+	])
+	draw_colored_polygon(face_shadow,Color("5B4C46"))
+	draw_arc(head_center,head_radius,PI*0.62,PI*1.48,18,Color(0.92,0.78,0.70,0.20),1.2)
+
+	# Hair silhouette varies slightly per name.
+	var hair_peak: float = float(seed % 5) * 1.2
+	var hair := PackedVector2Array([
+		Vector2(cx-head_radius*0.96,head_center.y-head_radius*0.30),
+		Vector2(cx-head_radius*0.72,head_center.y-head_radius*0.93-hair_peak),
+		Vector2(cx-head_radius*0.18,head_center.y-head_radius*1.10),
+		Vector2(cx+head_radius*0.32,head_center.y-head_radius*1.02),
+		Vector2(cx+head_radius*0.83,head_center.y-head_radius*0.63),
+		Vector2(cx+head_radius*0.94,head_center.y-head_radius*0.18),
+		Vector2(cx+head_radius*0.38,head_center.y-head_radius*0.42),
+		Vector2(cx-head_radius*0.20,head_center.y-head_radius*0.38),
+	])
+	draw_colored_polygon(hair,Color("0A0F14"))
+
+	# Premium headset + mic.
+	draw_arc(head_center,head_radius*1.17,PI*1.03,PI*1.97,28,Color("18232C"),5.2)
+	draw_rect(Rect2(cx-head_radius*1.20,head_center.y-head_radius*0.05,7,head_radius*0.72),Color("111B23"),true)
+	draw_rect(Rect2(cx+head_radius*1.20-7,head_center.y-head_radius*0.05,7,head_radius*0.72),Color("111B23"),true)
+	draw_line(Vector2(cx+head_radius*1.13,head_center.y+head_radius*0.32),Vector2(cx+head_radius*1.44,head_center.y+head_radius*0.55),Color(accent.r,accent.g,accent.b,0.72),2.2)
+	draw_circle(Vector2(cx+head_radius*1.47,head_center.y+head_radius*0.57),2.5,Color(accent.r,accent.g,accent.b,0.82))
+
+	# Folded-arm silhouette gives the profile a less mannequin-like stance.
+	var arm_y: float = h * 0.67
 	var left_arm := PackedVector2Array([
-		Vector2(cx-36,shoulder_y+9), Vector2(cx-48,shoulder_y+25),
-		Vector2(cx-44,h*0.61), Vector2(cx-30,h*0.59), Vector2(cx-26,shoulder_y+22)
+		Vector2(cx-shoulder_half*0.84,shoulder_y+20),
+		Vector2(cx-shoulder_half*0.98,arm_y),
+		Vector2(cx-10,arm_y+28),
+		Vector2(cx+3,arm_y+15),
+		Vector2(cx-shoulder_half*0.58,arm_y-5),
 	])
 	var right_arm := PackedVector2Array([
-		Vector2(cx+36,shoulder_y+9), Vector2(cx+49,shoulder_y+24),
-		Vector2(cx+44,h*0.61), Vector2(cx+30,h*0.59), Vector2(cx+26,shoulder_y+22)
+		Vector2(cx+shoulder_half*0.84,shoulder_y+20),
+		Vector2(cx+shoulder_half*0.98,arm_y),
+		Vector2(cx+10,arm_y+28),
+		Vector2(cx-3,arm_y+15),
+		Vector2(cx+shoulder_half*0.58,arm_y-5),
 	])
-	draw_colored_polygon(left_arm, Color(0.035,0.11,0.14,1.0))
-	draw_colored_polygon(right_arm, Color(0.035,0.11,0.14,1.0))
+	draw_colored_polygon(left_arm,Color("0B2028"))
+	draw_colored_polygon(right_arm,Color("091C24"))
+	draw_line(Vector2(cx-shoulder_half*0.88,arm_y),Vector2(cx-4,arm_y+23),Color(accent.r,accent.g,accent.b,0.18),1.3)
+	draw_line(Vector2(cx+shoulder_half*0.88,arm_y),Vector2(cx+4,arm_y+23),Color(accent.r,accent.g,accent.b,0.14),1.3)
 
-	draw_rect(Rect2(cx-7, h*0.30, 14, 16), Color("8C7567"), true)
-	draw_circle(Vector2(cx,h*0.245), 23.0, Color("9A8171"))
-	var hair_shift: float = float(seed % 6)
-	var hair := PackedVector2Array([
-		Vector2(cx-22,h*0.235), Vector2(cx-17,h*0.185-hair_shift*0.2),
-		Vector2(cx-4,h*0.166), Vector2(cx+12,h*0.176),
-		Vector2(cx+22,h*0.214), Vector2(cx+19,h*0.242),
-		Vector2(cx-20,h*0.242)
-	])
-	draw_colored_polygon(hair, Color("12171D"))
-
-	draw_arc(Vector2(cx,h*0.235), 26.0, PI*1.02, PI*1.98, 24, Color(0.12,0.16,0.20,1.0), 4.0)
-	draw_rect(Rect2(cx-28,h*0.235,6,19), Color(0.06,0.10,0.12,1.0), true)
-	draw_rect(Rect2(cx+22,h*0.235,6,19), Color(0.06,0.10,0.12,1.0), true)
-	draw_line(Vector2(cx+26,h*0.252), Vector2(cx+35,h*0.274), Color(accent.r,accent.g,accent.b,0.58), 2.0)
-
-	draw_line(Vector2(cx-18,h*0.43), Vector2(cx+18,h*0.43), Color(accent.r,accent.g,accent.b,0.48), 2.4)
-	draw_string(FONT, Vector2(cx-25,h*0.52), "TSK", HORIZONTAL_ALIGNMENT_CENTER, 50, 14, Color(0.90,0.96,1.0,0.86))
+	# Jersey crest / sponsor lockup.
+	var crest_y: float = h * 0.55
+	draw_rect(Rect2(cx-w*0.13,crest_y,w*0.26,2.4),Color(accent.r,accent.g,accent.b,0.62),true)
+	draw_string(FONT,Vector2(cx-w*0.18,h*0.63),"TSK",HORIZONTAL_ALIGNMENT_CENTER,w*0.36,16,Color(0.92,0.97,1.0,0.92))
 	var number: int = 10 + int(seed % 89)
-	draw_string(FONT, Vector2(cx-21,h*0.60), "%02d" % number, HORIZONTAL_ALIGNMENT_CENTER, 42, 12, Color(accent.r,accent.g,accent.b,0.72))
+	draw_string(FONT,Vector2(cx-w*0.13,h*0.72),"%02d"%number,HORIZONTAL_ALIGNMENT_CENTER,w*0.26,10,Color(accent.r,accent.g,accent.b,0.62))
 
+	# Lower media-card footer on profile/scout cards.
 	if mode != "hero":
-		draw_rect(Rect2(8,h-37,w-16,29), Color(0.015,0.025,0.034,0.82), true)
-		draw_string(FONT, Vector2(15,h-20), player_name.to_upper(), HORIZONTAL_ALIGNMENT_LEFT, w*0.55, 9, Color(0.90,0.94,0.98,0.92))
+		var footer_y: float = h - 38.0
+		draw_rect(Rect2(7,footer_y,w-14,31),Color(0.008,0.016,0.024,0.90),true)
+		draw_line(Vector2(10,footer_y),Vector2(w-10,footer_y),Color(accent.r,accent.g,accent.b,0.16),1.0)
+		draw_string(FONT,Vector2(14,footer_y+20),player_name.to_upper(),HORIZONTAL_ALIGNMENT_LEFT,w*0.53,9,Color(0.92,0.96,1.0,0.94))
 		var info: String = "%d OVR  /  POT %d" % [overall,potential]
-		draw_string(FONT, Vector2(w*0.48,h-20), info, HORIZONTAL_ALIGNMENT_RIGHT, w*0.44, 8, Color(accent.r,accent.g,accent.b,0.72))
+		draw_string(FONT,Vector2(w*0.46,footer_y+20),info,HORIZONTAL_ALIGNMENT_RIGHT,w*0.45,8,Color(accent.r,accent.g,accent.b,0.76))
