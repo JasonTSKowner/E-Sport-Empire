@@ -76,14 +76,14 @@ func _v241_draw_pitch(arena: Rect2) -> void:
 			draw_line(p+Vector2(direction*2,-4),p+Vector2(direction*2,-17),Color(0.74,0.88,0.94,0.045),1.0)
 
 func _draw_drill_checkpoints_v26(arena: Rect2) -> void:
-	var checkpoints := [0.18,0.38,0.62,0.84]
+	var checkpoints: Array[float] = [0.18,0.38,0.62,0.84]
 	for i in range(checkpoints.size()):
-		var t := checkpoints[i]
+		var t: float = checkpoints[i]
 		var p := _ball_target_for_drill(t)
 		var h := _ball_height_for_drill(t)
 		var point := _v241_project_field(p,arena)-Vector2(0,h*56.0*_v241_depth_scale(p))
-		var reached := drill_phase>=t
-		var alpha := 0.26 if reached else 0.10
+		var reached: bool = drill_phase>=t
+		var alpha: float = 0.26 if reached else 0.10
 		draw_circle(point,5.0,Color(accent.r,accent.g,accent.b,alpha*0.28))
 		draw_arc(point,7.5,0,TAU,24,Color(accent.r,accent.g,accent.b,alpha),1.0)
 		draw_string(V26_FONT,point+Vector2(-8,3),str(i+1),HORIZONTAL_ALIGNMENT_CENTER,16,7,Color(0.88,0.96,1.0,alpha+0.18))
@@ -119,7 +119,8 @@ func _v241_draw_guides(arena: Rect2) -> void:
 	draw_arc(target,7.0*s,0,TAU,28,Color(accent.r,accent.g,accent.b,0.15),1.2)
 
 func _draw_future_ghosts_v26(arena: Rect2) -> void:
-	for step in [0.16,0.31]:
+	var ghost_steps: Array[float] = [0.16,0.31]
+	for step: float in ghost_steps:
 		var t := minf(0.999,drill_phase+step)
 		var p := _car_target_for_drill(t)
 		var center := _v241_project_field(p,arena)
