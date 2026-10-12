@@ -1,20 +1,20 @@
-name: Build Android APK v2.5
+name: Build Android APK v2.6
 
 on:
   push:
-    branches: [v2.4-visual-rebuild]
+    branches: [v2.6-extreme-visual-polish]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: android-build-v25-${{ github.ref }}
+  group: android-build-v26-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   export-android:
-    name: Godot 4 Android v2.5
+    name: Godot 4 Android v2.6
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -78,7 +78,7 @@ jobs:
       - name: Run ranked and mobile smoke test
         shell: bash
         run: |
-          sed -i 's/AppConfigRef.VERSION.begins_with("2.0.")/AppConfigRef.VERSION.begins_with("2.5.")/' tests/smoke_test.gd
+          sed -i 's/AppConfigRef.VERSION.begins_with("2.0.")/AppConfigRef.VERSION.begins_with("2.6.")/' tests/smoke_test.gd
           timeout --signal=TERM 45s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/smoke_test.gd
@@ -86,7 +86,7 @@ jobs:
       - name: Run v2.2 compatibility smoke test
         shell: bash
         run: |
-          sed -i 's/\["2.2.0", "2.3.0"\]/["2.2.0", "2.3.0", "2.4.0", "2.4.3", "2.5.0"]/' tests/v22_smoke_test.gd
+          sed -i 's/\["2.2.0", "2.3.0"\]/["2.2.0", "2.3.0", "2.4.0", "2.4.3", "2.5.0", "2.6.0"]/' tests/v22_smoke_test.gd
           timeout --signal=TERM 45s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v22_smoke_test.gd
@@ -94,8 +94,8 @@ jobs:
       - name: Run v2.3 compatibility smoke test
         shell: bash
         run: |
-          sed -i 's/ChangelogData.CURRENT_VERSION == "2.3.0"/ChangelogData.CURRENT_VERSION in ["2.3.0", "2.4.0", "2.4.3", "2.5.0"]/' tests/v23_smoke_test.gd
-          sed -i 's/AppConfig.VERSION.begins_with("2.3.")/AppConfig.VERSION.begins_with("2.5.")/' tests/v23_smoke_test.gd
+          sed -i 's/ChangelogData.CURRENT_VERSION == "2.3.0"/ChangelogData.CURRENT_VERSION in ["2.3.0", "2.4.0", "2.4.3", "2.5.0", "2.6.0"]/' tests/v23_smoke_test.gd
+          sed -i 's/AppConfig.VERSION.begins_with("2.3.")/AppConfig.VERSION.begins_with("2.6.")/' tests/v23_smoke_test.gd
           timeout --signal=TERM 60s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v23_smoke_test.gd
@@ -107,12 +107,21 @@ jobs:
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
             --headless --path . --script res://tests/v24_visual_smoke_test.gd
 
-      - name: Run v2.5 gameplay presentation smoke test
+      - name: Run v2.5 gameplay compatibility smoke test
+        shell: bash
+        run: |
+          sed -i 's/AppConfig.VERSION.begins_with("2.5.")/AppConfig.VERSION.begins_with("2.6.")/' tests/v25_gameplay_presentation_smoke_test.gd
+          sed -i 's/ChangelogData.CURRENT_VERSION == "2.5.0"/ChangelogData.CURRENT_VERSION == "2.6.0"/' tests/v25_gameplay_presentation_smoke_test.gd
+          timeout --signal=TERM 60s \
+            /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
+            --headless --path . --script res://tests/v25_gameplay_presentation_smoke_test.gd
+
+      - name: Run v2.6 extreme visual smoke test
         shell: bash
         run: |
           timeout --signal=TERM 60s \
             /tmp/godot-runtime/Godot_v4.7.2-stable_linux.x86_64 \
-            --headless --path . --script res://tests/v25_gameplay_presentation_smoke_test.gd
+            --headless --path . --script res://tests/v26_extreme_visual_smoke_test.gd
 
       - name: Capture mobile UI reference screens
         continue-on-error: true
@@ -127,7 +136,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: E-Sport-Empire-v2.5-UI-Captures
+          name: E-Sport-Empire-v2.6-UI-Captures
           path: build/ui-captures/*.png
           if-no-files-found: ignore
           retention-days: 7
@@ -162,7 +171,7 @@ jobs:
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: E-Sport-Empire-v2.5-Android
+          name: E-Sport-Empire-v2.6-Android
           path: build/**/*.apk
           if-no-files-found: error
           retention-days: 30
