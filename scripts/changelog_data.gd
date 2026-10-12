@@ -1,9 +1,27 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.5.0"
+const CURRENT_VERSION := "2.5.1"
 
 const ENTRIES := [
+	{
+		"version": "2.5.1",
+		"title": "PREMIUM REBUILD",
+		"date": "12 OCT 2026",
+		"items": [
+			"Home wurde zu einer echten Season-Hero-Ansicht mit Spielerportrait, Rank-Badge und klarer Hauptaktion umgebaut.",
+			"Ranked nutzt eine größere Competitive-Stage mit stärkerer Arena-Atmosphäre und weniger Dashboard-Optik.",
+			"Team- und Scout-Ansichten verwenden neue vollflächige Player Cards statt formularartiger Datenblöcke.",
+			"Player Cards zeigen OVR, Potenzial, Esports-Silhouette, Kernstats, Rotation, Consistency und Boost-Control in einer gemeinsamen visuellen Fläche.",
+			"Der Vereinsbereich besitzt jetzt ein sichtbares Club HQ mit eigenen Modulen für HQ, Performance, Scouting, Analytics und Content.",
+			"Anlagen-Level verändern die dargestellten HQ-Module und geben Vereinsfortschritt damit erstmals sichtbare Form.",
+			"Training zeigt keine €0-Käufe mehr: normale Sessions erscheinen als Fokus-Drills und bleiben kostenlos.",
+			"Match- und Training-Autos erhielten Chassis-, Dach-, Rad-, Glas-, Licht-, Schatten- und mehrschichtige Boost-Details.",
+			"Ballhöhe wurde mit stärkeren Bodenschatten, Höhenlinie, Panel-Details und größerer Tiefenskalierung deutlich lesbarer.",
+			"Gameplay-Flächen wurden weiter vergrößert; Mechanical Setups und Rotationen laufen langsamer und lesbarer.",
+			"Alle Mechanics, Team-Combos, Failure States, Mastery, Setup/WLAN, Backup und Progressionssysteme bleiben erhalten.",
+		],
+	},
 	{
 		"version": "2.5.0",
 		"title": "GAMEPLAY PRESENTATION",
@@ -94,7 +112,6 @@ const ENTRIES := [
 		],
 	},
 ]
-
 
 static func latest() -> Dictionary:
 	return ENTRIES[0].duplicate(true)
