@@ -1,9 +1,26 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.5.0"
+const CURRENT_VERSION := "2.6.0"
 
 const ENTRIES := [
+	{
+		"version": "2.6.0",
+		"title": "EXTREME VISUAL POLISH",
+		"date": "12 OCT 2026",
+		"items": [
+			"Home, Ranked, Team, Scout und Verein verwenden jetzt eigene visuelle Welten statt denselben dunklen Panel-Stil.",
+			"Neue Stadion-, Player-Bay- und Organisation-HQ-Stages geben den Hauptscreens deutlich mehr räumliche Identität.",
+			"Spielerprofile zeigen eine große Esports-Spielerpräsentation mit Jersey, Headset, Podium und Performance-Radar.",
+			"Scouting nutzt visuellere Prospect-Cards mit Spielerpräsentation, OVR, Potenzial und klarerer Verpflichtungsaktion.",
+			"Match-Gameplay besitzt eine größere Broadcast-Stage, stärkeren Kamerafokus, Tiefensortierung, Arena-Wände und LED-Boards.",
+			"Ballwege zeigen längere Flugkurven, Kontaktpunkte, Landezonen und stärkere Höhenwirkung statt schneller Positionssprünge.",
+			"1st-, 2nd- und 3rd-Man-Rollen werden als Press-, Read- und Safety-Rotation deutlich lesbarer dargestellt.",
+			"Training zeigt nummerierte Drill-Checkpoints, Ghost-Positionen, Mechanic-Sequenzen und klarere Fahrzeug- und Ballpfade.",
+			"Psycho-, Reset-, Air-Dribble-, Redirect-, Ceiling-, Pinch- und Defense-Drills besitzen eigene sichtbare Phasen.",
+			"Alle Mechanics, Team-Combos, Mastery-, Setup/WLAN-, Backup-, Changelog- und Progressionssysteme bleiben erhalten.",
+		],
+	},
 	{
 		"version": "2.5.0",
 		"title": "GAMEPLAY PRESENTATION",
@@ -94,7 +111,6 @@ const ENTRIES := [
 		],
 	},
 ]
-
 
 static func latest() -> Dictionary:
 	return ENTRIES[0].duplicate(true)
