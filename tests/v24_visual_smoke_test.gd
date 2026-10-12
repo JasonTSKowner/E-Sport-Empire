@@ -19,8 +19,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	print("V2.4 compatibility 1/5: release metadata and shell compile")
-	_check(AppConfig.VERSION.begins_with("2.4.") or AppConfig.VERSION.begins_with("2.5."), "v2.4+ app version")
-	_check(ChangelogData.CURRENT_VERSION.begins_with("2.4.") or ChangelogData.CURRENT_VERSION.begins_with("2.5."), "v2.4+ changelog version")
+	_check(AppConfig.VERSION.begins_with("2.4.") or AppConfig.VERSION.begins_with("2.5.") or AppConfig.VERSION.begins_with("2.6."), "v2.4+ app version")
+	_check(ChangelogData.CURRENT_VERSION.begins_with("2.4.") or ChangelogData.CURRENT_VERSION.begins_with("2.5.") or ChangelogData.CURRENT_VERSION.begins_with("2.6."), "v2.4+ changelog version")
 	var shell := ShellV241.new()
 	_check(shell != null, "v2.4 cinematic shell compiles")
 	shell.free()
