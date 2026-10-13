@@ -33,7 +33,6 @@ func _v241_draw_backdrop(arena: Rect2) -> void:
 		var x := 8.0 + float(i) * (size.x - 16.0) / 19.0
 		var a := 0.07 + 0.035 * sin(animation_time * 0.9 + float(i) * 1.21)
 		draw_rect(Rect2(x, horizon_y + float(i % 2) * 2.0, 8.0, 1.4), Color(accent.r,accent.g,accent.b,a), true)
-	# Stronger focus vignette without hiding the arena.
 	draw_rect(Rect2(0, 0, 8, size.y), Color(0,0,0,0.20), true)
 	draw_rect(Rect2(size.x - 8, 0, 8, size.y), Color(0,0,0,0.20), true)
 
@@ -47,15 +46,14 @@ func _v241_draw_car(arena: Rect2) -> void:
 		dir = Vector2.UP
 	var side := Vector2(-dir.y, dir.x)
 	var s := _v241_depth_scale(car_position) * 1.20
-	# Extra shell details make the training car read like a vehicle, not a marker.
 	draw_line(center + dir * 8.0 * s, center + dir * 16.0 * s, Color(0.92,0.98,1.0,0.20), 1.1 * s)
 	draw_line(center - dir * 8.5 * s + side * 6.0 * s, center - dir * 8.5 * s - side * 6.0 * s, Color(accent.r,accent.g,accent.b,0.64), 2.0 * s)
 	for wheel_offset in [Vector2(-6.0,-9.0), Vector2(6.5,-9.0), Vector2(-6.0,9.0), Vector2(6.5,9.0)]:
-		var wp := center + dir * wheel_offset.x * s + side * wheel_offset.y * s
+		var wp: Vector2 = center + dir * wheel_offset.x * s + side * wheel_offset.y * s
 		draw_circle(wp, 1.1 * s, Color(0.76,0.84,0.90,0.66))
 	if car_velocity.length() > 0.10:
 		for lane in [-1.0, 1.0]:
-			var streak := center - dir * 14.0 * s + side * lane * 7.0 * s
+			var streak: Vector2 = center - dir * 14.0 * s + side * float(lane) * 7.0 * s
 			draw_line(streak, streak - dir * 22.0 * s, Color(accent.r,accent.g,accent.b,0.13), 2.0 * s)
 
 func _v241_draw_ball(arena: Rect2) -> void:
@@ -67,5 +65,4 @@ func _v241_draw_ball(arena: Rect2) -> void:
 
 func _draw_training_header() -> void:
 	super._draw_training_header()
-	# One small broadcast label replaces extra debug-style copy.
 	draw_string(V26_FONT, Vector2(size.x - 116.0, 24.0), "LIVE DRILL", HORIZONTAL_ALIGNMENT_RIGHT, 104.0, 7, Color(accent.r,accent.g,accent.b,0.72))
