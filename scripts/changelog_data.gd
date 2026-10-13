@@ -1,9 +1,24 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.5.0"
+const CURRENT_VERSION := "2.6.0"
 
 const ENTRIES := [
+	{
+		"version": "2.6.0",
+		"title": "PRESENTATION OVERHAUL",
+		"date": "13 OCT 2026",
+		"items": [
+			"Home wurde als deutlich größere Full-Hero-Fläche aufgebaut, damit die Startseite nicht mehr oben voll und unten leer wirkt.",
+			"Ranked bekommt eine dichtere Competitive-Stage mit größerem Rang-Fokus und weniger App-Dashboard-Gefühl.",
+			"Match-Kamera nutzt eine aggressivere Perspektive: nahe Autos größer, entfernte Autos kleiner und das Feld stärker in die Tiefe gezogen.",
+			"Autos besitzen zusätzliche Karosserie-Layer, Räder/Rims, Glas, Spoiler, Lichter und Motion-Streaks statt einfacher Marker-Silhouetten.",
+			"Ball, Bodenschatten und Flug-Höhe wurden für Mechanical Plays sichtbarer voneinander getrennt.",
+			"Training nutzt dieselbe stärkere Arena-Perspektive und erhält zusätzliche Fahrzeug- und Broadcast-Details.",
+			"Match-Playback ist weiter entschleunigt, damit Rotationen, Psycho-Setups, Redirects und Reset-Chains lesbar bleiben.",
+			"Mechanics, Team-Combos, Mastery, Setup/WLAN, Backup und alle Progressionssysteme aus v2.5 bleiben vollständig erhalten.",
+		],
+	},
 	{
 		"version": "2.5.0",
 		"title": "GAMEPLAY PRESENTATION",
