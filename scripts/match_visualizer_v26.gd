@@ -23,18 +23,14 @@ func _depth_scale(p: Vector2) -> float:
 
 func _draw_broadcast_backdrop(arena: Rect2) -> void:
 	super._draw_broadcast_backdrop(arena)
-	# Premium broadcast framing: score-rig silhouette, LED ribbon and vignette edges.
 	var horizon_y := arena.position.y + 72.0
 	draw_rect(Rect2(0.0, horizon_y - 2.0, size.x, 4.0), Color(0.62, 0.86, 0.96, 0.035), true)
 	for i in range(22):
 		var x := 6.0 + float(i) * (size.x - 12.0) / 21.0
 		var c := OUR_COLOR if i % 8 == 1 else THEIR_COLOR if i % 11 == 4 else Color(0.75, 0.84, 0.91, 1.0)
 		draw_rect(Rect2(x, horizon_y + 8.0 + float(i % 3) * 2.0, 7.0, 1.3), Color(c.r, c.g, c.b, 0.12), true)
-	var top_fade := PackedVector2Array([
-		Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, 72), Vector2(0, 48)
-	])
+	var top_fade := PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, 72), Vector2(0, 48)])
 	draw_colored_polygon(top_fade, Color(0.0, 0.0, 0.0, 0.16))
-	# Side vignette keeps attention on the play without covering the field.
 	draw_rect(Rect2(0, 0, 8, size.y), Color(0,0,0,0.20), true)
 	draw_rect(Rect2(size.x - 8, 0, 8, size.y), Color(0,0,0,0.20), true)
 
@@ -47,8 +43,6 @@ func _draw_projected_car(p: Vector2, velocity: Vector2, color: Color, role: Stri
 		dir = Vector2.UP
 	var side := Vector2(-dir.y, dir.x)
 	var s := _depth_scale(p) * (1.26 if active else 1.12)
-
-	# Ground contact and motion streaks.
 	var shadow := PackedVector2Array()
 	for i in range(29):
 		var a := TAU * float(i) / 28.0
@@ -56,61 +50,30 @@ func _draw_projected_car(p: Vector2, velocity: Vector2, color: Color, role: Stri
 	draw_colored_polygon(shadow, Color(0,0,0,0.38))
 	if velocity.length() > 0.10:
 		for lane in [-1.0, 1.0]:
-			var streak_from := center - dir * 14.0 * s + side * lane * 7.5 * s
+			var streak_from: Vector2 = center - dir * 14.0 * s + side * float(lane) * 7.5 * s
 			draw_line(streak_from, streak_from - dir * 23.0 * s, Color(color.r,color.g,color.b,0.12), 2.0 * s)
-
-	# Wheels with tire/rim/highlight layers.
 	for wheel_offset in [Vector2(-6.5,-9.5), Vector2(7.0,-9.5), Vector2(-6.5,9.5), Vector2(7.0,9.5)]:
-		var wp := center + dir * wheel_offset.x * s + side * wheel_offset.y * s
+		var wp: Vector2 = center + dir * wheel_offset.x * s + side * wheel_offset.y * s
 		draw_circle(wp, 3.8 * s, Color(0.008,0.011,0.015,0.99))
 		draw_circle(wp, 2.15 * s, Color(0.16,0.20,0.25,0.98))
 		draw_circle(wp, 0.85 * s, Color(0.72,0.82,0.88,0.66))
-
 	var nose := center + dir * 20.0 * s
 	var rear := center - dir * 13.0 * s
-	var body := PackedVector2Array([
-		nose,
-		center + dir * 12.0 * s + side * 7.4 * s,
-		center + dir * 5.0 * s + side * 9.6 * s,
-		center - dir * 6.0 * s + side * 8.2 * s,
-		rear + side * 5.6 * s,
-		rear - side * 5.6 * s,
-		center - dir * 6.0 * s - side * 8.2 * s,
-		center + dir * 5.0 * s - side * 9.6 * s,
-		center + dir * 12.0 * s - side * 7.4 * s,
-	])
-
+	var body := PackedVector2Array([nose,center + dir * 12.0 * s + side * 7.4 * s,center + dir * 5.0 * s + side * 9.6 * s,center - dir * 6.0 * s + side * 8.2 * s,rear + side * 5.6 * s,rear - side * 5.6 * s,center - dir * 6.0 * s - side * 8.2 * s,center + dir * 5.0 * s - side * 9.6 * s,center + dir * 12.0 * s - side * 7.4 * s])
 	if active:
 		draw_circle(center, 28.0 * s, Color(color.r,color.g,color.b,0.060))
 		draw_arc(center, 24.0 * s, -2.5, -0.5, 22, Color(color.r,color.g,color.b,0.34), 1.6)
 	elif support:
 		draw_arc(center, 22.0 * s, 0.0, TAU, 30, Color(color.r,color.g,color.b,0.20), 1.3)
-
-	# Lower body, upper shell and glass separate the silhouette into real surfaces.
 	draw_colored_polygon(body, Color(color.r * 0.24, color.g * 0.29, color.b * 0.33, 1.0))
 	draw_polyline(PackedVector2Array([body[0],body[1],body[2],body[3],body[4],body[5],body[6],body[7],body[8],body[0]]), Color(color.r,color.g,color.b,0.96), 2.1)
-	var upper := PackedVector2Array([
-		center + dir * 11.0 * s + side * 5.2 * s,
-		center + dir * 12.2 * s - side * 5.2 * s,
-		center + dir * 1.0 * s - side * 6.0 * s,
-		center - dir * 4.0 * s - side * 4.7 * s,
-		center - dir * 4.0 * s + side * 4.7 * s,
-		center + dir * 1.0 * s + side * 6.0 * s,
-	])
+	var upper := PackedVector2Array([center + dir * 11.0 * s + side * 5.2 * s,center + dir * 12.2 * s - side * 5.2 * s,center + dir * 1.0 * s - side * 6.0 * s,center - dir * 4.0 * s - side * 4.7 * s,center - dir * 4.0 * s + side * 4.7 * s,center + dir * 1.0 * s + side * 6.0 * s])
 	draw_colored_polygon(upper, Color(color.r * 0.43, color.g * 0.50, color.b * 0.55, 0.96))
-	var glass := PackedVector2Array([
-		center + dir * 8.5 * s + side * 4.3 * s,
-		center + dir * 9.0 * s - side * 4.3 * s,
-		center + dir * 0.6 * s - side * 4.8 * s,
-		center + dir * 0.6 * s + side * 4.8 * s,
-	])
+	var glass := PackedVector2Array([center + dir * 8.5 * s + side * 4.3 * s,center + dir * 9.0 * s - side * 4.3 * s,center + dir * 0.6 * s - side * 4.8 * s,center + dir * 0.6 * s + side * 4.8 * s])
 	draw_colored_polygon(glass, Color(0.58,0.80,0.91,0.46))
-	# Hood center crease + spoiler make the car less icon-like.
 	draw_line(center + dir * 9.0 * s, nose - dir * 2.0 * s, Color(0.86,0.95,1.0,0.20), 1.0 * s)
 	draw_line(rear + side * 7.0 * s, rear - side * 7.0 * s, Color(color.r,color.g,color.b,0.72), 2.1 * s)
 	draw_line(rear + dir * 2.0 * s + side * 5.5 * s, rear + dir * 2.0 * s - side * 5.5 * s, Color(1.0,0.20,0.28,0.68), 1.8 * s)
-
-	# Headlights and boost.
 	draw_circle(center + dir * 16.3 * s + side * 4.9 * s, 1.45 * s, Color(0.92,0.99,1.0,0.96))
 	draw_circle(center + dir * 16.3 * s - side * 4.9 * s, 1.45 * s, Color(0.92,0.99,1.0,0.96))
 	if velocity.length() > 0.07:
@@ -119,7 +82,6 @@ func _draw_projected_car(p: Vector2, velocity: Vector2, color: Color, role: Stri
 			var jet := rear + side * float(offset) * s
 			draw_line(jet, jet - dir * boost_len, Color(color.r,color.g,color.b,0.68), 3.3 * s)
 			draw_line(jet - dir * boost_len, jet - dir * (boost_len + 7.0 * s), Color(0.92,0.98,1.0,0.24), 1.4 * s)
-
 	if not role.is_empty():
 		var role_alpha := 0.98 if active else 0.70 if support else 0.36
 		draw_string(V26_FONT, center + Vector2(-25.0, -28.0 * s), role, HORIZONTAL_ALIGNMENT_CENTER, 50.0, 9, Color(0.92,0.98,1.0,role_alpha))
