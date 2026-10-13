@@ -18,8 +18,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	print("V2.5 1/5: release metadata")
-	_check(AppConfig.VERSION.begins_with("2.5."), "v2.5 app version")
-	_check(ChangelogData.CURRENT_VERSION == "2.5.0", "v2.5 changelog version")
+	_check(AppConfig.VERSION.begins_with("2.5.") or AppConfig.VERSION.begins_with("2.6."), "v2.5+ app version")
+	_check(ChangelogData.CURRENT_VERSION in ["2.5.0", "2.6.0"], "v2.5+ changelog version")
 
 	print("V2.5 2/5: match presentation")
 	var match_viz := MatchVizV25.new()
@@ -59,11 +59,11 @@ func _run() -> void:
 	_check(main_scene != null, "Main scene loads")
 	if main_scene != null:
 		var main := main_scene.instantiate()
-		_check(main != null, "Main scene instantiates with v2.5 shell")
+		_check(main != null, "Main scene instantiates with current shell")
 		main.free()
 
 	if failures.is_empty():
-		print("E-Sport Empire v2.5 gameplay presentation smoke test: PASS")
+		print("E-Sport Empire v2.5 gameplay presentation compatibility: PASS")
 		quit(0)
 	else:
 		for failure in failures:
