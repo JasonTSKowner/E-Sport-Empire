@@ -1,9 +1,25 @@
 class_name ChangelogData
 extends RefCounted
 
-const CURRENT_VERSION := "2.5.0"
+const CURRENT_VERSION := "2.6.0"
 
 const ENTRIES := [
+	{
+		"version": "2.6.0",
+		"title": "STAFF CONTROL",
+		"date": "13 OCT 2026",
+		"items": [
+			"Neues internes Staff-/Admin-Panel für Debug- und spätere serverbestätigte Staff-Sessions.",
+			"Rollenmodell mit Owner, Admin, Moderator, Support und QA sowie getrennten Berechtigungen.",
+			"Economy-Tools für Guthaben, Fans und Reputation sind auf Owner/Admin begrenzt.",
+			"Ranked-Tools können MMR und Placements kontrolliert für Tests anpassen.",
+			"Training-Recovery kann Müdigkeit und Fokus für QA-Tests zurücksetzen.",
+			"Save-Tools enthalten manuelles Speichern, Backup-Code und doppelt bestätigten Save-Reset.",
+			"Audit-Log zeigt Staff-Aktionen der aktuellen Session.",
+			"Debug-Builds erhalten lokalen Owner-Preview; Release-Builds zeigen ohne serverbestätigte Staff-Session kein Staff-Panel.",
+			"Produktive Moderationsaktionen sind vorbereitet, bleiben aber deaktiviert bis ein User-Backend verbunden ist.",
+		],
+	},
 	{
 		"version": "2.5.0",
 		"title": "GAMEPLAY PRESENTATION",
