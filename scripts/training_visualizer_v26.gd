@@ -63,6 +63,12 @@ func _v241_draw_ball(arena: Rect2) -> void:
 	var visual := ground - Vector2(0.0, ball_height * 50.0 * s)
 	draw_arc(visual, 15.0 * s, -0.45, 1.1, 16, Color(1.0,1.0,1.0,0.10), 1.0 * s)
 
-func _draw_training_header() -> void:
-	super._draw_training_header()
+func _v241_draw_header() -> void:
+	var mechanic := signature_label.to_upper() if not signature_label.is_empty() else drill_label.to_upper()
+	var category := str(focus_mechanic.get("category", "TRAINING")).to_upper() if not focus_mechanic.is_empty() else "TRAINING"
+	draw_string(V26_FONT, Vector2(12, 24), mechanic, HORIZONTAL_ALIGNMENT_LEFT, size.x - 128, 15, Color(0.94,0.97,1.0,0.96))
+	draw_string(V26_FONT, Vector2(12, 43), "%s  ·  %s" % [category, step_label], HORIZONTAL_ALIGNMENT_LEFT, size.x - 24, 8, Color(0.60,0.72,0.82,0.84))
 	draw_string(V26_FONT, Vector2(size.x - 116.0, 24.0), "LIVE DRILL", HORIZONTAL_ALIGNMENT_RIGHT, 104.0, 7, Color(accent.r,accent.g,accent.b,0.72))
+	var ratio := float(focus_remaining) / float(maxi(1, focus_limit))
+	draw_rect(Rect2(12, 50, size.x - 24, 3), Color(1,1,1,0.06), true)
+	draw_rect(Rect2(12, 50, (size.x - 24) * ratio, 3), accent, true)
