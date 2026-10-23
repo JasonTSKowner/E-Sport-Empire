@@ -78,8 +78,17 @@ jobs:
           unzip -q Godot_v4.3-stable_export_templates.tpz -d /tmp/godot_templates
           mkdir -p "$HOME/.local/share/godot/export_templates/4.3.stable"
           cp -a /tmp/godot_templates/templates/. "$HOME/.local/share/godot/export_templates/4.3.stable/"
-          printf '4.3.stable\n' > "$HOME/.local/share/godot/export_templates/4.3.stable/version.txt"
           godot --version
+
+      - name: Install Android Gradle build template
+        run: |
+          mkdir -p ClubDynasty_v0_1/android/plugins
+          mkdir -p ClubDynasty_v0_1/android/build
+          touch ClubDynasty_v0_1/android/build/.gdignore
+          printf '4.3.stable\n' > ClubDynasty_v0_1/android/.build_version
+          unzip -q "$HOME/.local/share/godot/export_templates/4.3.stable/android_source.zip" -d ClubDynasty_v0_1/android/build
+          test -f ClubDynasty_v0_1/android/build/gradlew
+          chmod +x ClubDynasty_v0_1/android/build/gradlew
 
       - name: Create debug signing key
         run: |
@@ -94,7 +103,7 @@ jobs:
       - name: Configure Godot Android paths
         run: |
           mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          cat > "$HOME/.config/godot/editor_settings-4.3.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
@@ -106,6 +115,7 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
+          cp "$HOME/.config/godot/editor_settings-4.3.tres" "$HOME/.config/godot/editor_settings-4.tres"
 
       - name: Create Android export preset
         run: |
@@ -130,7 +140,10 @@ jobs:
 
           custom_template/debug=""
           custom_template/release=""
-          gradle_build/use_gradle_build=false
+          gradle_build/use_gradle_build=true
+          gradle_build/export_format=0
+          gradle_build/min_sdk=""
+          gradle_build/target_sdk=""
           architectures/armeabi-v7a=false
           architectures/arm64-v8a=true
           architectures/x86=false
@@ -146,6 +159,9 @@ jobs:
           package/show_in_android_tv=false
           package/show_in_app_library=true
           package/show_as_launcher_app=true
+          launcher_icons/main_192x192=""
+          launcher_icons/adaptive_foreground_432x432=""
+          launcher_icons/adaptive_background_432x432=""
           graphics/opengl_debug=false
           xr_features/xr_mode=0
           screen/immersive_mode=true
@@ -156,6 +172,8 @@ jobs:
           user_data_backup/allow=true
           command_line/extra_args=""
           apk_expansion/enable=false
+          apk_expansion/SALT=""
+          apk_expansion/public_key=""
           permissions/custom_permissions=PackedStringArray()
           permissions/internet=false
           permissions/vibrate=false
@@ -175,7 +193,7 @@ jobs:
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
-          godot --headless --path ClubDynasty_v0_1 --export-debug Android "$GITHUB_WORKSPACE/build/ClubDynasty-v0.1.apk"
+          godot --headless --verbose --path ClubDynasty_v0_1 --export-debug Android "$GITHUB_WORKSPACE/build/ClubDynasty-v0.1.apk"
           test -s build/ClubDynasty-v0.1.apk
           ls -lh build/ClubDynasty-v0.1.apk
 
