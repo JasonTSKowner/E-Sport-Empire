@@ -26,6 +26,31 @@ jobs:
           unzip -q /tmp/clubdynasty-source.zip
           test -f ClubDynasty_v0_1/project.godot
 
+      - name: Fix strict GDScript types
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('ClubDynasty_v0_1/scripts/main.gd')
+          s = p.read_text()
+          replacements = {
+              'var elapsed := clamp(now - previous, 0, 28800)': 'var elapsed: int = clampi(now - previous, 0, 28800)',
+              'var ovr := clamp(base + randi_range(-4, 7), 55, 88)': 'var ovr: int = clampi(base + randi_range(-4, 7), 55, 88)',
+              'var potential := clamp(ovr + randi_range(3, 18) - max(0, age - 24), ovr, 94)': 'var potential: int = clampi(ovr + randi_range(3, 18) - maxi(0, age - 24), ovr, 94)',
+              'var pos := positions.pick_random()': 'var pos: String = str(positions.pick_random())',
+              'var atk := clamp(ovr + randi_range(-10, 10), 40, 92)': 'var atk: int = clampi(ovr + randi_range(-10, 10), 40, 92)',
+              'var pas := clamp(ovr + randi_range(-10, 10), 40, 92)': 'var pas: int = clampi(ovr + randi_range(-10, 10), 40, 92)',
+              'var pace := clamp(ovr + randi_range(-10, 10), 40, 94)': 'var pace: int = clampi(ovr + randi_range(-10, 10), 40, 94)',
+              'var deff := clamp(ovr + randi_range(-10, 10), 35, 92)': 'var deff: int = clampi(ovr + randi_range(-10, 10), 35, 92)',
+              'var phy := clamp(ovr + randi_range(-10, 10), 40, 92)': 'var phy: int = clampi(ovr + randi_range(-10, 10), 40, 92)',
+              'var count := min(11, players.size())': 'var count: int = mini(11, players.size())',
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'Missing expected source line: {old}')
+              s = s.replace(old, new)
+          p.write_text(s)
+          PY
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -141,7 +166,7 @@ jobs:
 
       - name: Import project and check scripts
         run: |
-          timeout 30s godot --headless --editor --path ClubDynasty_v0_1 --quit-after 1 || true
+          godot --headless --editor --path ClubDynasty_v0_1 --quit-after 1
 
       - name: Export installable APK
         env:
