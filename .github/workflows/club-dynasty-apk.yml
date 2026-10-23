@@ -53,7 +53,7 @@ jobs:
 
           project = Path('ClubDynasty_v0_1/project.godot')
           p = project.read_text()
-          android_texture_setting = 'rendering/textures/vram_compression/import_etc2_astc=true'
+          android_texture_setting = 'textures/vram_compression/import_etc2_astc=true'
           if android_texture_setting not in p:
               anchor = 'textures/default_filters/use_nearest_mipmap_filter=false'
               if anchor not in p:
