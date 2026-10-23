@@ -16,10 +16,14 @@ jobs:
       - name: Checkout build branch
         uses: actions/checkout@v4
 
-      - name: Unpack Club Dynasty source
+      - name: Rebuild and unpack Club Dynasty source
         run: |
-          rm -rf ClubDynasty_v0_1
-          unzip -q club_dynasty_source.zip
+          rm -rf ClubDynasty_v0_1 /tmp/clubdynasty-source.*
+          cat club_dynasty_source.b64.part00 club_dynasty_source.b64.part01 club_dynasty_source.b64.part02 club_dynasty_source.b64.part03 > /tmp/clubdynasty-source.b64
+          base64 --decode /tmp/clubdynasty-source.b64 > /tmp/clubdynasty-source.zip
+          echo "922a72b574ebea91db4464b21f3cc638aeb72ce23fa8bdb4e04e82c5c0312b48  /tmp/clubdynasty-source.zip" | sha256sum -c -
+          test "$(stat -c%s /tmp/clubdynasty-source.zip)" = "10028"
+          unzip -q /tmp/clubdynasty-source.zip
           test -f ClubDynasty_v0_1/project.godot
 
       - name: Set up Java 17
