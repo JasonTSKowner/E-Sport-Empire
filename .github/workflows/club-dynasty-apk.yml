@@ -26,12 +26,13 @@ jobs:
           unzip -q /tmp/clubdynasty-source.zip
           test -f ClubDynasty_v0_1/project.godot
 
-      - name: Fix strict GDScript types
+      - name: Fix Godot Android project compatibility
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('ClubDynasty_v0_1/scripts/main.gd')
-          s = p.read_text()
+
+          script = Path('ClubDynasty_v0_1/scripts/main.gd')
+          s = script.read_text()
           replacements = {
               'var elapsed := clamp(now - previous, 0, 28800)': 'var elapsed: int = clampi(now - previous, 0, 28800)',
               'var ovr := clamp(base + randi_range(-4, 7), 55, 88)': 'var ovr: int = clampi(base + randi_range(-4, 7), 55, 88)',
@@ -48,7 +49,17 @@ jobs:
               if old not in s:
                   raise SystemExit(f'Missing expected source line: {old}')
               s = s.replace(old, new)
-          p.write_text(s)
+          script.write_text(s)
+
+          project = Path('ClubDynasty_v0_1/project.godot')
+          p = project.read_text()
+          android_texture_setting = 'rendering/textures/vram_compression/import_etc2_astc=true'
+          if android_texture_setting not in p:
+              anchor = 'textures/default_filters/use_nearest_mipmap_filter=false'
+              if anchor not in p:
+                  raise SystemExit('Could not locate [rendering] texture settings in project.godot')
+              p = p.replace(anchor, anchor + '\n' + android_texture_setting)
+          project.write_text(p)
           PY
 
       - name: Set up Java 17
