@@ -32,13 +32,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android packages
+      - name: Use runner Android SDK
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+          SDKMANAGER=/usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "build-tools;34.0.0" "platforms;android-34"
 
       - name: Install Godot 4.3 and export templates
         run: |
@@ -55,6 +56,16 @@ jobs:
           printf '4.3.stable\n' > "$HOME/.local/share/godot/export_templates/4.3.stable/version.txt"
           godot --version
 
+      - name: Create debug signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$GITHUB_WORKSPACE/clubdynasty-debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Android Debug,O=Club Dynasty,C=DE" \
+            -keyalg RSA -keysize 2048 -validity 10000
+
       - name: Configure Godot Android paths
         run: |
           mkdir -p "$HOME/.config/godot"
@@ -65,6 +76,10 @@ jobs:
           export/android/android_sdk_path = "$ANDROID_HOME"
           export/android/java_sdk_path = "$JAVA_HOME"
           export/android/shutdown_adb_on_exit = true
+          export/android/force_system_user = false
+          export/android/debug_keystore = "$GITHUB_WORKSPACE/clubdynasty-debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
           EOF
 
       - name: Create Android export preset
@@ -123,16 +138,6 @@ jobs:
           xr_features/hand_tracking_frequency=0
           xr_features/passthrough=0
           EOF
-
-      - name: Create debug signing key
-        run: |
-          keytool -genkeypair -v \
-            -keystore "$GITHUB_WORKSPACE/clubdynasty-debug.keystore" \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -dname "CN=Android Debug,O=Club Dynasty,C=DE" \
-            -keyalg RSA -keysize 2048 -validity 10000
 
       - name: Import project and check scripts
         run: |
